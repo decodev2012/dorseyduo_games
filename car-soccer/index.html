@@ -1,0 +1,2998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Car Soccer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a1a;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    overflow: hidden;
+  }
+  #gameContainer {
+    position: relative;
+    width: 800px;
+    height: 560px;
+  }
+  canvas {
+    display: block;
+    border-radius: 4px;
+  }
+  #menu {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: rgba(5, 5, 20, 0.95);
+    z-index: 10;
+  }
+  #menu.hidden { display: none; }
+  #menu h1 {
+    font-size: 52px;
+    color: #fff;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    text-shadow: 0 0 20px rgba(0,150,255,0.5), 0 0 40px rgba(255,100,0,0.3);
+  }
+  #menu p.subtitle {
+    color: #889;
+    font-size: 14px;
+    margin-bottom: 40px;
+    letter-spacing: 2px;
+  }
+  #menu button {
+    display: block;
+    width: 240px;
+    padding: 14px 0;
+    margin: 8px 0;
+    font-size: 18px;
+    font-weight: bold;
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 6px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+  }
+  .btn-ai {
+    background: linear-gradient(135deg, #1a5cb0, #2080e0);
+    color: #fff;
+  }
+  .btn-ai:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(30,120,220,0.5); }
+  .btn-2v2 {
+    background: linear-gradient(135deg, #7a1ab0, #a040e0);
+    color: #fff;
+  }
+  .btn-2v2:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(160,60,220,0.5); }
+  #btn2P {
+    background: linear-gradient(135deg, #b05a1a, #e07820);
+    color: #fff;
+  }
+  #btn2P:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(220,120,30,0.5); }
+
+  /* AI difficulty submenu */
+  #aiMenu {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: rgba(5, 5, 20, 0.95);
+    z-index: 10;
+  }
+  #aiMenu.hidden { display: none; }
+  #aiMenu h2 {
+    font-size: 28px; color: #fff; margin-bottom: 24px;
+    text-transform: uppercase; letter-spacing: 3px;
+  }
+  #aiMenu button {
+    display: block; width: 240px; padding: 14px 0; margin: 8px 0;
+    font-size: 18px; font-weight: bold;
+    border: 2px solid rgba(255,255,255,0.2); border-radius: 6px;
+    cursor: pointer; letter-spacing: 1px; transition: all 0.2s; color: #fff;
+  }
+  .btn-ai-ez {
+    background: linear-gradient(135deg, #1a7a3a, #28a050);
+  }
+  .btn-ai-ez:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(40,160,80,0.5); }
+  .btn-ai-pro {
+    background: linear-gradient(135deg, #1a5cb0, #2080e0);
+  }
+  .btn-ai-pro:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(30,120,220,0.5); }
+  .btn-ai-imp {
+    background: linear-gradient(135deg, #a01530, #d02040);
+  }
+  .btn-ai-imp:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(210,40,60,0.5); }
+  #btnAIBack {
+    background: linear-gradient(135deg, #444, #666); margin-top: 16px;
+  }
+  #btnAIBack:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(100,100,100,0.5); }
+
+  /* 2-Player submenu */
+  #twoPlayerMenu {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: rgba(5, 5, 20, 0.95);
+    z-index: 10;
+  }
+  #twoPlayerMenu.hidden { display: none; }
+  #twoPlayerMenu h2 {
+    font-size: 28px; color: #fff; margin-bottom: 24px;
+    text-transform: uppercase; letter-spacing: 3px;
+  }
+  #twoPlayerMenu button {
+    display: block; width: 240px; padding: 14px 0; margin: 8px 0;
+    font-size: 18px; font-weight: bold;
+    border: 2px solid rgba(255,255,255,0.2); border-radius: 6px;
+    cursor: pointer; letter-spacing: 1px; transition: all 0.2s; color: #fff;
+  }
+  .btn-2p-1v1 {
+    background: linear-gradient(135deg, #b05a1a, #e07820);
+  }
+  .btn-2p-1v1:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(220,120,30,0.5); }
+  .btn-2p-coop {
+    background: linear-gradient(135deg, #1a7a3a, #28a050);
+  }
+  .btn-2p-coop:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(40,160,80,0.5); }
+  .btn-2p-mixed {
+    background: linear-gradient(135deg, #1a7ab0, #20a0c0);
+  }
+  .btn-2p-mixed:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(30,160,200,0.5); }
+  #btn2PBack {
+    background: linear-gradient(135deg, #444, #666); margin-top: 16px;
+  }
+  #btn2PBack:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(100,100,100,0.5); }
+  #menu .controls {
+    margin-top: 36px;
+    color: #667;
+    font-size: 12px;
+    text-align: center;
+    line-height: 1.8;
+  }
+  #menu .controls span { color: #99a; }
+
+  /* Customize panel */
+  #customize {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: rgba(5, 5, 20, 0.97);
+    z-index: 11;
+  }
+  #customize.hidden { display: none; }
+  #customize h2 {
+    font-size: 32px;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    margin-bottom: 24px;
+  }
+  .cust-columns {
+    display: flex;
+    gap: 50px;
+    margin-bottom: 28px;
+  }
+  .cust-col {
+    width: 280px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 18px 20px;
+  }
+  .cust-col.dimmed {
+    opacity: 0.35;
+    pointer-events: none;
+  }
+  .cust-col h3 {
+    font-size: 16px;
+    color: #bbc;
+    margin-bottom: 14px;
+    text-align: center;
+    letter-spacing: 1px;
+  }
+  .cust-row {
+    margin-bottom: 14px;
+  }
+  .cust-row label {
+    display: block;
+    font-size: 12px;
+    color: #778;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .cust-swatches {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .swatch {
+    width: 22px;
+    height: 22px;
+    border-radius: 3px;
+    border: 2px solid rgba(255,255,255,0.1);
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.15s;
+  }
+  .swatch:hover { transform: scale(1.15); }
+  .swatch.selected { border-color: #fff; box-shadow: 0 0 8px rgba(255,255,255,0.4); }
+  .swatch-text {
+    width: auto;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: bold;
+    color: #ccd;
+    background: rgba(255,255,255,0.07);
+    text-align: center;
+  }
+  .swatch-text.selected { color: #fff; background: rgba(255,255,255,0.18); }
+  #btnStart, #btnCustNext, #btnLevelStart {
+    display: block;
+    width: 240px;
+    padding: 14px 0;
+    font-size: 18px;
+    font-weight: bold;
+    background: linear-gradient(135deg, #2a8a3a, #40c050);
+    color: #fff;
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 6px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+  }
+  #btnStart:hover, #btnCustNext:hover, #btnLevelStart:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(60,180,70,0.5); }
+  #btnBack, #btnLevelBack {
+    margin-top: 10px;
+    background: none;
+    border: none;
+    color: #667;
+    font-size: 13px;
+    cursor: pointer;
+    letter-spacing: 1px;
+  }
+  #btnBack:hover, #btnLevelBack:hover { color: #aab; }
+  #levelSelect {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: rgba(5, 5, 20, 0.97);
+    z-index: 12;
+    text-align: center;
+  }
+  #levelSelect.hidden { display: none; }
+  #levelSelect h2 {
+    margin: 0 0 18px;
+    font-size: 22px;
+    color: #dde;
+    letter-spacing: 2px;
+  }
+  .level-cards {
+    display: flex;
+    justify-content: center;
+    gap: 18px;
+    margin-bottom: 22px;
+  }
+  .level-card {
+    width: 180px;
+    padding: 12px 10px;
+    background: rgba(255,255,255,0.04);
+    border: 2px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .level-card:hover { border-color: rgba(255,255,255,0.3); }
+  .level-card.selected { border-color: #40c050; box-shadow: 0 0 12px rgba(60,180,70,0.4); }
+  .level-card canvas {
+    display: block;
+    margin: 0 auto 8px;
+    border-radius: 4px;
+    background: #0e0e20;
+  }
+  .level-card span {
+    display: block;
+    font-size: 14px;
+    color: #bbc;
+    letter-spacing: 1px;
+    font-weight: bold;
+  }
+  .btn-random {
+    margin-top: 10px;
+    padding: 6px 18px;
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    background: rgba(255,255,255,0.08);
+    color: #aab;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-random:hover { background: rgba(255,255,255,0.15); color: #fff; }
+  .car-preview {
+    display: block;
+    margin: 0 auto 14px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+</style>
+</head>
+<body>
+<div id="gameContainer">
+  <canvas id="canvas" width="800" height="560"></canvas>
+  <div id="menu">
+    <h1>Car Soccer</h1>
+    <p class="subtitle">2D Car Soccer</p>
+    <button id="btnAI" class="btn-ai">VS AI</button>
+    <button id="btn2v2" class="btn-2v2">2V2</button>
+    <button id="btn2P">2 PLAYER</button>
+    <div class="controls">
+      <span>Player 1:</span> WASD + Left Shift (boost)<br>
+      <span>Player 2:</span> Arrow Keys + Right Shift / Space (boost)
+    </div>
+  </div>
+  <div id="aiMenu" class="hidden">
+    <h2>Select Difficulty</h2>
+    <button id="btnDiffEz" class="btn-ai-ez">BEGINNER</button>
+    <button id="btnDiffPro" class="btn-ai-pro">PRO</button>
+    <button id="btnDiffImp" class="btn-ai-imp">IMPOSSIBLE</button>
+    <button id="btnAIBack">BACK</button>
+  </div>
+  <div id="twoPlayerMenu" class="hidden">
+    <h2>2 Player Mode</h2>
+    <button id="btn2P1v1" class="btn-2p-1v1">1V1</button>
+    <button id="btn2PCoop" class="btn-2p-coop">CO-OP VS BOTS</button>
+    <button id="btn2PMixed" class="btn-2p-mixed">MIXED 2V2</button>
+    <button id="btn2PBack">BACK</button>
+  </div>
+  <div id="customize" class="hidden">
+    <h2>Customize</h2>
+    <div class="cust-columns">
+      <div class="cust-col" id="custP1">
+        <h3>Player 1</h3>
+        <canvas id="previewP1" class="car-preview" width="140" height="70"></canvas>
+        <div class="cust-row"><label>Body</label><div class="cust-swatches" id="typeP1"></div></div>
+        <div class="cust-row"><label>Car Color</label><div class="cust-swatches" id="bodyP1"></div></div>
+        <div class="cust-row"><label>Wheels</label><div class="cust-swatches" id="wheelP1"></div></div>
+        <div class="cust-row"><label>Boost</label><div class="cust-swatches" id="boostP1"></div></div>
+        <div class="cust-row"><label>Topper</label><div class="cust-swatches" id="hatP1"></div></div>
+        <button class="btn-random" onclick="sfxClick(); randomizePlayer(0)">RANDOM</button>
+      </div>
+      <div class="cust-col" id="custP2">
+        <h3>Player 2</h3>
+        <canvas id="previewP2" class="car-preview" width="140" height="70"></canvas>
+        <div class="cust-row"><label>Body</label><div class="cust-swatches" id="typeP2"></div></div>
+        <div class="cust-row"><label>Car Color</label><div class="cust-swatches" id="bodyP2"></div></div>
+        <div class="cust-row"><label>Wheels</label><div class="cust-swatches" id="wheelP2"></div></div>
+        <div class="cust-row"><label>Boost</label><div class="cust-swatches" id="boostP2"></div></div>
+        <div class="cust-row"><label>Topper</label><div class="cust-swatches" id="hatP2"></div></div>
+        <button class="btn-random" onclick="sfxClick(); randomizePlayer(1)">RANDOM</button>
+      </div>
+    </div>
+    <button id="btnCustNext">NEXT</button>
+    <button id="btnBack">BACK</button>
+  </div>
+  <div id="levelSelect" class="hidden">
+    <h2>Select Map</h2>
+    <div class="level-cards" id="levelCards"></div>
+    <button id="btnLevelStart">START</button>
+    <button id="btnLevelBack">BACK</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 560;
+const ARENA_Y = 60;
+const ARENA_W = 760, ARENA_H = 470;
+const ARENA_X = (W - ARENA_W) / 2;
+const WALL = 10;
+const GOAL_H = ARENA_H * 0.38;
+const GOAL_Y = ARENA_Y + ARENA_H - WALL - GOAL_H; // goals sit on the ground
+const GOAL_DEPTH = 34;
+const GRAVITY = 0.45;
+const CAR_W = 48, CAR_H = 26;
+const BALL_R = 14;
+const GAME_TIME = 60; // 1 minute in seconds
+const BASE_FLOOR = ARENA_Y + ARENA_H - WALL;
+
+// ---- Levels ----
+let selectedLevel = 0;
+const levels = [
+  {
+    name: 'Flat',
+    fn(x) { return BASE_FLOOR; }
+  },
+  {
+    name: 'Valley',
+    fn(x) {
+      const cx = ARENA_X + ARENA_W / 2;
+      const hw = (ARENA_W - WALL * 2) / 2;
+      const t = (x - cx) / hw; // -1 to 1
+      return BASE_FLOOR + 30 * (Math.cos(t * Math.PI) - 1) / 2; // dips 30px at center
+    }
+  },
+  {
+    name: 'Hill',
+    fn(x) {
+      const cx = ARENA_X + ARENA_W / 2;
+      const hw = (ARENA_W - WALL * 2) / 2;
+      const t = (x - cx) / hw; // -1 to 1
+      return BASE_FLOOR - 30 * (Math.cos(t * Math.PI) + 1) / 2; // rises 30px at center
+    }
+  },
+  {
+    name: 'Frying Pan',
+    fn(x) {
+      const cx = ARENA_X + ARENA_W / 2;
+      const hw = (ARENA_W - WALL * 2) / 2;
+      const t = (x - cx) / hw; // -1 to 1
+      const at = Math.abs(t);
+      // Flat area in front of each goal
+      if (at > 0.85) return BASE_FLOOR;
+      // Steep ramp from pan floor up to the flat goal area
+      if (at > 0.7) {
+        const ramp = (at - 0.7) / 0.15; // 0 at bottom, 1 at flat edge
+        return BASE_FLOOR + 40 * (1 - ramp * ramp);
+      }
+      // Flat bottom of the pan (sunken)
+      return BASE_FLOOR + 40;
+    }
+  }
+];
+let getFloorY = levels[0].fn;
+
+// ---- Customization Presets ----
+const bodyPresets = [
+  // Blues
+  { color: '#2080e0', dark: '#1560a0' },
+  { color: '#1050a0', dark: '#0a3570' },
+  { color: '#40a0ff', dark: '#2878cc' },
+  { color: '#2050b0', dark: '#153880' },
+  // Reds
+  { color: '#e02040', dark: '#a01530' },
+  { color: '#cc0000', dark: '#880000' },
+  { color: '#ff4060', dark: '#c03048' },
+  // Oranges
+  { color: '#e07820', dark: '#a05518' },
+  { color: '#ff9933', dark: '#cc7020' },
+  // Yellows
+  { color: '#e0e020', dark: '#a0a018' },
+  { color: '#ffdd00', dark: '#ccaa00' },
+  // Greens
+  { color: '#20c050', dark: '#158535' },
+  { color: '#00aa30', dark: '#007722' },
+  { color: '#80e840', dark: '#55a028' },
+  { color: '#00cc88', dark: '#009060' },
+  // Purples
+  { color: '#a030d0', dark: '#702090' },
+  { color: '#7020b0', dark: '#501880' },
+  { color: '#cc55ff', dark: '#9933cc' },
+  // Pinks
+  { color: '#e040a0', dark: '#a03070' },
+  { color: '#ff66cc', dark: '#cc4499' },
+  { color: '#ff3388', dark: '#cc2266' },
+  // Cyans
+  { color: '#40e0e0', dark: '#20a0a0' },
+  { color: '#00ddcc', dark: '#009988' },
+  // Neutrals
+  { color: '#ffffff', dark: '#bbbbbb' },
+  { color: '#aaaaaa', dark: '#777777' },
+  { color: '#444444', dark: '#222222' },
+  { color: '#111111', dark: '#000000' },
+  // Special
+  { color: '#c0a040', dark: '#907828' },
+  { color: '#c06030', dark: '#884020' },
+  { color: '#33bbaa', dark: '#228877' },
+];
+const wheelPresets = [
+  { tire: '#222', rim: '#444' },
+  { tire: '#555', rim: '#888' },
+  { tire: '#ddd', rim: '#fff' },
+  { tire: '#111', rim: '#222' },
+  { tire: '#881111', rim: '#cc3333' },
+  { tire: '#114488', rim: '#3388cc' },
+  { tire: '#886611', rim: '#ccaa33' },
+  { tire: '#118844', rim: '#33cc66' },
+  { tire: '#662288', rim: '#9944cc' },
+  { tire: '#cc5500', rim: '#ff8833' },
+  { tire: '#cc2266', rim: '#ff55aa' },
+  { tire: '#c0a030', rim: '#e8cc55' },
+];
+const boostPresets = [
+  { c1: '#ff6600', c2: '#ffcc00' },
+  { c1: '#00ccff', c2: '#80eeff' },
+  { c1: '#ff2255', c2: '#ff88aa' },
+  { c1: '#44ff44', c2: '#aaffaa' },
+  { c1: '#aa44ff', c2: '#ddaaff' },
+  { c1: '#ffffff', c2: '#cccccc' },
+  { c1: '#ffdd00', c2: '#ffee88' },
+  { c1: '#ff0000', c2: '#ff8844' },
+  { c1: '#0088ff', c2: '#66bbff' },
+  { c1: '#ff00cc', c2: '#ff88ee' },
+  { c1: '#00ffaa', c2: '#88ffcc' },
+  { c1: '#aaaaaa', c2: '#666666' },
+];
+
+const hatPresets = [
+  { name: 'None', label: 'NONE', draw(c, bw, bh) {} },
+  { name: 'Cowboy Hat', label: 'CWBY', draw(c, bw, bh) {
+    c.fillStyle = '#8B4513';
+    // Brim
+    c.fillRect(-14, -bh/2-4, 28, 4);
+    // Crown
+    c.fillRect(-8, -bh/2-14, 16, 11);
+    // Band
+    c.fillStyle = '#DAA520';
+    c.fillRect(-8, -bh/2-5, 16, 2);
+    // Brim curve
+    c.fillStyle = '#8B4513';
+    c.beginPath();
+    c.ellipse(0, -bh/2-3, 16, 3, 0, 0, Math.PI * 2);
+    c.fill();
+  }},
+  { name: 'Cool Glasses', label: 'GLSS', draw(c, bw, bh) {
+    c.strokeStyle = '#111';
+    c.lineWidth = 1.5;
+    c.fillStyle = 'rgba(20,20,40,0.8)';
+    // Left lens
+    c.beginPath();
+    c.roundRect(2, -bh/2+4, 9, 6, 1);
+    c.fill(); c.stroke();
+    // Right lens
+    c.beginPath();
+    c.roundRect(13, -bh/2+4, 9, 6, 1);
+    c.fill(); c.stroke();
+    // Bridge
+    c.beginPath();
+    c.moveTo(11, -bh/2+7); c.lineTo(13, -bh/2+7);
+    c.stroke();
+    // Arm
+    c.beginPath();
+    c.moveTo(2, -bh/2+7); c.lineTo(-4, -bh/2+6);
+    c.stroke();
+  }},
+  { name: 'Kitty Ears', label: 'KITTY', draw(c, bw, bh) {
+    c.fillStyle = '#ffaacc';
+    // Left ear
+    c.beginPath();
+    c.moveTo(-6, -bh/2-1);
+    c.lineTo(-2, -bh/2-12);
+    c.lineTo(4, -bh/2-1);
+    c.closePath(); c.fill();
+    // Right ear
+    c.beginPath();
+    c.moveTo(6, -bh/2-1);
+    c.lineTo(12, -bh/2-12);
+    c.lineTo(16, -bh/2-1);
+    c.closePath(); c.fill();
+    // Inner ear
+    c.fillStyle = '#ff77aa';
+    c.beginPath();
+    c.moveTo(-4, -bh/2-1);
+    c.lineTo(-1, -bh/2-8);
+    c.lineTo(2, -bh/2-1);
+    c.closePath(); c.fill();
+    c.beginPath();
+    c.moveTo(8, -bh/2-1);
+    c.lineTo(11, -bh/2-8);
+    c.lineTo(14, -bh/2-1);
+    c.closePath(); c.fill();
+  }},
+  { name: 'Dog Ears', label: 'DOG', draw(c, bw, bh) {
+    c.fillStyle = '#b07840';
+    // Left floppy ear
+    c.beginPath();
+    c.moveTo(-4, -bh/2);
+    c.lineTo(-8, -bh/2-6);
+    c.lineTo(-12, -bh/2-3);
+    c.lineTo(-14, -bh/2+4);
+    c.lineTo(-8, -bh/2+2);
+    c.closePath(); c.fill();
+    // Right floppy ear
+    c.beginPath();
+    c.moveTo(14, -bh/2);
+    c.lineTo(18, -bh/2-6);
+    c.lineTo(22, -bh/2-3);
+    c.lineTo(24, -bh/2+4);
+    c.lineTo(18, -bh/2+2);
+    c.closePath(); c.fill();
+    // Nose
+    c.fillStyle = '#333';
+    c.beginPath();
+    c.ellipse(bw/2-2, -bh/2+8, 3, 2.5, 0, 0, Math.PI * 2);
+    c.fill();
+  }},
+  { name: 'Top Hat', label: 'TOP', draw(c, bw, bh) {
+    c.fillStyle = '#111';
+    // Brim
+    c.fillRect(-10, -bh/2-3, 24, 4);
+    // Crown
+    c.fillRect(-6, -bh/2-18, 16, 16);
+    // Band
+    c.fillStyle = '#cc2244';
+    c.fillRect(-6, -bh/2-5, 16, 2);
+    // Shine
+    c.fillStyle = 'rgba(255,255,255,0.1)';
+    c.fillRect(-4, -bh/2-16, 4, 12);
+  }},
+];
+
+// Car body types — each has a name, draw function for the body shape, and windshield draw
+const carTypes = [
+  { name: 'Standard', label: 'STD',
+    drawBody(c, bw, bh) {
+      c.beginPath();
+      c.moveTo(-bw/2+4, -bh/2);
+      c.lineTo(bw/2-2, -bh/2);
+      c.lineTo(bw/2, -bh/2+4);
+      c.lineTo(bw/2, bh/2-6);
+      c.lineTo(bw/2-4, bh/2-4);
+      c.lineTo(-bw/2+4, bh/2-4);
+      c.lineTo(-bw/2, bh/2-6);
+      c.lineTo(-bw/2, -bh/2+4);
+      c.closePath(); c.fill();
+    },
+    drawWindshield(c, bw, bh, dir) {
+      c.fillRect(dir*6, -bh/2+2, dir*12, bh*0.4);
+    },
+    drawStripe(c, bw, bh) {
+      c.fillRect(-bw/2+4, -2, bw-6, 4);
+    },
+  },
+  { name: 'Sports Car', label: 'SPT',
+    drawBody(c, bw, bh) {
+      c.beginPath();
+      c.moveTo(-bw/2+2, -bh/2+6);
+      c.lineTo(-bw/2+10, -bh/2-2);
+      c.lineTo(bw/2-4, -bh/2-2);
+      c.lineTo(bw/2+2, -bh/2+8);
+      c.lineTo(bw/2+2, bh/2-6);
+      c.lineTo(bw/2-3, bh/2-3);
+      c.lineTo(-bw/2+3, bh/2-3);
+      c.lineTo(-bw/2+2, bh/2-6);
+      c.closePath(); c.fill();
+    },
+    drawWindshield(c, bw, bh, dir) {
+      c.beginPath();
+      c.moveTo(dir*8, -bh/2+1);
+      c.lineTo(dir*20, -bh/2+5);
+      c.lineTo(dir*20, -bh/2+bh*0.35);
+      c.lineTo(dir*8, -bh/2+bh*0.35);
+      c.closePath(); c.fill();
+    },
+    drawStripe(c, bw, bh) {
+      c.fillRect(-bw/2+6, -1, bw-10, 2);
+      c.fillRect(-bw/2+6, 3, bw-10, 1);
+    },
+  },
+  { name: 'Dune Buggy', label: 'BUG',
+    drawBody(c, bw, bh) {
+      // Octane-style: pointed nose, low roof, spoiler
+      c.beginPath();
+      // Nose (pointed front)
+      c.moveTo(bw/2+4, bh/2-8);
+      c.lineTo(bw/2+2, bh/2-11);
+      // Hood slopes up to low cabin
+      c.lineTo(bw/2-4, -bh/2+8);
+      c.lineTo(bw/2-12, -bh/2+4);
+      // Low roof
+      c.lineTo(-bw/2+14, -bh/2+4);
+      // Rear slopes down
+      c.lineTo(-bw/2+4, -bh/2+7);
+      c.lineTo(-bw/2, bh/2-8);
+      // Underside
+      c.lineTo(-bw/2+3, bh/2-3);
+      c.lineTo(bw/2-3, bh/2-3);
+      c.lineTo(bw/2+4, bh/2-8);
+      c.closePath(); c.fill();
+      // Spoiler
+      c.fillRect(-bw/2-1, -bh/2-2, 12, 3);
+      c.fillRect(-bw/2+2, -bh/2+1, 2, 6);
+      c.fillRect(-bw/2+8, -bh/2+1, 2, 6);
+      // Side scoop
+      c.strokeStyle = 'rgba(0,0,0,0.25)';
+      c.lineWidth = 1;
+      c.beginPath();
+      c.moveTo(bw/2-6, 1);
+      c.lineTo(bw/2-14, -1);
+      c.lineTo(-bw/2+10, -1);
+      c.stroke();
+    },
+    drawWindshield(c, bw, bh, dir) {
+      // Low angled windshield
+      c.beginPath();
+      c.moveTo(dir > 0 ? bw/2-6 : -(bw/2-6), -bh/2+6);
+      c.lineTo(dir > 0 ? bw/2-12 : -(bw/2-12), -bh/2+4);
+      c.lineTo(dir > 0 ? bw/2-12 : -(bw/2-12), -bh/2+bh*0.35);
+      c.lineTo(dir > 0 ? bw/2-6 : -(bw/2-6), -bh/2+bh*0.38);
+      c.closePath(); c.fill();
+    },
+    drawStripe(c, bw, bh) {
+      c.fillRect(-bw/2+6, 1, bw-8, 2);
+    },
+  },
+  { name: 'Pickup Truck', label: 'TRK',
+    drawBody(c, bw, bh) {
+      c.beginPath();
+      c.moveTo(-bw/2+4, -bh/2+2);
+      c.lineTo(2, -bh/2-4);
+      c.lineTo(8, -bh/2-4);
+      c.lineTo(10, -bh/2+2);
+      c.lineTo(bw/2-2, -bh/2+2);
+      c.lineTo(bw/2, -bh/2+5);
+      c.lineTo(bw/2, bh/2-6);
+      c.lineTo(bw/2-3, bh/2-3);
+      c.lineTo(-bw/2+3, bh/2-3);
+      c.lineTo(-bw/2, bh/2-6);
+      c.lineTo(-bw/2+4, -bh/2+2);
+      c.closePath(); c.fill();
+      c.strokeStyle = 'rgba(0,0,0,0.3)';
+      c.lineWidth = 1;
+      c.beginPath();
+      c.moveTo(10, -bh/2+2);
+      c.lineTo(10, bh/2-4);
+      c.stroke();
+    },
+    drawWindshield(c, bw, bh, dir) {
+      c.fillRect(dir > 0 ? -4 : -6, -bh/2-2, dir*10, bh*0.4);
+    },
+    drawStripe(c, bw, bh) {
+      c.fillRect(-bw/2+4, 0, bw-6, 2);
+    },
+  },
+  { name: 'SUV', label: 'SUV',
+    drawBody(c, bw, bh) {
+      c.beginPath();
+      c.moveTo(-bw/2+3, -bh/2-2);
+      c.lineTo(bw/2-3, -bh/2-2);
+      c.lineTo(bw/2+1, -bh/2+4);
+      c.lineTo(bw/2+1, bh/2-6);
+      c.lineTo(bw/2-3, bh/2-3);
+      c.lineTo(-bw/2+3, bh/2-3);
+      c.lineTo(-bw/2-1, bh/2-6);
+      c.lineTo(-bw/2-1, -bh/2+4);
+      c.closePath(); c.fill();
+      c.strokeStyle = 'rgba(0,0,0,0.2)';
+      c.lineWidth = 1;
+      c.beginPath();
+      c.moveTo(0, -bh/2-2); c.lineTo(0, bh/2-4);
+      c.stroke();
+    },
+    drawWindshield(c, bw, bh, dir) {
+      c.fillRect(dir*4, -bh/2, dir*14, bh*0.45);
+    },
+    drawStripe(c, bw, bh) {
+      c.fillRect(-bw/2+4, 1, bw-6, 3);
+    },
+  },
+  { name: 'Formula', label: 'F1',
+    drawBody(c, bw, bh) {
+      // Main body — low with tapered nose cone
+      c.beginPath();
+      // Nose cone — narrow pointed tip
+      c.moveTo(bw/2+10, 1);
+      c.lineTo(bw/2+4, -bh/2+6);
+      // Top surface slopes back to cockpit
+      c.lineTo(bw/2-4, -bh/2+4);
+      // Cockpit hump
+      c.lineTo(4, -bh/2+2);
+      c.lineTo(-2, -bh/2+2);
+      // Engine cover tapers to rear
+      c.lineTo(-bw/2+4, -bh/2+4);
+      c.lineTo(-bw/2, -bh/2+6);
+      // Rear
+      c.lineTo(-bw/2-1, bh/2-7);
+      // Underside flat
+      c.lineTo(-bw/2+3, bh/2-4);
+      c.lineTo(bw/2-3, bh/2-4);
+      // Nose underside back to tip
+      c.lineTo(bw/2+4, bh/2-6);
+      c.lineTo(bw/2+10, 1);
+      c.closePath(); c.fill();
+      // Front wing — low horizontal element under nose
+      c.beginPath();
+      c.moveTo(bw/2+4, bh/2-5);
+      c.lineTo(bw/2+12, bh/2-7);
+      c.lineTo(bw/2+12, bh/2-4);
+      c.lineTo(bw/2+4, bh/2-3);
+      c.closePath(); c.fill();
+      // Rear wing — pylons from body to raised wing
+      c.save();
+      // Left pylon
+      c.beginPath();
+      c.moveTo(-bw/2, -bh/2+6);
+      c.lineTo(-bw/2-1, -bh/2-2);
+      c.lineTo(-bw/2+1, -bh/2-2);
+      c.lineTo(-bw/2+2, -bh/2+6);
+      c.closePath(); c.fill();
+      // Right pylon
+      c.beginPath();
+      c.moveTo(-bw/2+6, -bh/2+4);
+      c.lineTo(-bw/2+5, -bh/2-2);
+      c.lineTo(-bw/2+7, -bh/2-2);
+      c.lineTo(-bw/2+8, -bh/2+4);
+      c.closePath(); c.fill();
+      // Wing plate
+      c.fillRect(-bw/2-3, -bh/2-4, 14, 3);
+      c.restore();
+    },
+    drawWindshield(c, bw, bh, dir) {
+      c.beginPath();
+      c.moveTo(dir*4, -bh/2+2);
+      c.lineTo(dir*12, -bh/2+4);
+      c.lineTo(dir*12, -bh/2+bh*0.35);
+      c.lineTo(dir*4, -bh/2+bh*0.32);
+      c.closePath(); c.fill();
+    },
+    drawStripe(c, bw, bh) {
+      c.fillRect(-bw/2+8, 0, bw-12, 2);
+    },
+  },
+  { name: 'Van', label: 'VAN',
+    drawBody(c, bw, bh) {
+      c.beginPath();
+      c.moveTo(-bw/2+2, -bh/2-3);
+      c.lineTo(bw/2-8, -bh/2-3);
+      c.lineTo(bw/2, -bh/2+6);
+      c.lineTo(bw/2, bh/2-6);
+      c.lineTo(bw/2-3, bh/2-3);
+      c.lineTo(-bw/2+3, bh/2-3);
+      c.lineTo(-bw/2, bh/2-6);
+      c.lineTo(-bw/2, -bh/2-3);
+      c.closePath(); c.fill();
+    },
+    drawWindshield(c, bw, bh, dir) {
+      c.beginPath();
+      c.moveTo(dir*8, -bh/2-1);
+      c.lineTo(dir*18, -bh/2+3);
+      c.lineTo(dir*18, -bh/2+bh*0.4);
+      c.lineTo(dir*8, -bh/2+bh*0.4);
+      c.closePath(); c.fill();
+    },
+    drawStripe(c, bw, bh) {
+      c.fillRect(-bw/2+3, 2, bw-4, 3);
+    },
+  },
+  { name: 'Muscle Car', label: 'MSL',
+    drawBody(c, bw, bh) {
+      c.beginPath();
+      c.moveTo(bw/2+3, bh/2-7);
+      c.lineTo(bw/2+2, -bh/2+5);
+      c.lineTo(bw/2-6, -bh/2+2);
+      c.lineTo(4, -bh/2-1);
+      c.lineTo(-4, -bh/2-4);
+      c.lineTo(-bw/2+4, -bh/2-1);
+      c.lineTo(-bw/2, -bh/2+4);
+      c.lineTo(-bw/2-1, bh/2-7);
+      c.lineTo(-bw/2+3, bh/2-3);
+      c.lineTo(bw/2-3, bh/2-3);
+      c.closePath(); c.fill();
+      // Hood scoop
+      c.fillStyle = 'rgba(0,0,0,0.25)';
+      c.fillRect(bw/2-12, -bh/2+1, 8, 4);
+    },
+    drawWindshield(c, bw, bh, dir) {
+      c.fillRect(dir*2, -bh/2, dir*10, bh*0.38);
+    },
+    drawStripe(c, bw, bh) {
+      c.fillRect(-bw/2+5, -3, bw-8, 2);
+      c.fillRect(-bw/2+5, 1, bw-8, 2);
+    },
+  },
+];
+
+const customization = [
+  { bodyIdx: 0, wheelIdx: 0, boostIdx: 0, carTypeIdx: 0, hatIdx: 0 },  // P1
+  { bodyIdx: 7, wheelIdx: 0, boostIdx: 0, carTypeIdx: 0, hatIdx: 0 },  // P2 / bot
+  { bodyIdx: 3, wheelIdx: 0, boostIdx: 0, carTypeIdx: 0, hatIdx: 0 },  // 2v2 teammate
+  { bodyIdx: 5, wheelIdx: 0, boostIdx: 0, carTypeIdx: 0, hatIdx: 0 },  // 2v2 enemy2
+];
+
+function randomizeBotIdx(idx) {
+  const c = customization[idx];
+  c.bodyIdx = Math.floor(Math.random() * bodyPresets.length);
+  c.wheelIdx = Math.floor(Math.random() * wheelPresets.length);
+  c.boostIdx = Math.floor(Math.random() * boostPresets.length);
+  c.carTypeIdx = Math.floor(Math.random() * carTypes.length);
+  c.hatIdx = Math.floor(Math.random() * hatPresets.length);
+}
+
+function randomizeBotLoadout() {
+  if (gameMode === 'ai') { randomizeBotIdx(1); }
+  else if (gameMode === '2v2') { randomizeBotIdx(1); randomizeBotIdx(2); randomizeBotIdx(3); }
+  else if (gameMode === '2p-coop' || gameMode === '2p-mixed') { randomizeBotIdx(2); randomizeBotIdx(3); }
+}
+
+function getCustColors(playerIdx) {
+  const c = customization[playerIdx];
+  const body = bodyPresets[c.bodyIdx];
+  const wheel = wheelPresets[c.wheelIdx];
+  const boost = boostPresets[c.boostIdx];
+  return { color: body.color, colorDark: body.dark, wheelColor: wheel.tire, rimColor: wheel.rim, boostColor1: boost.c1, boostColor2: boost.c2, carTypeIdx: c.carTypeIdx, hatIdx: c.hatIdx || 0 };
+}
+
+// ---- Sound Effects ----
+let audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function sfxHit(vol) {
+  const ctx = getAudioCtx(), t = ctx.currentTime;
+  const v = Math.min(1, Math.max(0.2, (vol || 5) / 12));
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(150 + vol * 8, t);
+  o.frequency.exponentialRampToValueAtTime(80, t + 0.1);
+  g.gain.setValueAtTime(v * 0.35, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+  o.connect(g); g.connect(ctx.destination);
+  o.start(t); o.stop(t + 0.12);
+}
+
+function sfxBounce() {
+  const ctx = getAudioCtx(), t = ctx.currentTime;
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(200, t);
+  o.frequency.exponentialRampToValueAtTime(100, t + 0.06);
+  g.gain.setValueAtTime(0.2, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+  o.connect(g); g.connect(ctx.destination);
+  o.start(t); o.stop(t + 0.06);
+}
+
+function sfxWall() {
+  const ctx = getAudioCtx(), t = ctx.currentTime;
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = 'triangle';
+  o.frequency.setValueAtTime(300, t);
+  o.frequency.exponentialRampToValueAtTime(150, t + 0.04);
+  g.gain.setValueAtTime(0.15, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+  o.connect(g); g.connect(ctx.destination);
+  o.start(t); o.stop(t + 0.04);
+}
+
+function sfxCrossbar() {
+  const ctx = getAudioCtx(), t = ctx.currentTime;
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(800, t);
+  o.frequency.exponentialRampToValueAtTime(1200, t + 0.05);
+  o.frequency.exponentialRampToValueAtTime(600, t + 0.2);
+  g.gain.setValueAtTime(0.25, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+  o.connect(g); g.connect(ctx.destination);
+  o.start(t); o.stop(t + 0.2);
+}
+
+function sfxGoal() {
+  const ctx = getAudioCtx(), t = ctx.currentTime;
+  [0, 0.12, 0.24].forEach((d, i) => {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'square';
+    o.frequency.setValueAtTime([330, 440, 550][i], t + d);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.2, t + d);
+    g.gain.setValueAtTime(0.2, t + d);
+    g.gain.exponentialRampToValueAtTime(0.001, t + d + 0.15);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t + d); o.stop(t + d + 0.15);
+  });
+  // Low horn
+  const o2 = ctx.createOscillator();
+  const g2 = ctx.createGain();
+  o2.type = 'sawtooth';
+  o2.frequency.setValueAtTime(180, t);
+  o2.frequency.linearRampToValueAtTime(220, t + 0.4);
+  g2.gain.setValueAtTime(0.15, t);
+  g2.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+  o2.connect(g2); g2.connect(ctx.destination);
+  o2.start(t); o2.stop(t + 0.5);
+}
+
+function sfxJump() {
+  const ctx = getAudioCtx(), t = ctx.currentTime;
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(350, t);
+  o.frequency.exponentialRampToValueAtTime(700, t + 0.08);
+  g.gain.setValueAtTime(0.15, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+  o.connect(g); g.connect(ctx.destination);
+  o.start(t); o.stop(t + 0.1);
+}
+
+function sfxDodge() {
+  const ctx = getAudioCtx(), t = ctx.currentTime;
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = 'sawtooth';
+  o.frequency.setValueAtTime(500, t);
+  o.frequency.exponentialRampToValueAtTime(900, t + 0.08);
+  g.gain.setValueAtTime(0.18, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+  o.connect(g); g.connect(ctx.destination);
+  o.start(t); o.stop(t + 0.1);
+}
+
+function sfxBoost() {
+  const ctx = getAudioCtx(), t = ctx.currentTime;
+  // Whooshy rush: noise burst + rising tone
+  const bufSize = ctx.sampleRate * 0.09;
+  const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / bufSize);
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  const bp = ctx.createBiquadFilter();
+  bp.type = 'bandpass'; bp.frequency.value = 1200; bp.Q.value = 0.8;
+  const gn = ctx.createGain();
+  gn.gain.setValueAtTime(0.14, t);
+  gn.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+  src.connect(bp); bp.connect(gn); gn.connect(ctx.destination);
+  src.start(t); src.stop(t + 0.09);
+  // Rising flame tone
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = 'sawtooth';
+  o.frequency.setValueAtTime(120, t);
+  o.frequency.exponentialRampToValueAtTime(250, t + 0.08);
+  g.gain.setValueAtTime(0.07, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+  o.connect(g); g.connect(ctx.destination);
+  o.start(t); o.stop(t + 0.09);
+}
+
+function sfxClick() {
+  const ctx = getAudioCtx(), t = ctx.currentTime;
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(600, t);
+  o.frequency.exponentialRampToValueAtTime(800, t + 0.04);
+  g.gain.setValueAtTime(0.18, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+  o.connect(g); g.connect(ctx.destination);
+  o.start(t); o.stop(t + 0.06);
+}
+
+function sfxLand() {
+  const ctx = getAudioCtx(), t = ctx.currentTime;
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(100, t);
+  o.frequency.exponentialRampToValueAtTime(60, t + 0.05);
+  g.gain.setValueAtTime(0.12, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+  o.connect(g); g.connect(ctx.destination);
+  o.start(t); o.stop(t + 0.05);
+}
+
+function sfxBump() {
+  const ctx = getAudioCtx(), t = ctx.currentTime;
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = 'square';
+  o.frequency.setValueAtTime(180, t);
+  o.frequency.exponentialRampToValueAtTime(100, t + 0.07);
+  g.gain.setValueAtTime(0.15, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+  o.connect(g); g.connect(ctx.destination);
+  o.start(t); o.stop(t + 0.07);
+}
+
+function sfxCountdown(high) {
+  const ctx = getAudioCtx(), t = ctx.currentTime;
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(high ? 880 : 440, t);
+  g.gain.setValueAtTime(0.2, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+  o.connect(g); g.connect(ctx.destination);
+  o.start(t); o.stop(t + 0.18);
+}
+
+function sfxWin() {
+  const ctx = getAudioCtx(), t = ctx.currentTime;
+  [523, 659, 784, 1047].forEach((f, i) => {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(f, t + i * 0.1);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.2, t + i * 0.1);
+    g.gain.setValueAtTime(0.2, t + i * 0.1);
+    g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.1 + 0.15);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t + i * 0.1); o.stop(t + i * 0.1 + 0.15);
+  });
+}
+
+// ---- Procedural Music ----
+let musicCtx = null;
+let musicGain = null;
+let musicPlaying = false;
+let musicInterval = null;
+let musicStep = 0;
+
+function getMusicCtx() {
+  if (!musicCtx) {
+    musicCtx = new (window.AudioContext || window.webkitAudioContext)();
+    musicGain = musicCtx.createGain();
+    musicGain.gain.value = 0.18;
+    musicGain.connect(musicCtx.destination);
+  }
+  if (musicCtx.state === 'suspended') musicCtx.resume();
+  return musicCtx;
+}
+
+function playNote(freq, duration, type, vol, delay) {
+  const ctx = getMusicCtx();
+  const t = ctx.currentTime + (delay || 0);
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = type || 'sine';
+  o.frequency.setValueAtTime(freq, t);
+  g.gain.setValueAtTime((vol || 0.3) * musicGain.gain.value, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + duration * 0.95);
+  o.connect(g);
+  g.connect(musicCtx.destination);
+  o.start(t);
+  o.stop(t + duration);
+}
+
+function playChord(freqs, duration, type, vol, delay) {
+  freqs.forEach(f => playNote(f, duration, type, (vol || 0.3) / freqs.length, delay));
+}
+
+function playKick(delay) {
+  const ctx = getMusicCtx();
+  const t = ctx.currentTime + (delay || 0);
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(150, t);
+  o.frequency.exponentialRampToValueAtTime(40, t + 0.12);
+  g.gain.setValueAtTime(0.4 * musicGain.gain.value, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+  o.connect(g); g.connect(musicCtx.destination);
+  o.start(t); o.stop(t + 0.15);
+}
+
+function playHihat(delay) {
+  const ctx = getMusicCtx();
+  const t = ctx.currentTime + (delay || 0);
+  const bufferSize = ctx.sampleRate * 0.05;
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+  const hp = ctx.createBiquadFilter();
+  hp.type = 'highpass';
+  hp.frequency.value = 7000;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.2 * musicGain.gain.value, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+  src.connect(hp); hp.connect(g); g.connect(musicCtx.destination);
+  src.start(t); src.stop(t + 0.05);
+}
+
+function playSnare(delay) {
+  const ctx = getMusicCtx();
+  const t = ctx.currentTime + (delay || 0);
+  // Noise burst
+  const bufferSize = ctx.sampleRate * 0.1;
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.25 * musicGain.gain.value, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+  const bp = ctx.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = 3000;
+  src.connect(bp); bp.connect(g); g.connect(musicCtx.destination);
+  src.start(t); src.stop(t + 0.1);
+  // Tone body
+  const o = ctx.createOscillator();
+  const g2 = ctx.createGain();
+  o.type = 'triangle';
+  o.frequency.setValueAtTime(180, t);
+  o.frequency.exponentialRampToValueAtTime(80, t + 0.06);
+  g2.gain.setValueAtTime(0.2 * musicGain.gain.value, t);
+  g2.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+  o.connect(g2); g2.connect(musicCtx.destination);
+  o.start(t); o.stop(t + 0.08);
+}
+
+// Note frequencies (octave 3-5)
+const N = {
+  C3:131, D3:147, E3:165, F3:175, G3:196, A3:220, B3:247,
+  C4:262, D4:294, E4:330, F4:349, G4:392, A4:440, B4:494,
+  C5:523, D5:587, E5:659, F5:698, G5:784, A5:880
+};
+
+// Menu music: chill ambient arpeggios in Am
+const menuChords = [
+  [N.A3, N.C4, N.E4],
+  [N.F3, N.A3, N.C4],
+  [N.G3, N.B3, N.D4],
+  [N.E3, N.G3, N.B3],
+];
+const menuMelody = [
+  N.E5, N.C5, N.A4, N.E5, N.G5, N.E5, N.C5, N.A4,
+  N.F5, N.D5, N.A4, N.F5, N.C5, N.A4, N.F4, N.A4,
+  N.G5, N.E5, N.B4, N.G4, N.D5, N.B4, N.G4, N.D4,
+  N.E5, N.B4, N.G4, N.E4, N.B4, N.G4, N.E4, N.B3,
+];
+
+function menuMusicStep() {
+  const beat = musicStep % 32;
+  const chordIdx = Math.floor(beat / 8) % 4;
+  // Pad chord on beat 0 of each group
+  if (beat % 8 === 0) {
+    playChord(menuChords[chordIdx], 1.2, 'sine', 0.5);
+  }
+  // Arpeggio melody
+  if (beat < menuMelody.length) {
+    playNote(menuMelody[beat], 0.25, 'sine', 0.35);
+  }
+  // Soft bass
+  if (beat % 4 === 0) {
+    playNote(menuChords[chordIdx][0] / 2, 0.5, 'triangle', 0.3);
+  }
+  musicStep++;
+}
+
+function startMusic() {
+  if (musicPlaying) return;
+  stopMusic();
+  getMusicCtx();
+  musicStep = 0;
+  const bpm = 180;
+  const interval = 60000 / bpm;
+  menuMusicStep();
+  musicInterval = setInterval(menuMusicStep, interval);
+  musicPlaying = true;
+}
+
+function stopMusic() {
+  if (musicInterval) { clearInterval(musicInterval); musicInterval = null; }
+  musicPlaying = false;
+}
+
+// ---- State ----
+let aiDifficulty = 1; // 0=beginner, 1=pro, 2=impossible
+let gameMode = null; // 'ai', '2p', '2v2', '2p-coop', '2p-mixed'
+let pendingMode = null; // used by AI difficulty submenu
+let gameRunning = false;
+let scores = [0, 0];
+let countdown = 0;
+let countdownTimer = 0;
+let goalFlash = 0;
+let goalFlashSide = 0;
+let winMessage = '';
+let gameTimer = GAME_TIME;
+let overtime = false;
+let particles = [];
+let ballTrail = [];
+let paused = false;
+
+const keys = {};
+window.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','ShiftRight'].includes(e.code)) e.preventDefault();
+  if (e.code === 'Escape' && gameRunning && !winMessage && !paused) {
+    paused = true;
+    keys['Escape'] = false;
+  }
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// ---- Objects ----
+function makeCar(x, facingRight, colors, team) {
+  return {
+    x, y: getFloorY(x + CAR_W / 2) - CAR_H,
+    vx: 0, vy: 0,
+    w: CAR_W, h: CAR_H,
+    angle: 0,
+    angVel: 0,
+    facingRight,
+    team: team || 0,
+    onGround: true,
+    onWall: false,
+    color: colors.color,
+    colorDark: colors.colorDark,
+    wheelColor: colors.wheelColor,
+    rimColor: colors.rimColor,
+    boostColor1: colors.boostColor1,
+    boostColor2: colors.boostColor2,
+    carTypeIdx: colors.carTypeIdx || 0,
+    hatIdx: colors.hatIdx || 0,
+    boost: 150,
+    boostCooldown: 0,
+    boostSfxTimer: 0,
+    jumpCooldown: 0,
+    jumpHeld: false,
+    canDodge: false,
+    // AI personality — random per bot, varies behavior
+    personality: {
+      aggression: 0.8 + Math.random() * 0.4,   // 0.8–1.2: how hard they chase
+      caution: 0.8 + Math.random() * 0.4,       // 0.8–1.2: how quickly they retreat
+      aerial: 0.7 + Math.random() * 0.6,        // 0.7–1.3: willingness to jump/aerial
+      boostUsage: 0.7 + Math.random() * 0.6,    // 0.7–1.3: how freely they use boost
+      wobble: Math.random() * Math.PI * 2,       // phase offset for drift
+    },
+  };
+}
+
+function makeBall() {
+  return {
+    x: W / 2, y: ARENA_Y + ARENA_H / 2,
+    vx: 0, vy: 0,
+    r: BALL_R,
+    spin: 0,
+    angVel: 0,
+  };
+}
+
+let car1, car2, car3, car4, ball;
+let allCars = [];
+
+function resetField(scored) {
+  const is4car = gameMode === '2v2' || gameMode === '2p-coop' || gameMode === '2p-mixed';
+  car1 = makeCar(ARENA_X + ARENA_W * (is4car ? 0.15 : 0.25), true, getCustColors(0), 0);
+  if (gameMode === '2p-coop') {
+    car2 = makeCar(ARENA_X + ARENA_W * 0.35, true, getCustColors(1), 0);
+  } else if (gameMode === '2p-mixed') {
+    car2 = makeCar(ARENA_X + ARENA_W * 0.85 - CAR_W, false, getCustColors(1), 1);
+  } else if (is4car) {
+    car2 = makeCar(ARENA_X + ARENA_W * 0.85 - CAR_W, false, getCustColors(1), 1);
+  } else {
+    car2 = makeCar(ARENA_X + ARENA_W * 0.75 - CAR_W, false, getCustColors(1), 1);
+  }
+  car3 = null;
+  car4 = null;
+  if (gameMode === '2v2') {
+    car3 = makeCar(ARENA_X + ARENA_W * 0.35, true, getCustColors(2), 0);
+    car4 = makeCar(ARENA_X + ARENA_W * 0.65 - CAR_W, false, getCustColors(3), 1);
+  } else if (gameMode === '2p-coop') {
+    car3 = makeCar(ARENA_X + ARENA_W * 0.65 - CAR_W, false, getCustColors(2), 1);
+    car4 = makeCar(ARENA_X + ARENA_W * 0.85 - CAR_W, false, getCustColors(3), 1);
+  } else if (gameMode === '2p-mixed') {
+    car3 = makeCar(ARENA_X + ARENA_W * 0.35, true, getCustColors(2), 0);
+    car4 = makeCar(ARENA_X + ARENA_W * 0.65 - CAR_W, false, getCustColors(3), 1);
+  }
+  allCars = [car1, car2, car3, car4].filter(Boolean);
+  ball = makeBall();
+  countdown = 3;
+  countdownTimer = 0;
+}
+
+// ---- Menu ----
+document.addEventListener('click', function initMusic() {
+  document.removeEventListener('click', initMusic);
+  if (!musicPlaying) startMusic();
+}, { once: true });
+
+document.getElementById('btnAI').onclick = () => {
+  sfxClick(); pendingMode = 'ai';
+  document.getElementById('menu').classList.add('hidden');
+  document.getElementById('aiMenu').classList.remove('hidden');
+};
+document.getElementById('btn2v2').onclick = () => {
+  sfxClick(); pendingMode = '2v2';
+  document.getElementById('menu').classList.add('hidden');
+  document.getElementById('aiMenu').classList.remove('hidden');
+};
+document.getElementById('btnDiffEz').onclick = () => { sfxClick(); gameMode = pendingMode; aiDifficulty = 0; document.getElementById('aiMenu').classList.add('hidden'); showCustomize(); };
+document.getElementById('btnDiffPro').onclick = () => { sfxClick(); gameMode = pendingMode; aiDifficulty = 1; document.getElementById('aiMenu').classList.add('hidden'); showCustomize(); };
+document.getElementById('btnDiffImp').onclick = () => { sfxClick(); gameMode = pendingMode; aiDifficulty = 2; document.getElementById('aiMenu').classList.add('hidden'); showCustomize(); };
+document.getElementById('btnAIBack').onclick = () => {
+  sfxClick();
+  document.getElementById('aiMenu').classList.add('hidden');
+  if (pendingMode === '2p-coop' || pendingMode === '2p-mixed') {
+    document.getElementById('twoPlayerMenu').classList.remove('hidden');
+  } else {
+    document.getElementById('menu').classList.remove('hidden');
+  }
+};
+document.getElementById('btn2P').onclick = () => {
+  sfxClick();
+  document.getElementById('menu').classList.add('hidden');
+  document.getElementById('twoPlayerMenu').classList.remove('hidden');
+};
+document.getElementById('btn2P1v1').onclick = () => {
+  sfxClick(); gameMode = '2p';
+  document.getElementById('twoPlayerMenu').classList.add('hidden');
+  showCustomize();
+};
+document.getElementById('btn2PCoop').onclick = () => {
+  sfxClick(); pendingMode = '2p-coop';
+  document.getElementById('twoPlayerMenu').classList.add('hidden');
+  document.getElementById('aiMenu').classList.remove('hidden');
+};
+document.getElementById('btn2PMixed').onclick = () => {
+  sfxClick(); pendingMode = '2p-mixed';
+  document.getElementById('twoPlayerMenu').classList.add('hidden');
+  document.getElementById('aiMenu').classList.remove('hidden');
+};
+document.getElementById('btn2PBack').onclick = () => {
+  sfxClick();
+  document.getElementById('twoPlayerMenu').classList.add('hidden');
+  document.getElementById('menu').classList.remove('hidden');
+};
+
+// ---- Customization Panel ----
+function drawCarPreview(canvasId, playerIdx) {
+  const cv = document.getElementById(canvasId);
+  const pc = cv.getContext('2d');
+  const cw = cv.width, ch = cv.height;
+  pc.clearRect(0, 0, cw, ch);
+
+  const colors = getCustColors(playerIdx);
+  const bw = CAR_W, bh = CAR_H;
+  const cx = cw / 2, cy = ch / 2 + 2;
+
+  pc.save();
+  pc.translate(cx, cy);
+
+  // Body
+  const ctype = carTypes[customization[playerIdx].carTypeIdx] || carTypes[0];
+  const bodyGrd = pc.createLinearGradient(0, -bh / 2, 0, bh / 2);
+  bodyGrd.addColorStop(0, colors.color);
+  bodyGrd.addColorStop(1, colors.colorDark);
+  pc.fillStyle = bodyGrd;
+  ctype.drawBody(pc, bw, bh);
+
+  // Windshield
+  pc.fillStyle = 'rgba(150,200,255,0.4)';
+  ctype.drawWindshield(pc, bw, bh, 1);
+
+  // Stripe
+  pc.fillStyle = 'rgba(255,255,255,0.15)';
+  ctype.drawStripe(pc, bw, bh);
+
+  // Wheels
+  pc.fillStyle = colors.wheelColor;
+  const wheelR = 6;
+  pc.beginPath(); pc.arc(bw / 2 - 10, bh / 2 - 4, wheelR, 0, Math.PI * 2); pc.fill();
+  pc.beginPath(); pc.arc(-(bw / 2 - 10), bh / 2 - 4, wheelR, 0, Math.PI * 2); pc.fill();
+  // Rims
+  pc.fillStyle = colors.rimColor;
+  pc.beginPath(); pc.arc(bw / 2 - 10, bh / 2 - 4, 3, 0, Math.PI * 2); pc.fill();
+  pc.beginPath(); pc.arc(-(bw / 2 - 10), bh / 2 - 4, 3, 0, Math.PI * 2); pc.fill();
+
+  // Hat/topper
+  const hatDef = hatPresets[customization[playerIdx].hatIdx];
+  if (hatDef) hatDef.draw(pc, bw, bh);
+
+  // Boost flame hint
+  const bc = boostPresets[customization[playerIdx].boostIdx];
+  pc.fillStyle = bc.c1;
+  pc.globalAlpha = 0.7;
+  pc.beginPath(); pc.arc(-bw / 2 - 6, 0, 5, 0, Math.PI * 2); pc.fill();
+  pc.fillStyle = bc.c2;
+  pc.globalAlpha = 0.5;
+  pc.beginPath(); pc.arc(-bw / 2 - 12, 0, 3.5, 0, Math.PI * 2); pc.fill();
+  pc.globalAlpha = 1;
+
+  pc.restore();
+}
+
+function updatePreviews() {
+  drawCarPreview('previewP1', 0);
+  drawCarPreview('previewP2', 1);
+}
+
+function buildTypeSwatches(containerId, playerIdx) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  carTypes.forEach((type, idx) => {
+    const el = document.createElement('div');
+    el.className = 'swatch swatch-text' + (customization[playerIdx].carTypeIdx === idx ? ' selected' : '');
+    el.textContent = type.label;
+    el.title = type.name;
+    el.onclick = () => {
+      sfxClick();
+      customization[playerIdx].carTypeIdx = idx;
+      container.querySelectorAll('.swatch').forEach(s => s.classList.remove('selected'));
+      el.classList.add('selected');
+      updatePreviews();
+    };
+    container.appendChild(el);
+  });
+}
+
+function buildSwatches(containerId, presets, colorKey, playerIdx, custKey) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  presets.forEach((preset, idx) => {
+    const el = document.createElement('div');
+    el.className = 'swatch' + (customization[playerIdx][custKey] === idx ? ' selected' : '');
+    el.style.background = typeof colorKey === 'function' ? colorKey(preset) : preset[colorKey];
+    el.onclick = () => {
+      sfxClick();
+      customization[playerIdx][custKey] = idx;
+      container.querySelectorAll('.swatch').forEach(s => s.classList.remove('selected'));
+      el.classList.add('selected');
+      updatePreviews();
+    };
+    container.appendChild(el);
+  });
+}
+
+function buildHatSwatches(containerId, playerIdx) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  hatPresets.forEach((hat, idx) => {
+    const el = document.createElement('div');
+    el.className = 'swatch swatch-text' + (customization[playerIdx].hatIdx === idx ? ' selected' : '');
+    el.textContent = hat.label;
+    el.title = hat.name;
+    el.onclick = () => {
+      sfxClick();
+      customization[playerIdx].hatIdx = idx;
+      container.querySelectorAll('.swatch').forEach(s => s.classList.remove('selected'));
+      el.classList.add('selected');
+      updatePreviews();
+    };
+    container.appendChild(el);
+  });
+}
+
+function randomizePlayer(idx) {
+  const c = customization[idx];
+  c.bodyIdx = Math.floor(Math.random() * bodyPresets.length);
+  c.wheelIdx = Math.floor(Math.random() * wheelPresets.length);
+  c.boostIdx = Math.floor(Math.random() * boostPresets.length);
+  c.carTypeIdx = Math.floor(Math.random() * carTypes.length);
+  c.hatIdx = Math.floor(Math.random() * hatPresets.length);
+  // Rebuild swatches to update selected state
+  const suffix = idx === 0 ? 'P1' : 'P2';
+  buildTypeSwatches('type' + suffix, idx);
+  buildSwatches('body' + suffix, bodyPresets, 'color', idx, 'bodyIdx');
+  buildSwatches('wheel' + suffix, wheelPresets, 'tire', idx, 'wheelIdx');
+  buildSwatches('boost' + suffix, boostPresets, 'c1', idx, 'boostIdx');
+  buildHatSwatches('hat' + suffix, idx);
+  updatePreviews();
+}
+
+function showCustomize() {
+  document.getElementById('menu').classList.add('hidden');
+  document.getElementById('customize').classList.remove('hidden');
+  document.getElementById('custP2').classList.toggle('dimmed', gameMode === 'ai' || gameMode === '2v2');
+
+  buildTypeSwatches('typeP1', 0);
+  buildSwatches('bodyP1', bodyPresets, 'color', 0, 'bodyIdx');
+  buildSwatches('wheelP1', wheelPresets, 'tire', 0, 'wheelIdx');
+  buildSwatches('boostP1', boostPresets, 'c1', 0, 'boostIdx');
+  buildHatSwatches('hatP1', 0);
+  buildTypeSwatches('typeP2', 1);
+  buildSwatches('bodyP2', bodyPresets, 'color', 1, 'bodyIdx');
+  buildSwatches('wheelP2', wheelPresets, 'tire', 1, 'wheelIdx');
+  buildSwatches('boostP2', boostPresets, 'c1', 1, 'boostIdx');
+  buildHatSwatches('hatP2', 1);
+  updatePreviews();
+}
+
+// Customize → Level Select
+document.getElementById('btnCustNext').onclick = () => {
+  sfxClick();
+  document.getElementById('customize').classList.add('hidden');
+  showLevelSelect();
+};
+document.getElementById('btnBack').onclick = () => {
+  sfxClick();
+  document.getElementById('customize').classList.add('hidden');
+  document.getElementById('menu').classList.remove('hidden');
+};
+// Level Select → Start / Back
+document.getElementById('btnLevelStart').onclick = () => {
+  sfxClick();
+  document.getElementById('levelSelect').classList.add('hidden');
+  startGame();
+};
+document.getElementById('btnLevelBack').onclick = () => {
+  sfxClick();
+  document.getElementById('levelSelect').classList.add('hidden');
+  document.getElementById('customize').classList.remove('hidden');
+};
+
+function showLevelSelect() {
+  document.getElementById('levelSelect').classList.remove('hidden');
+  const container = document.getElementById('levelCards');
+  container.innerHTML = '';
+  levels.forEach((lvl, idx) => {
+    const card = document.createElement('div');
+    card.className = 'level-card' + (selectedLevel === idx ? ' selected' : '');
+    // Terrain preview canvas
+    const cv = document.createElement('canvas');
+    cv.width = 160;
+    cv.height = 50;
+    const pc = cv.getContext('2d');
+    // Draw terrain silhouette
+    const lx = ARENA_X + WALL;
+    const rx = ARENA_X + ARENA_W - WALL;
+    pc.fillStyle = '#1a1a35';
+    pc.fillRect(0, 0, 160, 50);
+    pc.beginPath();
+    pc.moveTo(0, 50);
+    for (let px = 0; px <= 160; px++) {
+      const worldX = lx + (px / 160) * (rx - lx);
+      const fy = lvl.fn(worldX);
+      const normY = 10 + ((fy - (BASE_FLOOR - 35)) / 70) * 30;
+      pc.lineTo(px, normY);
+    }
+    pc.lineTo(160, 50);
+    pc.closePath();
+    pc.fillStyle = '#334';
+    pc.fill();
+    // Ground line
+    pc.beginPath();
+    for (let px = 0; px <= 160; px++) {
+      const worldX = lx + (px / 160) * (rx - lx);
+      const fy = lvl.fn(worldX);
+      const normY = 10 + ((fy - (BASE_FLOOR - 35)) / 70) * 30;
+      if (px === 0) pc.moveTo(px, normY);
+      else pc.lineTo(px, normY);
+    }
+    pc.strokeStyle = 'rgba(255,255,255,0.2)';
+    pc.lineWidth = 1;
+    pc.stroke();
+
+    card.appendChild(cv);
+    const label = document.createElement('span');
+    label.textContent = lvl.name;
+    card.appendChild(label);
+    card.onclick = () => {
+      sfxClick();
+      selectedLevel = idx;
+      container.querySelectorAll('.level-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+    };
+    container.appendChild(card);
+  });
+}
+
+function startGame() {
+  document.getElementById('menu').classList.add('hidden');
+  getFloorY = levels[selectedLevel].fn;
+  if (gameMode !== '2p') randomizeBotLoadout();
+  scores = [0, 0];
+  winMessage = '';
+  particles = [];
+  ballTrail = [];
+  gameTimer = GAME_TIME;
+  overtime = false;
+  resetAILearn();
+  resetField(-1);
+  gameRunning = true;
+  startMusic();
+}
+
+// AI adaptive learning — tracks mistakes and adjusts mid-match
+const aiLearn = {
+  defenseBias: 0,    // + = stay closer to own goal
+  aerialBias: 0,     // + = jump/aerial more aggressively
+  boostSave: 0,      // + = conserve boost when not critical
+  aggression: 0,     // + = push forward more after scoring
+};
+
+function resetAILearn() {
+  aiLearn.defenseBias = 0;
+  aiLearn.aerialBias = 0;
+  aiLearn.boostSave = 0;
+  aiLearn.aggression = 0;
+}
+
+function aiAnalyzeGoal(scoredByPlayer) {
+  if (gameMode === '2p' || gameMode === '2p-mixed') return;
+  const bot = gameMode === '2p-coop' ? car3 : car2;
+  const bcx = bot.x + bot.w / 2;
+  const floorY = BASE_FLOOR;
+
+  if (scoredByPlayer === 0) {
+    // Bot got scored on — learn from it
+    // Out of position? (bot was too far forward)
+    if (bcx < W * 0.5) {
+      aiLearn.defenseBias = Math.min(aiLearn.defenseBias + 0.2, 1.0);
+    }
+    // Aerial goal? (ball was high when it scored)
+    if (ball.y < floorY - 80) {
+      aiLearn.aerialBias = Math.min(aiLearn.aerialBias + 0.2, 1.0);
+    }
+    // Bot had no boost?
+    if (bot.boost < 20) {
+      aiLearn.boostSave = Math.min(aiLearn.boostSave + 0.15, 0.8);
+    }
+    // Bot was airborne when scored on?
+    if (!bot.onGround) {
+      aiLearn.defenseBias = Math.min(aiLearn.defenseBias + 0.1, 1.0);
+    }
+    // Reduce aggression after being scored on
+    aiLearn.aggression = Math.max(aiLearn.aggression - 0.15, -0.5);
+  } else {
+    // Bot scored — it can afford to be more aggressive
+    aiLearn.aggression = Math.min(aiLearn.aggression + 0.1, 0.5);
+    // Ease off defense a bit after scoring
+    aiLearn.defenseBias = Math.max(aiLearn.defenseBias - 0.1, 0);
+  }
+}
+
+function showMenu() {
+  document.getElementById('menu').classList.remove('hidden');
+  document.getElementById('customize').classList.add('hidden');
+  document.getElementById('aiMenu').classList.add('hidden');
+  document.getElementById('twoPlayerMenu').classList.add('hidden');
+  gameRunning = false;
+  startMusic();
+}
+
+// ---- Input Handling ----
+function handleCarInput(car, up, left, right, boostKey) {
+  const accel = 0.55;
+  const maxSpeed = 5.5;
+  const boostAccel = 0.4;
+  const jumpForce = -8.5;
+
+  if (car.onGround || car.onWall) {
+    // On ground: normal left/right movement
+    if (left) { car.vx -= accel; car.facingRight = false; }
+    if (right) { car.vx += accel; car.facingRight = true; }
+  } else {
+    // In air: lean (rotate) with horizontal control
+    const airControl = 0.4;
+    const rotSpeed = 0.09;
+    if (left) { car.angVel -= rotSpeed; car.vx -= airControl; }
+    if (right) { car.angVel += rotSpeed; car.vx += airControl; }
+  }
+
+  if (up && !car.jumpHeld && car.jumpCooldown <= 0) {
+    if (car.onGround || car.onWall) {
+      // Normal jump
+      car.vy = jumpForce;
+      if (car.onWall && !car.onGround) {
+        car.vy = jumpForce * 0.8;
+        car.vx += car.facingRight ? 3 : -3;
+      }
+      car.onGround = false;
+      car.onWall = false;
+      car.jumpCooldown = 3;
+      car.canDodge = true;
+      spawnParticles(car.x + car.w / 2, car.y + car.h, '#fff', 6, 2, 1.5);
+      sfxJump();
+    } else if (car.canDodge) {
+      const hasDirection = left || right;
+      if (hasDirection) {
+        // Directional dodge: burst sideways
+        const dodgeSpeed = 12;
+        let dx = 0;
+        if (left) dx -= 1;
+        if (right) dx += 1;
+        car.vx += dx * dodgeSpeed;
+        car.angVel = dx > 0 ? 0.4 : -0.4;
+        spawnParticles(car.x + car.w / 2, car.y + car.h / 2, '#fff', 10, 3, 1.5);
+        sfxDodge();
+      } else {
+        // Double jump: boost straight up
+        car.vy = jumpForce * 0.85;
+        spawnParticles(car.x + car.w / 2, car.y + car.h, '#fff', 8, 2.5, 1.5);
+        sfxDodge();
+      }
+      car.canDodge = false;
+      car.jumpCooldown = 12;
+    }
+  }
+  car.jumpHeld = up;
+
+  if (boostKey && car.boost > 0 && car.boostCooldown <= 0) {
+    // Boost fires out the back of the car, pushing it forward along its angle
+    const facing = car.facingRight ? 0 : Math.PI;
+    const thrustAngle = facing + car.angle;
+    car.vx += Math.cos(thrustAngle) * boostAccel;
+    car.vy += Math.sin(thrustAngle) * boostAccel;
+    car.boost -= 1.2;
+    if (car.boost < 0) car.boost = 0;
+    // Particles spawn at the back of the car
+    const backAngle = thrustAngle + Math.PI; // opposite of thrust direction
+    const cx = car.x + car.w / 2;
+    const cy = car.y + car.h / 2;
+    const px = cx + Math.cos(backAngle) * (car.w / 2);
+    const py = cy + Math.sin(backAngle) * (car.h / 2);
+    spawnParticles(px, py, car.boostColor1, 2, 3, 2);
+    spawnParticles(px, py, car.boostColor2, 1, 2, 1);
+    car.boostSfxTimer = (car.boostSfxTimer || 0) + 1;
+    if (car.boostSfxTimer >= 8) { car.boostSfxTimer = 0; sfxBoost(); }
+  }
+
+  car.vx = Math.max(-maxSpeed - 2, Math.min(maxSpeed + 2, car.vx));
+}
+
+// ---- AI ----
+function predictBall(steps) {
+  // Simulate ball forward to predict where it will be
+  let px = ball.x, py = ball.y, pvx = ball.vx, pvy = ball.vy;
+  const ceilY = ARENA_Y + WALL;
+  const leftX = ARENA_X + WALL;
+  const rightX = ARENA_X + ARENA_W - WALL;
+  for (let i = 0; i < steps; i++) {
+    pvy += GRAVITY;
+    pvx *= 0.998;
+    pvy *= 0.998;
+    px += pvx;
+    py += pvy;
+    const pFloor = getFloorY(px);
+    if (py + BALL_R > pFloor) { py = pFloor - BALL_R; pvy *= -0.8; }
+    if (py - BALL_R < ceilY) { py = ceilY + BALL_R; pvy *= -0.8; }
+    if (px - BALL_R < leftX) { px = leftX + BALL_R; pvx *= -0.8; }
+    if (px + BALL_R > rightX) { px = rightX - BALL_R; pvx *= -0.8; }
+  }
+  return { x: px, y: py };
+}
+
+function updateAI(car) {
+  // Team direction: team 1 (right side, original) or team 0 (left side, mirrored)
+  const isRight = car.team === 1;
+  // Difficulty settings: [beginner, pro, impossible]
+  const p = car.personality || { aggression: 1, caution: 1, aerial: 1, boostUsage: 1, wobble: 0 };
+  const predSteps = [10, 25, 70][aiDifficulty];
+  const reactionDead = [35, 15, 2][aiDifficulty];
+  let attackRange = ([130, 180, 350][aiDifficulty] + aiLearn.aggression * 40) * p.aggression;
+  let aerialRange = ([50, 100, 200][aiDifficulty] + aiLearn.aerialBias * 60) * p.aerial;
+  let boostAggression = Math.max(0.05, ([0.2, 0.5, 1.0][aiDifficulty] - aiLearn.boostSave) * p.boostUsage);
+  const jumpThreshold = ([50, 35, 12][aiDifficulty] + aiLearn.aerialBias * 15) * p.aerial;
+  // Frame-to-frame drift: small random offset so bots don't repeat identically
+  const drift = Math.sin(Date.now() * 0.003 + p.wobble) * 15;
+  if (aiDifficulty === 0 && Math.random() < 0.25) {
+    handleCarInput(car, false, false, false, false);
+    return;
+  }
+
+  const cx = car.x + car.w / 2, cy = car.y + car.h / 2;
+  const myGoalCenter = isRight ? (ARENA_X + ARENA_W - WALL) : (ARENA_X + WALL);
+  const floorY = getFloorY(cx);
+  const ballFloorY = getFloorY(ball.x);
+  const distBall = Math.hypot(ball.x - cx, ball.y - cy);
+  const ballInDip = ballFloorY > BASE_FLOOR + 5;
+
+  const pred = predictBall(predSteps);
+  const predShort = aiDifficulty === 2 ? predictBall(15) : pred;
+  const bx = ball.x, by = ball.y;
+
+  // ---- Teammate awareness (2v2 role assignment) ----
+  let role = 'solo'; // 'solo', 'attacker', 'defender'
+  let teammate = null;
+  if (allCars.length > 2) {
+    teammate = allCars.find(c => c !== car && c.team === car.team);
+    if (teammate) {
+      const tmCx = teammate.x + teammate.w / 2;
+      const tmDistBall = Math.hypot(ball.x - tmCx, ball.y - (teammate.y + teammate.h / 2));
+      // Closer bot is attacker, farther is defender
+      if (distBall <= tmDistBall) {
+        role = 'attacker';
+      } else {
+        role = 'defender';
+      }
+    }
+  }
+
+  // Adjust behavior by role
+  if (role === 'defender') {
+    attackRange *= 0.5;   // don't chase ball as far
+    aerialRange *= 0.4;   // stay grounded more
+    boostAggression *= 0.5; // conserve boost
+  } else if (role === 'attacker') {
+    attackRange *= 1.2;
+    boostAggression = Math.min(1.0, boostAggression * 1.3);
+  }
+
+  let goLeft = false, goRight = false, jump = false, boost = false;
+
+  const ballComingToUs = isRight ? ball.vx > 0.3 : ball.vx < -0.3;
+  const ballOnOurSide = isRight ? bx > W / 2 : bx < W / 2;
+  const ballDangerous = isRight
+    ? (bx > W * 0.55 && ballComingToUs) || bx > W * 0.75
+    : (bx < W * 0.45 && ballComingToUs) || bx < W * 0.25;
+  const ballInOurHalf = isRight ? pred.x > W / 2 : pred.x < W / 2;
+
+  function goToward(targetX) {
+    const tx = targetX + drift;
+    if (cx < tx - reactionDead) goRight = true;
+    else if (cx > tx + reactionDead) goLeft = true;
+  }
+  function goAttack() { if (isRight) goLeft = true; else goRight = true; }
+
+  // ---- Defender role: goalie behavior ----
+  if (role === 'defender') {
+    const goalY = GOAL_Y + GOAL_H / 2;
+    // Position between ball and goal — track ball's Y by sitting at goal line
+    const goalLineX = isRight ? (myGoalCenter - 40) : (myGoalCenter + 40);
+
+    if (ballDangerous || (ballOnOurSide && distBall < 250)) {
+      // Active defense: intercept the ball
+      const interceptX = isRight
+        ? Math.max(predShort.x + 15, myGoalCenter - 60)
+        : Math.min(predShort.x - 15, myGoalCenter + 60);
+      goToward(interceptX);
+      boost = aiDifficulty >= 1 && Math.abs(cx - interceptX) > 60;
+      if (by < cy - 20) jump = true;
+      if (distBall < 100) {
+        goAttack();
+        boost = true;
+        if (by < cy - 15) jump = true;
+        if (!car.onGround && car.canDodge && distBall < 80) jump = true;
+      }
+    } else if (ballOnOurSide) {
+      // Ball on our side but not dangerous — shadow it from goal
+      const shadowX = isRight
+        ? Math.max(bx + 40, goalLineX)
+        : Math.min(bx - 40, goalLineX);
+      goToward(shadowX);
+      if (aiDifficulty >= 1 && Math.abs(cx - shadowX) > 80) boost = true;
+    } else {
+      // Ball on opponent side — hold position near goal
+      const holdX = isRight ? W * 0.7 : W * 0.3;
+      goToward(holdX);
+    }
+
+    // Always jump for high balls heading at us
+    if (by < cy - jumpThreshold && Math.abs(bx - cx) < 120) jump = true;
+    // Emergency clear near goal
+    const nearOurGoal = isRight ? (bx > myGoalCenter - 150) : (bx < myGoalCenter + 150);
+    if (nearOurGoal && Math.abs(by - goalY) < GOAL_H) {
+      goAttack();
+      boost = true;
+      if (distBall < 120) jump = true;
+      if (!car.onGround && car.canDodge) jump = true;
+    }
+    if (car.jumpHeld && !car.onGround) jump = false;
+    handleCarInput(car, jump, goLeft, goRight, boost);
+    return;
+  }
+
+  // ---- Attacker / Solo logic (original + improved) ----
+
+  // Fast kickoff — only attacker goes for it
+  const isKickoff = aiDifficulty === 2 && Math.abs(ball.vx) < 0.1 && Math.abs(ball.vy) < 0.1 && Math.abs(bx - W / 2) < 20;
+  if (isKickoff && role !== 'defender') {
+    goAttack();
+    boost = true;
+    if (distBall < 80) jump = true;
+    handleCarInput(car, jump, goLeft, goRight, boost);
+    return;
+  }
+
+  // Retreat to defense — react when ball heading to our half or already deep on our side
+  const shouldDefend = aiDifficulty >= 1 && (ballInOurHalf || (ballOnOurSide && ballComingToUs) ||
+    (p.caution > 1.0 && ballOnOurSide));
+  if (shouldDefend && !ballDangerous) {
+    const retreatX = aiDifficulty === 2
+      ? (isRight ? Math.min(pred.x + 30, myGoalCenter - 50) : Math.max(pred.x - 30, myGoalCenter + 50))
+      : (isRight ? myGoalCenter - 70 : myGoalCenter + 70);
+    goToward(retreatX);
+    boost = Math.abs(cx - retreatX) > 60;
+    if (!car.onGround && car.canDodge && (isRight ? cx < retreatX - 40 : cx > retreatX + 40)) jump = true;
+  }
+
+  if (ballDangerous) {
+    // Get between ball and goal, intercept its path
+    const defendX = aiDifficulty === 2
+      ? (isRight ? Math.max(predShort.x + 10, myGoalCenter - 50) : Math.min(predShort.x - 10, myGoalCenter + 50))
+      : (isRight ? Math.max(bx + 15, myGoalCenter - 70) : Math.min(bx - 15, myGoalCenter + 70));
+    goToward(defendX);
+    if (by < cy - 15) jump = true;
+    boost = true;
+    if (distBall < 120) { goAttack(); boost = true; }
+    if (car.onGround && by < floorY - CAR_H - 20 && Math.abs(bx - cx) < 140) jump = true;
+    if (!car.onGround && car.canDodge && by < cy - 10 && distBall < 160) jump = true;
+
+  } else if (ballOnOurSide || distBall < attackRange) {
+    const offset = aiDifficulty === 2 ? 55 : aiDifficulty === 1 ? 30 : 15;
+    const approachX = isRight ? bx + offset : bx - offset;
+    const wrongSide = isRight ? (cx < bx - 10) : (cx > bx + 10);
+
+    if (wrongSide && distBall < 80 && car.onGround) {
+      if (isRight) goRight = true; else goLeft = true;
+      jump = true;
+    } else {
+      goToward(approachX);
+      const behindBall = isRight ? (cx > bx + 10) : (cx < bx - 10);
+      if (behindBall) {
+        goAttack();
+        if (distBall < 120) boost = Math.random() < boostAggression;
+      }
+    }
+
+    const linedUp = isRight ? (cx > bx + 20 && cx < bx + 70) : (cx < bx - 20 && cx > bx - 70);
+    if (aiDifficulty === 2 && linedUp && Math.abs(cy - by) < 40) {
+      goAttack();
+      boost = true;
+    }
+
+    if (ballInDip && distBall < 90 && car.onGround && (isRight ? cx > bx : cx < bx)) {
+      jump = true;
+      boost = true;
+    }
+
+    if (by < cy - jumpThreshold && Math.abs(bx - cx) < aerialRange) jump = true;
+    if (by < ballFloorY - CAR_H - 20 && distBall < 80) jump = true;
+    if (distBall < 100 && (isRight ? cx > bx : cx < bx)) boost = Math.random() < boostAggression;
+    if (aiDifficulty === 2 && distBall < 80) boost = true;
+
+  } else if (ballInOurHalf) {
+    const target = aiDifficulty >= 1 ? pred.x : bx;
+    goToward(target);
+    if (aiDifficulty === 2 && Math.abs(cx - target) > 50) boost = true;
+
+  } else {
+    const baseRotate = isRight
+      ? (aiDifficulty === 2 ? W * 0.5 : W * 0.6)
+      : (aiDifficulty === 2 ? W * 0.5 : W * 0.4);
+    const rotateX = isRight
+      ? baseRotate + aiLearn.defenseBias * (W * 0.12)
+      : baseRotate - aiLearn.defenseBias * (W * 0.12);
+    goToward(rotateX);
+    if (aiDifficulty === 2 && Math.abs(cx - rotateX) > 60) boost = true;
+    else boost = false;
+  }
+
+  // Aerial play
+  if (by < ARENA_Y + ARENA_H * 0.4 && Math.abs(bx - cx) < aerialRange) {
+    jump = true;
+    if (!car.onGround && by < cy) boost = Math.random() < boostAggression;
+    if (aiDifficulty === 2 && !car.onGround) boost = true;
+  }
+
+  // Emergency clear
+  const nearOurGoal = isRight ? (bx > myGoalCenter - 180) : (bx < myGoalCenter + 180);
+  if (nearOurGoal && Math.abs(by - (GOAL_Y + GOAL_H / 2)) < GOAL_H * 1.5) {
+    goAttack();
+    boost = true;
+    if (distBall < 120) jump = true;
+    if (!car.onGround && car.canDodge && distBall < 130) jump = true;
+    if (car.onGround && by < cy - 15) jump = true;
+  }
+
+  if (aiDifficulty >= 1 && !car.onGround && car.canDodge && distBall < (aiDifficulty === 2 ? 100 : 70)) jump = true;
+  if (aiDifficulty >= 1 && !car.onGround && by < cy - 10 && Math.abs(bx - cx) < (aiDifficulty === 2 ? 120 : 80)) boost = true;
+  if (aiDifficulty >= 1 && car.onGround && by < floorY - CAR_H - 30 && Math.abs(bx - cx) < 120) jump = true;
+  if (aiDifficulty >= 1 && !car.onGround && car.canDodge && by < cy - 40 && Math.abs(bx - cx) < aerialRange) jump = true;
+
+  // Shadow predicted position
+  if (aiDifficulty === 2 && !ballDangerous && !ballOnOurSide && (isRight ? pred.x < W / 2 : pred.x > W / 2)) {
+    const shadowX = isRight
+      ? Math.min(pred.x + 80, W * (0.55 + aiLearn.defenseBias * 0.08))
+      : Math.max(pred.x - 80, W * (0.45 - aiLearn.defenseBias * 0.08));
+    goToward(shadowX);
+  }
+
+  // Stay closer to goal
+  if (aiDifficulty >= 1 && !ballOnOurSide && !ballDangerous && (isRight ? pred.x > W * 0.4 : pred.x < W * 0.6)) {
+    const safeX = isRight
+      ? (aiDifficulty === 2 ? W * 0.58 : W * 0.62)
+      : (aiDifficulty === 2 ? W * 0.42 : W * 0.38);
+    goToward(safeX);
+  }
+
+  // Avoid bunching with teammate
+  if (teammate) {
+    const tmCx = teammate.x + teammate.w / 2;
+    const tmDist = Math.abs(cx - tmCx);
+    if (tmDist < 60 && role === 'attacker') {
+      // Teammate too close — nudge apart
+      if (cx < tmCx) { goLeft = true; goRight = false; }
+      else { goRight = true; goLeft = false; }
+    }
+  }
+
+  // Random hesitation — occasionally skip inputs for variety
+  if (aiDifficulty <= 1 && Math.random() < 0.03) {
+    goLeft = false; goRight = false;
+  }
+  // Random impulse — occasionally boost or jump unexpectedly
+  if (Math.random() < 0.008 * p.aerial && distBall < 150 && car.onGround) jump = true;
+  if (Math.random() < 0.01 * p.boostUsage && distBall < 120) boost = true;
+
+  if (car.jumpHeld && !car.onGround) jump = false;
+
+  handleCarInput(car, jump, goLeft, goRight, boost);
+}
+
+// ---- Physics ----
+function updateCar(car) {
+  const wasOnGround = car.onGround;
+
+  // Only apply gravity if not resting on ground
+  if (!wasOnGround) {
+    car.vy += GRAVITY;
+  }
+
+  car.vx *= car.onGround ? 0.9 : 0.97;
+  car.x += car.vx;
+  car.y += car.vy;
+  if (car.jumpCooldown > 0) car.jumpCooldown--;
+  if (car.boostCooldown > 0) car.boostCooldown--;
+  if (car.boost < 150 && car.onGround) car.boost += 0.6;
+
+  car.onGround = false;
+  car.onWall = false;
+
+  const floorY = getFloorY(car.x + car.w / 2);
+  const ceilY = ARENA_Y + WALL;
+  const leftX = ARENA_X + WALL;
+  const rightX = ARENA_X + ARENA_W - WALL;
+
+  // Floor — land only if moving downward or resting (terrain-aware)
+  if (car.y + car.h >= floorY) {
+    if (car.vy >= 0) {
+      car.y = floorY - car.h;
+      if (car.vy > 3) { spawnParticles(car.x + car.w / 2, floorY, '#aaa', 4, 1.5, 1); sfxLand(); }
+      car.vy = 0;
+      car.onGround = true;
+      car.canDodge = false;
+      // Slope push: nudge car along terrain gradient
+      const slopeL = getFloorY(car.x + car.w / 2 - 2);
+      const slopeR = getFloorY(car.x + car.w / 2 + 2);
+      car.vx += (slopeR - slopeL) * 0.05;
+    }
+  }
+  // Ceiling
+  if (car.y < ceilY) {
+    car.y = ceilY;
+    car.vy = Math.abs(car.vy) * 0.3;
+    car.onWall = true;
+  }
+  // Left wall
+  if (car.x < leftX) {
+    car.x = leftX;
+    car.vx = Math.abs(car.vx) * 0.4;
+    car.onWall = true;
+    if (!car.onGround) car.vy *= 0.85;
+  }
+  // Right wall
+  if (car.x + car.w > rightX) {
+    car.x = rightX - car.w;
+    car.vx = -Math.abs(car.vx) * 0.4;
+    car.onWall = true;
+    if (!car.onGround) car.vy *= 0.85;
+  }
+
+  // Angle: full 360 rotation in air, match terrain slope on ground
+  if (car.onGround) {
+    // Compute terrain slope angle
+    const cx = car.x + car.w / 2;
+    const slopeAngle = Math.atan2(getFloorY(cx + 4) - getFloorY(cx - 4), 8);
+    car.angle = Math.atan2(Math.sin(car.angle), Math.cos(car.angle));
+    car.angle += (slopeAngle - car.angle) * 0.5;
+    car.angVel = 0;
+  } else if (car.onWall) {
+    car.angle = Math.atan2(Math.sin(car.angle), Math.cos(car.angle));
+    car.angle *= 0.4;
+    car.angVel = 0;
+  } else {
+    car.angVel *= 0.94;
+    const maxAngVel = 0.25;
+    car.angVel = Math.max(-maxAngVel, Math.min(maxAngVel, car.angVel));
+    car.angle += car.angVel;
+  }
+}
+
+function updateBall() {
+  ball.vy += GRAVITY;
+  ball.vx *= 0.998;
+  ball.vy *= 0.998;
+  ball.spin *= 0.99;
+  ball.vx += ball.spin * 0.01;
+  ball.x += ball.vx;
+  ball.y += ball.vy;
+  ball.angVel = ball.vx * 0.05;
+
+  const floorY = getFloorY(ball.x);
+  const ceilY = ARENA_Y + WALL;
+  const leftX = ARENA_X + WALL;
+  const rightX = ARENA_X + ARENA_W - WALL;
+  const cor = 0.8;
+
+  // Floor (terrain-aware with slope-normal physics)
+  if (ball.y + ball.r > floorY) {
+    const penetration = ball.y + ball.r - floorY;
+    ball.y = floorY - ball.r;
+
+    // Compute surface normal (pointing away from ground)
+    const slopeL = getFloorY(ball.x - 2);
+    const slopeR = getFloorY(ball.x + 2);
+    const dy = slopeR - slopeL;
+    const len = Math.sqrt(dy * dy + 16);
+    const nx = dy / len;    // normal x
+    const ny = -4 / len;    // normal y (negative = upward in screen coords)
+
+    // Velocity component into surface (negative = moving into ground)
+    const vn = ball.vx * nx + ball.vy * ny;
+
+    if (vn < 0) {
+      if (penetration < 1.5 && Math.abs(vn) < 1.5) {
+        // Gentle contact — ball is rolling on surface: remove normal component
+        ball.vx -= vn * nx;
+        ball.vy -= vn * ny;
+      } else {
+        // Impact — bounce along surface normal
+        ball.vx -= (1 + cor) * vn * nx;
+        ball.vy -= (1 + cor) * vn * ny;
+        if (Math.abs(vn) > 2) { spawnParticles(ball.x, floorY, '#fff', 3, 1, 1); sfxBounce(); }
+        // Only add spin on actual bounces, not while rolling
+        ball.spin += ball.vx * 0.1;
+      }
+    }
+  }
+  // Ceiling
+  if (ball.y - ball.r < ceilY) {
+    ball.y = ceilY + ball.r;
+    ball.vy = Math.abs(ball.vy) * cor;
+    sfxWall();
+  }
+
+  // Crossbar collision (both goals) — check before wall logic
+  // Left crossbar: horizontal bar at GOAL_Y, from x=ARENA_X-GOAL_DEPTH to x=ARENA_X+WALL
+  if (ball.x - ball.r < leftX + ball.r && ball.x + ball.r > ARENA_X - GOAL_DEPTH) {
+    if (ball.y + ball.r > GOAL_Y && ball.y - ball.r < GOAL_Y && ball.vy > 0) {
+      ball.y = GOAL_Y - ball.r;
+      ball.vy = -Math.abs(ball.vy) * cor;
+      spawnParticles(ball.x, GOAL_Y, '#fff', 4, 2, 1);
+      sfxCrossbar();
+    }
+  }
+  // Right crossbar: horizontal bar at GOAL_Y, from x=ARENA_X+ARENA_W-WALL to x=ARENA_X+ARENA_W+GOAL_DEPTH
+  if (ball.x + ball.r > rightX - ball.r && ball.x - ball.r < ARENA_X + ARENA_W + GOAL_DEPTH) {
+    if (ball.y + ball.r > GOAL_Y && ball.y - ball.r < GOAL_Y && ball.vy > 0) {
+      ball.y = GOAL_Y - ball.r;
+      ball.vy = -Math.abs(ball.vy) * cor;
+      spawnParticles(ball.x, GOAL_Y, '#fff', 4, 2, 1);
+      sfxCrossbar();
+    }
+  }
+
+  // Left wall — check if ball is in goal opening (ball center below crossbar)
+  const inGoalYRange = ball.y > GOAL_Y && ball.y < floorY;
+
+  if (ball.x - ball.r < leftX) {
+    if (inGoalYRange) {
+      // Score when ball center passes midpoint of goal
+      if (ball.x < ARENA_X - GOAL_DEPTH / 2) {
+        scoreGoal(1);
+        return;
+      }
+    } else {
+      ball.x = leftX + ball.r;
+      ball.vx = Math.abs(ball.vx) * cor;
+      ball.spin -= ball.vy * 0.05;
+      sfxWall();
+    }
+  }
+
+  // Right wall
+  if (ball.x + ball.r > rightX) {
+    if (inGoalYRange) {
+      if (ball.x > ARENA_X + ARENA_W + GOAL_DEPTH / 2) {
+        scoreGoal(0);
+        return;
+      }
+    } else {
+      ball.x = rightX - ball.r;
+      ball.vx = -Math.abs(ball.vx) * cor;
+      ball.spin += ball.vy * 0.05;
+      sfxWall();
+    }
+  }
+}
+
+function carBallCollision(car) {
+  // Find closest point on car to ball center
+  const cx = Math.max(car.x, Math.min(ball.x, car.x + car.w));
+  const cy = Math.max(car.y, Math.min(ball.y, car.y + car.h));
+  const dx = ball.x - cx;
+  const dy = ball.y - cy;
+  const dist = Math.hypot(dx, dy);
+
+  if (dist < ball.r) {
+    // Normal direction
+    const nx = dist === 0 ? 0 : dx / dist;
+    const ny = dist === 0 ? -1 : dy / dist;
+
+    // Separate
+    const overlap = ball.r - dist;
+    ball.x += nx * overlap;
+    ball.y += ny * overlap;
+
+    // Relative velocity
+    const rvx = ball.vx - car.vx;
+    const rvy = ball.vy - car.vy;
+    const velAlongNormal = rvx * nx + rvy * ny;
+
+    if (velAlongNormal > 0) return;
+
+    const restitution = 0.6;
+    const impulse = -(1 + restitution) * velAlongNormal;
+
+    ball.vx += impulse * nx + car.vx * 0.5;
+    ball.vy += impulse * ny + car.vy * 0.3;
+
+    // Clamp ball speed
+    const maxBallSpeed = 14;
+    const speed = Math.hypot(ball.vx, ball.vy);
+    if (speed > maxBallSpeed) {
+      ball.vx = (ball.vx / speed) * maxBallSpeed;
+      ball.vy = (ball.vy / speed) * maxBallSpeed;
+    }
+
+    // Spin from hit angle
+    ball.spin += (car.vx * 0.3);
+
+    // Particles + sound
+    spawnParticles(cx, cy, '#fff', 8, 3, 2);
+    spawnParticles(cx, cy, car.color, 5, 2, 1.5);
+    sfxHit(speed);
+  }
+}
+
+function carCarCollision(a, b) {
+  const overlapX = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+  const overlapY = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+  if (overlapX <= 0 || overlapY <= 0) return;
+
+  if (overlapX < overlapY) {
+    const sign = (a.x + a.w / 2) < (b.x + b.w / 2) ? -1 : 1;
+    a.x += sign * overlapX / 2;
+    b.x -= sign * overlapX / 2;
+    const avgVx = (a.vx + b.vx) / 2;
+    a.vx = avgVx + sign * 0.5;
+    b.vx = avgVx - sign * 0.5;
+  } else {
+    const sign = (a.y + a.h / 2) < (b.y + b.h / 2) ? -1 : 1;
+    a.y += sign * overlapY / 2;
+    b.y -= sign * overlapY / 2;
+    const avgVy = (a.vy + b.vy) / 2;
+    a.vy = avgVy + sign * 0.5;
+    b.vy = avgVy - sign * 0.5;
+  }
+  sfxBump();
+}
+
+// ---- Scoring ----
+function declareWinner(player) {
+  if (gameMode === '2v2' || gameMode === '2p-coop') {
+    winMessage = player === 0 ? 'YOUR TEAM WINS!' : 'ENEMY TEAM WINS!';
+  } else if (gameMode === '2p-mixed') {
+    winMessage = player === 0 ? 'P1 TEAM WINS!' : 'P2 TEAM WINS!';
+  } else {
+    winMessage = player === 0 ? (gameMode === 'ai' ? 'YOU WIN!' : 'PLAYER 1 WINS!') : (gameMode === 'ai' ? 'AI WINS!' : 'PLAYER 2 WINS!');
+  }
+  sfxWin();
+}
+
+function scoreGoal(player) {
+  aiAnalyzeGoal(player);
+  scores[player]++;
+  goalFlash = 60;
+  goalFlashSide = player;
+  spawnParticles(player === 0 ? ARENA_X + ARENA_W : ARENA_X, GOAL_Y + GOAL_H / 2,
+    player === 0 ? '#2080e0' : '#e07820', 30, 5, 3);
+  sfxGoal();
+
+  // Sudden death: first goal in overtime wins
+  if (overtime) {
+    declareWinner(player);
+  }
+  resetField(player);
+}
+
+function checkTimerEnd() {
+  if (scores[0] !== scores[1]) {
+    declareWinner(scores[0] > scores[1] ? 0 : 1);
+  } else {
+    // Tied — sudden death overtime
+    overtime = true;
+  }
+}
+
+// ---- Particles ----
+function spawnParticles(x, y, color, count, speed, life) {
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const spd = (Math.random() * 0.5 + 0.5) * speed;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * spd,
+      vy: Math.sin(angle) * spd - 1,
+      color,
+      life: life * (0.5 + Math.random() * 0.5),
+      maxLife: life,
+      size: 2 + Math.random() * 3,
+    });
+  }
+}
+
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.05;
+    p.life -= 0.016;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+  // Ball trail
+  if (!countdown && ball) {
+    const speed = Math.hypot(ball.vx, ball.vy);
+    if (speed > 2) {
+      ballTrail.push({ x: ball.x, y: ball.y, life: 0.3, maxLife: 0.3, size: ball.r * 0.8 });
+    }
+  }
+  for (let i = ballTrail.length - 1; i >= 0; i--) {
+    ballTrail[i].life -= 0.016;
+    if (ballTrail[i].life <= 0) ballTrail.splice(i, 1);
+  }
+}
+
+// ---- Crowd ----
+const crowdMembers = [];
+function generateCrowd() {
+  crowdMembers.length = 0;
+  const rows = 8;
+  // Crowd sits on the far side of the arena — visible across the field (side-view perspective)
+  // Top rows are further away (smaller), bottom rows are closer (larger)
+  const crowdTop = ARENA_Y + WALL + 8;
+  const crowdBottom = ARENA_Y + ARENA_H * 0.52;
+  const crowdH = crowdBottom - crowdTop;
+  const crowdLeft = ARENA_X + WALL + 5;
+  const crowdRight = ARENA_X + ARENA_W - WALL - 5;
+  const crowdW = crowdRight - crowdLeft;
+  const skinTones = ['#e8b89a','#d4956b','#c27a4f','#a0623a','#7a4a2e','#f5cdb0'];
+  const shirtColors = ['#2266cc','#cc4422','#22aa44','#dddd22','#cc44cc','#ff8800',
+                        '#4488ff','#ff5555','#44dddd','#aa44ff','#ff66aa','#88cc22'];
+  for (let row = 0; row < rows; row++) {
+    const t = (row + 0.5) / rows;
+    const y = crowdTop + Math.pow(t, 1.5) * crowdH;
+    const count = Math.floor(crowdW / 7);
+    // Back rows (top, row 0) are smaller; front rows (bottom) are bigger
+    const sizeBase = 2.5 + row * 0.45;
+    for (let i = 0; i < count; i++) {
+      const x = crowdLeft + (i / count) * crowdW + (Math.random() - 0.5) * 5;
+      crowdMembers.push({
+        x, y,
+        skin: skinTones[Math.floor(Math.random() * skinTones.length)],
+        shirt: shirtColors[Math.floor(Math.random() * shirtColors.length)],
+        size: sizeBase + Math.random() * 0.4,
+        bobPhase: Math.random() * Math.PI * 2,
+        bobSpeed: 1.5 + Math.random() * 2,
+        row,
+      });
+    }
+  }
+}
+generateCrowd();
+
+let crowdTime = 0;
+function drawCrowd() {
+  crowdTime += 0.016;
+  const rows = 8;
+  const crowdTop = ARENA_Y + WALL + 8;
+  const crowdBottom = ARENA_Y + ARENA_H * 0.52;
+  const crowdLeft = ARENA_X + WALL + 5;
+  const crowdRight = ARENA_X + ARENA_W - WALL - 5;
+  const crowdW = crowdRight - crowdLeft;
+
+  // Draw stepped bleacher rows (back to front) — perspective spacing
+  const crowdH = crowdBottom - crowdTop;
+  for (let r = 0; r < rows; r++) {
+    const t = (r + 1) / rows;
+    const ry = crowdTop + Math.pow(t, 1.5) * crowdH;
+    const thickness = 1 + 2 * t; // thinner at top, thicker at bottom
+    ctx.fillStyle = r % 2 === 0 ? '#1e1e3a' : '#1c1c36';
+    ctx.fillRect(crowdLeft, ry - thickness, crowdW, thickness);
+    ctx.fillStyle = r % 2 === 0 ? '#2a2a50' : '#272748';
+    ctx.fillRect(crowdLeft, ry - 1, crowdW, 1);
+  }
+
+  // Draw spectators row by row
+  for (const m of crowdMembers) {
+    const bob = Math.sin(crowdTime * m.bobSpeed + m.bobPhase) * 1.2;
+    const s = m.size;
+    // Body/shirt
+    ctx.fillStyle = m.shirt;
+    ctx.fillRect(m.x - s * 0.5, m.y + bob, s, s * 1.2);
+    // Head
+    ctx.fillStyle = m.skin;
+    ctx.beginPath();
+    ctx.arc(m.x, m.y - s * 0.3 + bob, s * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Fade upper rows only — stop fade above the last row so bottom is fully visible
+  const fadeTop = crowdTop;
+  const fadeBot = crowdTop + (crowdBottom - crowdTop) * 0.6;
+  const fadeGrd = ctx.createLinearGradient(0, fadeTop, 0, fadeBot);
+  fadeGrd.addColorStop(0, 'rgba(22,22,48,0.85)');
+  fadeGrd.addColorStop(1, 'rgba(22,22,48,0)');
+  ctx.fillStyle = fadeGrd;
+  ctx.fillRect(ARENA_X + WALL, fadeTop, ARENA_W - WALL * 2, fadeBot - fadeTop);
+
+  // Hard edge below bottom row — separates crowd from playing field
+  const edgeY = crowdBottom + 2;
+  ctx.fillStyle = 'rgba(50,50,80,0.6)';
+  ctx.fillRect(crowdLeft, edgeY - 3, crowdW, 3);
+
+  // Advertisement panels below the crowd
+  const adY = edgeY;
+  const adH = 14;
+  const ads = [
+    { text: 'TURBO FUEL', bg: '#b8232a', fg: '#fff' },
+    { text: 'NITRO+', bg: '#1a6dd4', fg: '#fff' },
+    { text: 'APEX TIRES', bg: '#1a8a3a', fg: '#fff' },
+    { text: 'ROCKET COLA', bg: '#222', fg: '#f44' },
+    { text: 'BOOST.IO', bg: '#8a2ab8', fg: '#ff0' },
+    { text: 'SUPERSONIC', bg: '#c46a10', fg: '#fff' },
+    { text: 'AERO PARTS', bg: '#1a6dd4', fg: '#0f0' },
+    { text: 'VROOM', bg: '#b8232a', fg: '#ff0' },
+  ];
+  const adW = crowdW / ads.length;
+  ctx.font = 'bold 8px "Segoe UI", Arial, sans-serif';
+  ctx.textAlign = 'center';
+  for (let i = 0; i < ads.length; i++) {
+    const ax = crowdLeft + i * adW;
+    // Panel background
+    ctx.fillStyle = ads[i].bg;
+    ctx.fillRect(ax + 1, adY, adW - 2, adH);
+    // Border
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(ax + 1, adY, adW - 2, adH);
+    // Text
+    ctx.fillStyle = ads[i].fg;
+    ctx.fillText(ads[i].text, ax + adW / 2, adY + adH * 0.74);
+  }
+}
+
+// ---- Rendering ----
+function drawArena() {
+  // Background
+  ctx.fillStyle = '#0a0a18';
+  ctx.fillRect(0, 0, W, H);
+
+  // Arena floor/bg
+  const grd = ctx.createLinearGradient(0, ARENA_Y, 0, ARENA_Y + ARENA_H);
+  grd.addColorStop(0, '#151530');
+  grd.addColorStop(1, '#1a1a35');
+  ctx.fillStyle = grd;
+  ctx.fillRect(ARENA_X + WALL, ARENA_Y + WALL, ARENA_W - WALL * 2, H - ARENA_Y - WALL);
+
+  // Crowd on the far side of the field (background, fades into floor)
+  drawCrowd();
+
+  // Field markings (side-view)
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 2;
+  // Center line (vertical)
+  ctx.beginPath();
+  ctx.moveTo(W / 2, ARENA_Y + WALL);
+  ctx.lineTo(W / 2, getFloorY(W / 2));
+  ctx.stroke();
+  // Center dot
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.beginPath();
+  ctx.arc(W / 2, getFloorY(W / 2) - 4, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Terrain floor fill
+  const lx = ARENA_X + WALL;
+  const rx = ARENA_X + ARENA_W - WALL;
+  ctx.fillStyle = '#334';
+  ctx.beginPath();
+  ctx.moveTo(lx, getFloorY(lx));
+  for (let px = lx + 1; px <= rx; px += 2) {
+    ctx.lineTo(px, getFloorY(px));
+  }
+  ctx.lineTo(rx, H + 10);
+  ctx.lineTo(lx, H + 10);
+  ctx.closePath();
+  ctx.fill();
+  // Ground line accent along terrain
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(lx, getFloorY(lx) - 1);
+  for (let px = lx + 1; px <= rx; px += 2) {
+    ctx.lineTo(px, getFloorY(px) - 1);
+  }
+  ctx.stroke();
+
+  // Walls
+  ctx.fillStyle = '#334';
+  // Top wall
+  ctx.fillRect(ARENA_X, ARENA_Y, ARENA_W, WALL);
+  // Left wall (with goal gap)
+  ctx.fillRect(ARENA_X, ARENA_Y, WALL, GOAL_Y - ARENA_Y);
+  ctx.fillRect(ARENA_X, GOAL_Y + GOAL_H, WALL, ARENA_Y + ARENA_H - GOAL_Y - GOAL_H);
+  // Right wall (with goal gap)
+  ctx.fillRect(ARENA_X + ARENA_W - WALL, ARENA_Y, WALL, GOAL_Y - ARENA_Y);
+  ctx.fillRect(ARENA_X + ARENA_W - WALL, GOAL_Y + GOAL_H, WALL, ARENA_Y + ARENA_H - GOAL_Y - GOAL_H);
+
+  // Goal areas (sitting on the ground)
+  ctx.fillStyle = 'rgba(32,128,224,0.15)';
+  ctx.fillRect(ARENA_X - GOAL_DEPTH, GOAL_Y, GOAL_DEPTH + WALL, GOAL_H + WALL);
+  ctx.fillStyle = 'rgba(224,120,32,0.15)';
+  ctx.fillRect(ARENA_X + ARENA_W - WALL, GOAL_Y, GOAL_DEPTH + WALL, GOAL_H + WALL);
+
+  // Goal nets (lines)
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth = 1;
+  // Left goal — back wall, crossbar, net lines
+  ctx.strokeRect(ARENA_X - GOAL_DEPTH, GOAL_Y, GOAL_DEPTH, GOAL_H + WALL);
+  for (let yy = GOAL_Y; yy <= GOAL_Y + GOAL_H; yy += 14) {
+    ctx.beginPath(); ctx.moveTo(ARENA_X - GOAL_DEPTH, yy); ctx.lineTo(ARENA_X, yy); ctx.stroke();
+  }
+  for (let xx = ARENA_X - GOAL_DEPTH; xx <= ARENA_X; xx += 14) {
+    ctx.beginPath(); ctx.moveTo(xx, GOAL_Y); ctx.lineTo(xx, GOAL_Y + GOAL_H + WALL); ctx.stroke();
+  }
+  // Right goal
+  ctx.strokeRect(ARENA_X + ARENA_W, GOAL_Y, GOAL_DEPTH, GOAL_H + WALL);
+  for (let yy = GOAL_Y; yy <= GOAL_Y + GOAL_H; yy += 14) {
+    ctx.beginPath(); ctx.moveTo(ARENA_X + ARENA_W, yy); ctx.lineTo(ARENA_X + ARENA_W + GOAL_DEPTH, yy); ctx.stroke();
+  }
+  for (let xx = ARENA_X + ARENA_W; xx <= ARENA_X + ARENA_W + GOAL_DEPTH; xx += 14) {
+    ctx.beginPath(); ctx.moveTo(xx, GOAL_Y); ctx.lineTo(xx, GOAL_Y + GOAL_H + WALL); ctx.stroke();
+  }
+}
+
+function drawCar(car) {
+  ctx.save();
+  const cx = car.x + car.w / 2;
+  const cy = car.y + car.h / 2;
+  ctx.translate(cx, cy);
+  ctx.rotate(car.angle);
+  // Flip entire car when facing left
+  if (!car.facingRight) ctx.scale(-1, 1);
+
+  // Car body
+  const bw = car.w, bh = car.h;
+  const bodyGrd = ctx.createLinearGradient(0, -bh / 2, 0, bh / 2);
+  bodyGrd.addColorStop(0, car.color);
+  bodyGrd.addColorStop(1, car.colorDark);
+  ctx.fillStyle = bodyGrd;
+
+  const ctype = carTypes[car.carTypeIdx] || carTypes[0];
+  ctype.drawBody(ctx, bw, bh);
+
+  // Windshield — always drawn on the right (front) side; flip handles direction
+  ctx.fillStyle = 'rgba(150,200,255,0.4)';
+  ctype.drawWindshield(ctx, bw, bh, 1);
+
+  // Stripe
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  ctype.drawStripe(ctx, bw, bh);
+
+  // Wheels — front on right, back on left; flip handles direction
+  ctx.fillStyle = car.wheelColor;
+  const wheelR = 6;
+  // Front
+  ctx.beginPath();
+  ctx.arc(bw / 2 - 10, bh / 2 - 4, wheelR, 0, Math.PI * 2);
+  ctx.fill();
+  // Back
+  ctx.beginPath();
+  ctx.arc(-(bw / 2 - 10), bh / 2 - 4, wheelR, 0, Math.PI * 2);
+  ctx.fill();
+  // Wheel rims
+  ctx.fillStyle = car.rimColor;
+  ctx.beginPath();
+  ctx.arc(bw / 2 - 10, bh / 2 - 4, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(-(bw / 2 - 10), bh / 2 - 4, 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Hat/topper
+  const hatDef = hatPresets[car.hatIdx];
+  if (hatDef) hatDef.draw(ctx, bw, bh);
+
+  ctx.restore();
+
+  // Boost meter under car
+  const meterW = 36, meterH = 4;
+  const mx = car.x + car.w / 2 - meterW / 2;
+  const my = car.y + car.h + 10;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(mx - 1, my - 1, meterW + 2, meterH + 2);
+  const fill = car.boost / 150;
+  const meterColor = car.boost > 45 ? '#ffaa00' : '#ff3300';
+  ctx.fillStyle = meterColor;
+  ctx.fillRect(mx, my, meterW * fill, meterH);
+}
+
+function drawBall() {
+  // Trail
+  for (const t of ballTrail) {
+    const alpha = (t.life / t.maxLife) * 0.3;
+    ctx.fillStyle = `rgba(255,230,100,${alpha})`;
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, t.size * (t.life / t.maxLife), 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Glow
+  const speed = Math.hypot(ball.vx, ball.vy);
+  const glowR = ball.r + 4 + speed * 0.5;
+  const glow = ctx.createRadialGradient(ball.x, ball.y, ball.r * 0.5, ball.x, ball.y, glowR);
+  glow.addColorStop(0, 'rgba(255,240,150,0.3)');
+  glow.addColorStop(1, 'rgba(255,240,150,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, glowR, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Ball
+  ctx.fillStyle = '#f0e060';
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Ball pattern
+  ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, ball.r * 0.5, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.beginPath();
+  ctx.arc(ball.x - ball.r * 0.3, ball.y - ball.r * 0.3, ball.r * 0.3, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    const alpha = p.life / p.maxLife;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * alpha, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawUI() {
+  // Score
+  ctx.font = 'bold 32px "Segoe UI", Arial, sans-serif';
+  ctx.textAlign = 'center';
+
+  // P1 score
+  ctx.fillStyle = '#2080e0';
+  ctx.fillText(scores[0], W / 2 - 50, 45);
+  // Divider
+  ctx.fillStyle = '#556';
+  ctx.fillText('-', W / 2, 45);
+  // P2 score
+  ctx.fillStyle = '#e07820';
+  ctx.fillText(scores[1], W / 2 + 50, 45);
+
+  // Labels
+  ctx.font = '12px "Segoe UI", Arial, sans-serif';
+  ctx.fillStyle = '#668';
+  const leftLabel = (gameMode === '2v2' || gameMode === '2p-coop') ? 'TEAM' : gameMode === '2p-mixed' ? 'P1 TEAM' : (gameMode === 'ai' ? 'YOU' : 'P1');
+  const rightLabel = (gameMode === '2v2' || gameMode === '2p-coop') ? 'ENEMY' : gameMode === '2p-mixed' ? 'P2 TEAM' : (gameMode === 'ai' ? ['BOT-EZ','BOT-PRO','BOT-IMP'][aiDifficulty] : 'P2');
+  ctx.fillText(leftLabel, W / 2 - 50, 16);
+  ctx.fillText(rightLabel, W / 2 + 50, 16);
+
+  // Timer
+  const timerSec = Math.ceil(Math.max(0, gameTimer));
+  const mins = Math.floor(timerSec / 60);
+  const secs = timerSec % 60;
+  const timerStr = overtime ? 'OT' : mins + ':' + (secs < 10 ? '0' : '') + secs;
+  ctx.font = 'bold 16px "Segoe UI", Arial, sans-serif';
+  ctx.fillStyle = (gameTimer <= 10 && !overtime) ? '#ff4444' : '#99a';
+  ctx.fillText(timerStr, W / 2, 16);
+
+  // Countdown
+  if (countdown > 0) {
+    ctx.font = 'bold 72px "Segoe UI", Arial, sans-serif';
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.textAlign = 'center';
+    ctx.fillText(Math.ceil(countdown), W / 2, ARENA_Y + ARENA_H / 2 + 20);
+  }
+
+  // Goal flash
+  if (goalFlash > 0) {
+    const alpha = goalFlash / 60 * 0.3;
+    ctx.fillStyle = goalFlashSide === 0 ? `rgba(32,128,224,${alpha})` : `rgba(224,120,32,${alpha})`;
+    ctx.fillRect(0, 0, W, H);
+
+    if (goalFlash > 30) {
+      ctx.font = 'bold 48px "Segoe UI", Arial, sans-serif';
+      ctx.fillStyle = `rgba(255,255,255,${(goalFlash - 30) / 30})`;
+      ctx.textAlign = 'center';
+      ctx.fillText('GOAL!', W / 2, ARENA_Y + ARENA_H / 2 - 40);
+    }
+  }
+
+  // Win message
+  if (winMessage) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.font = 'bold 52px "Segoe UI", Arial, sans-serif';
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.fillText(winMessage, W / 2, H / 2 - 20);
+    ctx.font = '20px "Segoe UI", Arial, sans-serif';
+    ctx.fillStyle = '#aab';
+    ctx.fillText('Press Enter for Menu', W / 2, H / 2 + 50);
+  }
+}
+
+// ---- Game Loop ----
+const GAME_SPEED = 0.7; // 1.0 = normal, 0.7 = 30% slower
+const FIXED_STEP = 1000 / 60;
+let lastTime = 0;
+let accumulator = 0;
+function gameLoop(time) {
+  requestAnimationFrame(gameLoop);
+  if (!gameRunning) { lastTime = time; return; }
+
+  // Pause
+  if (paused) {
+    lastTime = time;
+    drawArena();
+    allCars.forEach(c => drawCar(c));
+    drawBall();
+    drawParticles();
+    drawUI();
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 42px "Segoe UI", Arial, sans-serif';
+    ctx.fillStyle = '#fff';
+    ctx.fillText('PAUSED', W / 2, H / 2 - 40);
+    ctx.font = '20px "Segoe UI", Arial, sans-serif';
+    ctx.fillStyle = '#aab';
+    ctx.fillText('Press ESC to Resume', W / 2, H / 2 + 10);
+    ctx.fillText('Press Enter for Menu', W / 2, H / 2 + 40);
+    if (keys['Escape']) {
+      keys['Escape'] = false;
+      paused = false;
+    }
+    if (keys['Enter']) {
+      keys['Enter'] = false;
+      paused = false;
+      showMenu();
+    }
+    return;
+  }
+
+  const elapsed = Math.min(time - lastTime, 50);
+  lastTime = time;
+  accumulator += elapsed * GAME_SPEED;
+  const shouldStep = accumulator >= FIXED_STEP;
+  if (shouldStep) accumulator -= FIXED_STEP;
+  const dt = FIXED_STEP / 1000;
+
+  // Win check: wait for enter
+  if (winMessage) {
+    if (keys['Enter']) {
+      keys['Enter'] = false;
+      showMenu();
+    }
+    drawArena();
+    allCars.forEach(c => drawCar(c));
+    drawBall();
+    drawParticles();
+    drawUI();
+    return;
+  }
+
+  // Countdown
+  if (countdown > 0) {
+    if (shouldStep) {
+      countdownTimer += dt;
+      if (countdownTimer >= 1) {
+        countdownTimer = 0;
+        countdown--;
+        sfxCountdown(countdown <= 0);
+      }
+      updateParticles();
+    }
+    drawArena();
+    allCars.forEach(c => drawCar(c));
+    drawBall();
+    drawParticles();
+    drawUI();
+    return;
+  }
+
+  if (shouldStep) {
+    // Input
+    handleCarInput(car1, keys['KeyW'], keys['KeyA'], keys['KeyD'], keys['ShiftLeft']);
+    if (gameMode === '2p' || gameMode === '2p-coop' || gameMode === '2p-mixed') {
+      handleCarInput(car2, keys['ArrowUp'], keys['ArrowLeft'], keys['ArrowRight'], keys['ShiftRight'] || keys['Space']);
+    } else {
+      updateAI(car2);
+    }
+    if (car3) updateAI(car3);
+    if (car4) updateAI(car4);
+
+    // Physics
+    allCars.forEach(c => updateCar(c));
+    updateBall();
+    allCars.forEach(c => carBallCollision(c));
+    for (let i = 0; i < allCars.length; i++)
+      for (let j = i + 1; j < allCars.length; j++)
+        carCarCollision(allCars[i], allCars[j]);
+    updateParticles();
+
+    if (goalFlash > 0) goalFlash--;
+
+    // Game timer
+    if (!overtime && gameTimer > 0) {
+      gameTimer -= dt;
+      if (gameTimer <= 0) {
+        gameTimer = 0;
+        checkTimerEnd();
+      }
+    }
+  }
+
+  // Draw
+  drawArena();
+  allCars.forEach(c => drawCar(c));
+  drawBall();
+  drawParticles();
+  drawUI();
+}
+
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>

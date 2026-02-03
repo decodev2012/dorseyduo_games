@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dorsey Duo Games</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a1a;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #e0e0e0;
+    padding: 2rem;
+  }
+  h1 {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    letter-spacing: 2px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .subtitle {
+    color: #888;
+    margin-bottom: 3rem;
+    font-size: 1.1rem;
+  }
+  .games {
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .card {
+    background: #14142a;
+    border: 2px solid #2a2a4a;
+    border-radius: 12px;
+    padding: 2.5rem 2rem;
+    width: 300px;
+    text-align: center;
+    text-decoration: none;
+    color: #e0e0e0;
+    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+  }
+  .card:hover {
+    transform: translateY(-4px);
+    border-color: #667eea;
+    box-shadow: 0 8px 30px rgba(102, 126, 234, 0.2);
+  }
+  .card-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+  }
+  .card h2 {
+    font-size: 1.4rem;
+    margin-bottom: 0.75rem;
+  }
+  .card p {
+    color: #999;
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+  <h1>DORSEY DUO GAMES</h1>
+  <p class="subtitle">Pick a game and play</p>
+  <div class="games">
+    <a href="car-soccer/index.html" class="card">
+      <div class="card-icon">&#9917;</div>
+      <h2>Car Soccer</h2>
+      <p>Drive your car and score goals in this fast-paced soccer game.</p>
+    </a>
+    <a href="a-game-about-jumping/index.html" class="card">
+      <div class="card-icon">&#11014;</div>
+      <h2>A Game About Jumping</h2>
+      <p>Jump, dodge, and survive in this platformer challenge.</p>
+    </a>
+  </div>
+</body>
+</html>
