@@ -430,42 +430,6 @@ const levels = [
     name: 'Flat',
     fn(x) { return BASE_FLOOR; }
   },
-  {
-    name: 'Valley',
-    fn(x) {
-      const cx = ARENA_X + ARENA_W / 2;
-      const hw = (ARENA_W - WALL * 2) / 2;
-      const t = (x - cx) / hw; // -1 to 1
-      return BASE_FLOOR + 30 * (Math.cos(t * Math.PI) - 1) / 2; // dips 30px at center
-    }
-  },
-  {
-    name: 'Hill',
-    fn(x) {
-      const cx = ARENA_X + ARENA_W / 2;
-      const hw = (ARENA_W - WALL * 2) / 2;
-      const t = (x - cx) / hw; // -1 to 1
-      return BASE_FLOOR - 30 * (Math.cos(t * Math.PI) + 1) / 2; // rises 30px at center
-    }
-  },
-  {
-    name: 'Frying Pan',
-    fn(x) {
-      const cx = ARENA_X + ARENA_W / 2;
-      const hw = (ARENA_W - WALL * 2) / 2;
-      const t = (x - cx) / hw; // -1 to 1
-      const at = Math.abs(t);
-      // Flat area in front of each goal
-      if (at > 0.85) return BASE_FLOOR;
-      // Steep ramp from pan floor up to the flat goal area
-      if (at > 0.7) {
-        const ramp = (at - 0.7) / 0.15; // 0 at bottom, 1 at flat edge
-        return BASE_FLOOR + 40 * (1 - ramp * ramp);
-      }
-      // Flat bottom of the pan (sunken)
-      return BASE_FLOOR + 40;
-    }
-  }
 ];
 let getFloorY = levels[0].fn;
 
@@ -1619,11 +1583,11 @@ function showCustomize() {
   updatePreviews();
 }
 
-// Customize → Level Select
+// Customize → Start Game
 document.getElementById('btnCustNext').onclick = () => {
   sfxClick();
   document.getElementById('customize').classList.add('hidden');
-  showLevelSelect();
+  startGame();
 };
 document.getElementById('btnBack').onclick = () => {
   sfxClick();
@@ -2874,7 +2838,7 @@ function drawUI() {
 }
 
 // ---- Game Loop ----
-const GAME_SPEED = 0.7; // 1.0 = normal, 0.7 = 30% slower
+const GAME_SPEED = 0.6; // 1.0 = normal, 0.6 = 40% slower
 const FIXED_STEP = 1000 / 60;
 let lastTime = 0;
 let accumulator = 0;
