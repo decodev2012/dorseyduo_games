@@ -1200,7 +1200,11 @@
         let speedrunStartTime = 0;
         let speedrunTime = 0;
         let speedrunRunning = false;
-        let leaderboardData = JSON.parse(localStorage.getItem('jumpGameLeaderboard') || '[]');
+        let leaderboardData = [];
+        // Fetch global leaderboard on load
+        fetch('/api/leaderboard').then(r => r.json()).then(data => {
+            leaderboardData = data;
+        }).catch(() => {});
 
 
         // Character customization
@@ -1513,19 +1517,39 @@
         }
 
         function saveToLeaderboard(name, time) {
-            leaderboardData.push({ name, time, date: Date.now() });
-            leaderboardData.sort((a, b) => a.time - b.time);
-            leaderboardData = leaderboardData.slice(0, 10); // Keep top 10
-            localStorage.setItem('jumpGameLeaderboard', JSON.stringify(leaderboardData));
+            fetch('/api/leaderboard', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, time }),
+            }).then(r => r.json()).then(data => {
+                leaderboardData = data;
+                renderLeaderboard();
+            }).catch(() => {
+                // Fallback: update locally
+                leaderboardData.push({ name, time, date: Date.now() });
+                leaderboardData.sort((a, b) => a.time - b.time);
+                leaderboardData = leaderboardData.slice(0, 5);
+            });
         }
 
         function renderLeaderboard() {
+            const list = document.getElementById('leaderboardList');
+            // Fetch latest global leaderboard
+            fetch('/api/leaderboard').then(r => r.json()).then(data => {
+                leaderboardData = data;
+                renderLeaderboardList();
+            }).catch(() => {
+                renderLeaderboardList();
+            });
+        }
+
+        function renderLeaderboardList() {
             const list = document.getElementById('leaderboardList');
             if (leaderboardData.length === 0) {
                 list.innerHTML = '<div class="no-entries">No times recorded yet. Complete all 10 levels!</div>';
                 return;
             }
-            list.innerHTML = leaderboardData.map((entry, i) => {
+            list.innerHTML = leaderboardData.slice(0, 5).map((entry, i) => {
                 let rankClass = '';
                 if (i === 0) rankClass = 'gold';
                 else if (i === 1) rankClass = 'silver';
