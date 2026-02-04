@@ -3311,9 +3311,19 @@
             drawPlayer2();
         }
 
-        function gameLoop() {
+        let _lastTime = 0;
+        let _accumulator = 0;
+        const _FIXED_STEP = 1000 / 60;
+        function gameLoop(time) {
+            if (!_lastTime) { _lastTime = time; requestAnimationFrame(gameLoop); return; }
+            const elapsed = Math.min(time - _lastTime, 50);
+            _lastTime = time;
             if (gameState === 'playing' || gameState === 'testing') {
-                update();
+                _accumulator += elapsed;
+                while (_accumulator >= _FIXED_STEP) {
+                    update();
+                    _accumulator -= _FIXED_STEP;
+                }
                 draw();
             } else if (gameState === 'editor') {
                 drawEditor();

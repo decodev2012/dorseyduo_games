@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tank Battle</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a1a;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    overflow: hidden;
+  }
+  #gameContainer {
+    position: relative;
+    width: 800px;
+    height: 560px;
+  }
+  canvas {
+    display: block;
+    border-radius: 4px;
+  }
+  #menu {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: rgba(5, 5, 20, 0.95);
+    z-index: 10;
+  }
+  #menu.hidden { display: none; }
+  #menu h1 {
+    font-size: 52px;
+    color: #fff;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    text-shadow: 0 0 20px rgba(0,200,100,0.5), 0 0 40px rgba(255,60,60,0.3);
+  }
+  #menu p.subtitle {
+    color: #889;
+    font-size: 14px;
+    margin-bottom: 40px;
+    letter-spacing: 2px;
+  }
+  #menu button, #aiMenu button, #winScreen button {
+    display: block;
+    width: 240px;
+    padding: 14px 0;
+    margin: 8px 0;
+    font-size: 18px;
+    font-weight: bold;
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 6px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+    color: #fff;
+  }
+  .btn-ai {
+    background: linear-gradient(135deg, #1a5cb0, #2080e0);
+  }
+  .btn-ai:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(30,120,220,0.5); }
+  .btn-2p {
+    background: linear-gradient(135deg, #b05a1a, #e07820);
+  }
+  .btn-2p:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(220,120,30,0.5); }
+
+  #aiMenu {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: rgba(5, 5, 20, 0.95);
+    z-index: 10;
+  }
+  #aiMenu.hidden { display: none; }
+  #aiMenu h2 {
+    font-size: 28px; color: #fff; margin-bottom: 24px;
+    text-transform: uppercase; letter-spacing: 3px;
+  }
+  .btn-easy { background: linear-gradient(135deg, #1a7a3a, #28a050); }
+  .btn-easy:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(40,160,80,0.5); }
+  .btn-normal { background: linear-gradient(135deg, #1a5cb0, #2080e0); }
+  .btn-normal:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(30,120,220,0.5); }
+  .btn-hard { background: linear-gradient(135deg, #a01530, #d02040); }
+  .btn-hard:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(210,40,60,0.5); }
+  .btn-back { background: linear-gradient(135deg, #444, #666); margin-top: 16px; }
+  .btn-back:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(100,100,100,0.5); }
+
+  #winScreen {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: rgba(5, 5, 20, 0.9);
+    z-index: 10;
+  }
+  #winScreen.hidden { display: none; }
+  #winScreen h2 {
+    font-size: 40px; color: #fff; margin-bottom: 10px;
+    text-transform: uppercase; letter-spacing: 3px;
+    text-shadow: 0 0 20px rgba(255,255,100,0.5);
+  }
+  #winScreen p {
+    color: #aab; font-size: 16px; margin-bottom: 30px;
+  }
+  .btn-again { background: linear-gradient(135deg, #1a7a3a, #28a050); }
+  .btn-again:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(40,160,80,0.5); }
+  .btn-menu { background: linear-gradient(135deg, #444, #666); }
+  .btn-menu:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(100,100,100,0.5); }
+  .btn-help { background: linear-gradient(135deg, #555, #777); }
+  .btn-help:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(120,120,120,0.5); }
+
+  #howToPlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: rgba(5, 5, 20, 0.95);
+    z-index: 10;
+  }
+  #howToPlay.hidden { display: none; }
+  #howToPlay h2 {
+    font-size: 28px; color: #fff; margin-bottom: 20px;
+    text-transform: uppercase; letter-spacing: 3px;
+  }
+  .htp-content {
+    max-width: 600px;
+    text-align: left;
+    color: #ccc;
+    font-size: 14px;
+    line-height: 1.8;
+    margin-bottom: 24px;
+  }
+  .htp-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+  }
+  .htp-content td {
+    padding: 4px 12px;
+  }
+  .htp-content .key {
+    color: #fff;
+    background: #333;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 13px;
+  }
+  .htp-section {
+    color: #8af;
+    font-weight: bold;
+    margin-top: 14px;
+    margin-bottom: 4px;
+    font-size: 15px;
+  }
+  .powerup-dot {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+<div id="gameContainer">
+  <canvas id="canvas" width="800" height="560"></canvas>
+  <div id="menu">
+    <h1>Tank Battle</h1>
+    <p class="subtitle">Destroy your opponent</p>
+    <button class="btn-ai" id="btnAI">VS AI</button>
+    <button class="btn-2p" id="btn2P">2 PLAYER</button>
+    <button class="btn-help" id="btnHelp">HOW TO PLAY</button>
+  </div>
+  <div id="howToPlay" class="hidden">
+    <h2>How to Play</h2>
+    <div class="htp-content">
+      <div class="htp-section">Controls</div>
+      <table>
+        <tr><td></td><td><b style="color:#3a3">Player 1</b></td><td><b style="color:#c33">Player 2</b></td></tr>
+        <tr><td>Move</td><td><span class="key">W</span> <span class="key">S</span></td><td><span class="key">&uarr;</span> <span class="key">&darr;</span></td></tr>
+        <tr><td>Steer</td><td><span class="key">A</span> <span class="key">D</span></td><td><span class="key">&larr;</span> <span class="key">&rarr;</span></td></tr>
+        <tr><td>Shoot</td><td><span class="key">Space</span></td><td><span class="key">Enter</span></td></tr>
+      </table>
+      <div class="htp-section">Rules</div>
+      First to 3 kills wins. Bullets ricochet once off walls. You can only steer while driving forward or backward. Hold shoot to charge a power shot that blasts through crates!
+      <div class="htp-section">Power-ups</div>
+      <span class="powerup-dot" style="background:#ee2"></span> <b>Rapid Fire</b> &mdash; Faster shooting for 5s<br>
+      <span class="powerup-dot" style="background:#4af"></span> <b>Shield</b> &mdash; Blocks one hit<br>
+      <span class="powerup-dot" style="background:#4e4"></span> <b>Speed</b> &mdash; Faster movement for 5s<br>
+      <span class="powerup-dot" style="background:#f4f"></span> <b>Mini</b> &mdash; Shrink &amp; speed boost for 6s<br>
+      <span class="powerup-dot" style="background:#f80"></span> <b>Power Shots</b> &mdash; All shots are fully charged for 5s
+    </div>
+    <button class="btn-back" id="btnHelpBack">BACK</button>
+  </div>
+  <div id="aiMenu" class="hidden">
+    <h2>Select Difficulty</h2>
+    <button class="btn-easy" id="btnEasy">EASY</button>
+    <button class="btn-normal" id="btnNormal">NORMAL</button>
+    <button class="btn-hard" id="btnHard">HARD</button>
+    <button class="btn-back" id="btnAIBack">BACK</button>
+  </div>
+  <div id="winScreen" class="hidden">
+    <h2 id="winText">PLAYER 1 WINS</h2>
+    <p id="winScore">3 - 0</p>
+    <button class="btn-again" id="btnAgain">PLAY AGAIN</button>
+    <button class="btn-menu" id="btnMenu">MENU</button>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 560;
+
+// ---- Game State ----
+let gameState = 'menu'; // menu, playing, roundEnd, matchEnd
+let vsAI = false;
+let aiDifficulty = 1; // 0=easy, 1=normal, 2=hard
+let scores = [0, 0];
+const WIN_SCORE = 3;
+let roundTimer = 0;
+let roundPauseTimer = 0;
+
+// ---- Input ----
+const keys = {};
+window.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.code)) {
+    e.preventDefault();
+  }
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// ---- Map ----
+const TILE = 40;
+const COLS = 20, ROWS = 14;
+// 0=empty, 1=wall (indestructible), 2=crate (destructible)
+const mapData = [
+  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+  1,0,0,2,0,0,1,1,0,0,0,0,1,1,0,0,2,0,0,1,
+  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+  1,0,2,0,0,1,0,0,0,2,2,0,0,0,1,0,0,2,0,1,
+  1,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,1,
+  1,0,0,0,0,0,0,2,0,0,0,0,2,0,0,0,0,0,0,1,
+  1,0,0,0,0,0,0,2,0,0,0,0,2,0,0,0,0,0,0,1,
+  1,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,1,
+  1,0,2,0,0,1,0,0,0,2,2,0,0,0,1,0,0,2,0,1,
+  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+  1,0,0,2,0,0,1,1,0,0,0,0,1,1,0,0,2,0,0,1,
+  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+  1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+];
+let map = [];
+
+function resetMap() {
+  map = mapData.slice();
+}
+
+function tileAt(col, row) {
+  if (col < 0 || col >= COLS || row < 0 || row >= ROWS) return 1;
+  return map[row * COLS + col];
+}
+
+function setTile(col, row, val) {
+  if (col >= 0 && col < COLS && row >= 0 && row < ROWS) {
+    map[row * COLS + col] = val;
+  }
+}
+
+// ---- Tanks ----
+const TANK_SIZE = 16;
+const TANK_SPEED = 2;
+const TANK_ROT_SPEED = 0.05;
+const BULLET_SPEED = 5;
+const SHOOT_COOLDOWN = 30; // frames
+const RAPID_COOLDOWN = 12;
+
+function createTank(x, y, angle, color, darkColor) {
+  return {
+    x, y, angle, color, darkColor,
+    vx: 0, vy: 0,
+    cooldown: 0,
+    alive: true,
+    shield: false,
+    speedBoost: false,
+    rapidFire: false,
+    mini: false,
+    speedTimer: 0,
+    rapidTimer: 0,
+    miniTimer: 0,
+    shieldFlash: 0,
+    scale: 1,
+    chargeTime: 0,
+    charging: false,
+    powerShots: false,
+    powerShotsTimer: 0,
+  };
+}
+
+let tanks = [];
+let bullets = [];
+let particles = [];
+let powerups = [];
+let powerupTimer = 0;
+
+function spawnTanks() {
+  tanks = [
+    createTank(2.5 * TILE, 7 * TILE, 0, '#3a3', '#282'),
+    createTank(17.5 * TILE, 7 * TILE, Math.PI, '#c33', '#922'),
+  ];
+  bullets = [];
+  particles = [];
+}
+
+// ---- Collision Helpers ----
+function rectContains(rx, ry, rw, rh, px, py) {
+  return px >= rx && px <= rx + rw && py >= ry && py <= ry + rh;
+}
+
+function circleRectOverlap(cx, cy, cr, rx, ry, rw, rh) {
+  const closestX = Math.max(rx, Math.min(cx, rx + rw));
+  const closestY = Math.max(ry, Math.min(cy, ry + rh));
+  const dx = cx - closestX;
+  const dy = cy - closestY;
+  return dx * dx + dy * dy < cr * cr;
+}
+
+function tankCollidesWall(x, y, r) {
+  const col0 = Math.floor((x - r) / TILE);
+  const col1 = Math.floor((x + r) / TILE);
+  const row0 = Math.floor((y - r) / TILE);
+  const row1 = Math.floor((y + r) / TILE);
+  for (let row = row0; row <= row1; row++) {
+    for (let col = col0; col <= col1; col++) {
+      const t = tileAt(col, row);
+      if (t === 1 || t === 2) {
+        if (circleRectOverlap(x, y, r, col * TILE, row * TILE, TILE, TILE)) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+// ---- Bullets ----
+const CHARGE_TIME = 45; // frames to fully charge
+
+function spawnBullet(tank, power, charge) {
+  charge = charge || 0;
+  const speed = power ? BULLET_SPEED * 1.4 : BULLET_SPEED;
+  // Max bounces: normal=1, charged scales from 1 to 5
+  const maxBounces = power ? 2 + Math.round(charge * 3) : 1;
+  bullets.push({
+    x: tank.x + Math.cos(tank.angle) * (TANK_SIZE + 4),
+    y: tank.y + Math.sin(tank.angle) * (TANK_SIZE + 4),
+    vx: Math.cos(tank.angle) * speed,
+    vy: Math.sin(tank.angle) * speed,
+    bounces: 0,
+    maxBounces,
+    owner: tanks.indexOf(tank),
+    life: power ? 240 + charge * 120 : 180,
+    power: !!power,
+  });
+}
+
+// ---- Power-ups ----
+const POWERUP_TYPES = ['rapid', 'shield', 'speed', 'mini', 'power'];
+const POWERUP_COLORS = { rapid: '#ee2', shield: '#4af', speed: '#4e4', mini: '#f4f', power: '#f80' };
+const POWERUP_LABELS = { rapid: 'R', shield: 'S', speed: 'V', mini: 'M', power: 'P' };
+
+function spawnPowerup() {
+  if (powerups.length >= 2) return;
+  let attempts = 0;
+  while (attempts < 50) {
+    const col = Math.floor(Math.random() * (COLS - 4)) + 2;
+    const row = Math.floor(Math.random() * (ROWS - 4)) + 2;
+    if (tileAt(col, row) === 0) {
+      const px = col * TILE + TILE / 2;
+      const py = row * TILE + TILE / 2;
+      // Don't spawn too close to tanks
+      let tooClose = false;
+      for (const t of tanks) {
+        if (Math.hypot(t.x - px, t.y - py) < 80) tooClose = true;
+      }
+      if (!tooClose) {
+        powerups.push({
+          x: px, y: py,
+          type: POWERUP_TYPES[Math.floor(Math.random() * POWERUP_TYPES.length)],
+          time: 0,
+        });
+        return;
+      }
+    }
+    attempts++;
+  }
+}
+
+// ---- Particles ----
+function spawnParticles(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const spd = Math.random() * 3 + 1;
+    particles.push({
+      x, y,
+      vx: Math.cos(a) * spd,
+      vy: Math.sin(a) * spd,
+      life: 20 + Math.random() * 20,
+      maxLife: 40,
+      color,
+      size: 2 + Math.random() * 3,
+    });
+  }
+}
+
+// ---- AI ----
+function updateAI(tank, target, dt) {
+  if (!tank.alive || !target.alive) return;
+
+  // Difficulty settings
+  const rotMult = [0.4, 0.7, 1.0][aiDifficulty];
+  const shootThresh = [0.6, 0.35, 0.15][aiDifficulty];
+  const moveChance = [0.6, 0.8, 0.95][aiDifficulty];
+  const shootChance = [0.02, 0.04, 0.07][aiDifficulty];
+
+  // Check for nearby power-ups to grab
+  const pickupRange = [150, 220, 300][aiDifficulty];
+  let aimX = target.x, aimY = target.y;
+  let goingForPowerup = false;
+  if (powerups.length > 0) {
+    let bestDist = Infinity;
+    for (const p of powerups) {
+      const pd = Math.hypot(p.x - tank.x, p.y - tank.y);
+      if (pd < pickupRange && pd < bestDist) {
+        bestDist = pd;
+        aimX = p.x;
+        aimY = p.y;
+        goingForPowerup = true;
+      }
+    }
+  }
+
+  const dx = aimX - tank.x;
+  const dy = aimY - tank.y;
+  const targetAngle = Math.atan2(dy, dx);
+  let diff = targetAngle - tank.angle;
+  while (diff > Math.PI) diff -= Math.PI * 2;
+  while (diff < -Math.PI) diff += Math.PI * 2;
+
+  // Also track angle to enemy for shooting
+  const edx = target.x - tank.x;
+  const edy = target.y - tank.y;
+  let enemyDiff = Math.atan2(edy, edx) - tank.angle;
+  while (enemyDiff > Math.PI) enemyDiff -= Math.PI * 2;
+  while (enemyDiff < -Math.PI) enemyDiff += Math.PI * 2;
+
+  if (tank.vel === undefined) tank.vel = 0;
+  const miniMult = tank.mini ? 1.8 : 1;
+  const boostMult = tank.speedBoost ? 1.5 : 1;
+  const maxSpeed = TANK_SPEED * boostMult * miniMult * dt;
+  const aiAccel = 0.12 * miniMult * dt;
+
+  // Move toward aim target
+  const dist = Math.hypot(dx, dy);
+  if (goingForPowerup) {
+    // Always drive toward power-up
+    tank.vel += aiAccel;
+  } else if (dist > 100 && Math.random() < moveChance) {
+    tank.vel += aiAccel;
+  } else if (dist < 80) {
+    tank.vel -= aiAccel * 0.7;
+  } else if (!Math.random() < 0.1) {
+    tank.vel *= 0.92;
+  }
+  tank.vel = Math.max(-maxSpeed * 0.6, Math.min(maxSpeed, tank.vel));
+  if (Math.abs(tank.vel) < 0.01) tank.vel = 0;
+
+  // Rotate toward aim target only when moving
+  if (Math.abs(tank.vel) > 0.05 && Math.abs(diff) > 0.05) {
+    const turnFactor = Math.abs(tank.vel) / maxSpeed;
+    const rm = goingForPowerup ? 1.0 : rotMult;
+    tank.angle += Math.sign(diff) * TANK_ROT_SPEED * rm * dt * turnFactor;
+  } else if (Math.abs(tank.vel) <= 0.05) {
+    // Need to move to turn, so nudge forward
+    tank.vel += aiAccel * 0.5;
+  }
+
+  const nx = tank.x + Math.cos(tank.angle) * tank.vel;
+  const ny = tank.y + Math.sin(tank.angle) * tank.vel;
+  if (!tankCollidesWall(nx, ny, TANK_SIZE * 0.7)) {
+    tank.x = nx;
+    tank.y = ny;
+  } else {
+    tank.vel *= -0.3;
+    tank.angle += (Math.random() - 0.5) * 0.5;
+  }
+
+  // Shoot if roughly aimed
+  if (tank.charging === undefined) tank.charging = false;
+  if (tank.chargeTime === undefined) tank.chargeTime = 0;
+
+  const chargeChance = [0.08, 0.15, 0.25][aiDifficulty];
+
+  if (Math.abs(enemyDiff) < shootThresh && tank.cooldown <= 0 && !goingForPowerup) {
+    if (!tank.charging && Math.random() < shootChance * dt) {
+      // Decide whether to charge or quick fire
+      if (Math.random() < chargeChance) {
+        tank.charging = true;
+        tank.chargeTime = 0;
+      } else {
+        spawnBullet(tank, false, 0);
+        sfxShoot();
+        const cd = tank.rapidFire ? RAPID_COOLDOWN : SHOOT_COOLDOWN;
+        tank.cooldown = cd;
+      }
+    }
+    // Continue charging
+    if (tank.charging) {
+      tank.chargeTime += dt;
+      const targetCharge = [0.6, 0.8, 1.0][aiDifficulty];
+      if (tank.chargeTime >= CHARGE_TIME * targetCharge) {
+        const charge = Math.min(tank.chargeTime / CHARGE_TIME, 1);
+        spawnBullet(tank, true, charge);
+        sfxPowerShot();
+        const cd = tank.rapidFire ? RAPID_COOLDOWN : SHOOT_COOLDOWN;
+        tank.cooldown = cd * 1.5;
+        tank.charging = false;
+        tank.chargeTime = 0;
+      }
+    }
+  } else if (tank.charging && Math.abs(enemyDiff) >= shootThresh) {
+    // Lost aim while charging — fire what we have
+    const charge = Math.min(tank.chargeTime / CHARGE_TIME, 1);
+    const powered = charge >= 1;
+    spawnBullet(tank, powered, charge);
+    if (powered) { sfxPowerShot(); } else { sfxShoot(); }
+    const cd = tank.rapidFire ? RAPID_COOLDOWN : SHOOT_COOLDOWN;
+    tank.cooldown = powered ? cd * 1.5 : cd;
+    tank.charging = false;
+    tank.chargeTime = 0;
+  }
+}
+
+// ---- Sound (simple Web Audio) ----
+let audioCtx;
+function ensureAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+function sfxShoot() {
+  ensureAudio();
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.connect(g); g.connect(audioCtx.destination);
+  o.type = 'square';
+  o.frequency.setValueAtTime(600, audioCtx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.1);
+  g.gain.setValueAtTime(0.15, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+  o.start(); o.stop(audioCtx.currentTime + 0.1);
+}
+
+function sfxPowerShot() {
+  ensureAudio();
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.connect(g); g.connect(audioCtx.destination);
+  o.type = 'sawtooth';
+  o.frequency.setValueAtTime(300, audioCtx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.25);
+  g.gain.setValueAtTime(0.25, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+  o.start(); o.stop(audioCtx.currentTime + 0.25);
+}
+
+function sfxHit() {
+  ensureAudio();
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.connect(g); g.connect(audioCtx.destination);
+  o.type = 'sawtooth';
+  o.frequency.setValueAtTime(200, audioCtx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.3);
+  g.gain.setValueAtTime(0.2, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+  o.start(); o.stop(audioCtx.currentTime + 0.3);
+}
+
+function sfxBounce() {
+  ensureAudio();
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.connect(g); g.connect(audioCtx.destination);
+  o.type = 'triangle';
+  o.frequency.setValueAtTime(800, audioCtx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.05);
+  g.gain.setValueAtTime(0.1, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+  o.start(); o.stop(audioCtx.currentTime + 0.05);
+}
+
+function sfxPowerup() {
+  ensureAudio();
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.connect(g); g.connect(audioCtx.destination);
+  o.type = 'sine';
+  o.frequency.setValueAtTime(400, audioCtx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.15);
+  g.gain.setValueAtTime(0.15, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+  o.start(); o.stop(audioCtx.currentTime + 0.15);
+}
+
+function sfxExplode() {
+  ensureAudio();
+  const bufSize = audioCtx.sampleRate * 0.3;
+  const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) {
+    data[i] = (Math.random() * 2 - 1) * (1 - i / bufSize);
+  }
+  const src = audioCtx.createBufferSource();
+  const g = audioCtx.createGain();
+  src.buffer = buf;
+  src.connect(g); g.connect(audioCtx.destination);
+  g.gain.setValueAtTime(0.25, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+  src.start(); src.stop(audioCtx.currentTime + 0.3);
+}
+
+function sfxClick() {
+  ensureAudio();
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.connect(g); g.connect(audioCtx.destination);
+  o.type = 'sine';
+  o.frequency.value = 500;
+  g.gain.setValueAtTime(0.1, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+  o.start(); o.stop(audioCtx.currentTime + 0.05);
+}
+
+// ---- Update ----
+function updateTankInput(tank, up, down, left, right, shoot, dt) {
+  if (!tank.alive) return;
+
+  const miniMult = tank.mini ? 1.8 : 1;
+  const boostMult = tank.speedBoost ? 1.5 : 1;
+  const maxSpeed = TANK_SPEED * boostMult * miniMult * dt;
+  const accel = 0.12 * miniMult * dt;
+  const friction = 0.92;
+  const rotSpeed = TANK_ROT_SPEED * dt;
+
+  // Initialize velocity if needed
+  if (tank.vel === undefined) tank.vel = 0;
+
+  // Accelerate / brake
+  if (up) tank.vel += accel;
+  if (down) tank.vel -= accel * 0.7;
+
+  // Friction when not pressing gas
+  if (!up && !down) tank.vel *= friction;
+
+  // Clamp speed
+  tank.vel = Math.max(-maxSpeed * 0.6, Math.min(maxSpeed, tank.vel));
+  if (Math.abs(tank.vel) < 0.01) tank.vel = 0;
+
+  // Only turn when moving
+  if (Math.abs(tank.vel) > 0.05) {
+    const turnFactor = Math.abs(tank.vel) / maxSpeed;
+    const turnDir = tank.vel < 0 ? -1 : 1; // reverse steering when reversing
+    if (left) tank.angle -= rotSpeed * turnFactor * turnDir;
+    if (right) tank.angle += rotSpeed * turnFactor * turnDir;
+  }
+
+  let nx = tank.x + Math.cos(tank.angle) * tank.vel;
+  let ny = tank.y + Math.sin(tank.angle) * tank.vel;
+
+  // Wall collision
+  const hitR = TANK_SIZE * 0.7 * tank.scale;
+  if (!tankCollidesWall(nx, ny, hitR)) {
+    tank.x = nx;
+    tank.y = ny;
+  } else if (!tankCollidesWall(nx, tank.y, hitR)) {
+    tank.x = nx;
+  } else if (!tankCollidesWall(tank.x, ny, hitR)) {
+    tank.y = ny;
+  }
+
+  if (tank.cooldown > 0) tank.cooldown -= dt;
+  if (shoot && tank.cooldown <= 0) {
+    if (!tank.charging) {
+      tank.charging = true;
+      tank.chargeTime = 0;
+    }
+    tank.chargeTime += dt;
+  }
+  if (!shoot && tank.charging) {
+    // Released — fire
+    const charge = Math.min(tank.chargeTime / CHARGE_TIME, 1);
+    const powered = charge >= 1 || tank.powerShots;
+    const effectiveCharge = tank.powerShots ? Math.max(charge, 1) : charge;
+    spawnBullet(tank, powered, effectiveCharge);
+    if (powered) { sfxPowerShot(); } else { sfxShoot(); }
+    const cd = tank.rapidFire ? RAPID_COOLDOWN : SHOOT_COOLDOWN;
+    tank.cooldown = powered && !tank.powerShots ? cd * 1.5 : cd;
+    tank.charging = false;
+    tank.chargeTime = 0;
+  }
+
+  // Power-up timers
+  if (tank.speedBoost) {
+    tank.speedTimer -= dt;
+    if (tank.speedTimer <= 0) tank.speedBoost = false;
+  }
+  if (tank.rapidFire) {
+    tank.rapidTimer -= dt;
+    if (tank.rapidTimer <= 0) tank.rapidFire = false;
+  }
+  if (tank.mini) {
+    tank.miniTimer -= dt;
+    if (tank.miniTimer <= 0) { tank.mini = false; tank.scale = 1; }
+  }
+  if (tank.powerShots) {
+    tank.powerShotsTimer -= dt;
+    if (tank.powerShotsTimer <= 0) tank.powerShots = false;
+  }
+  if (tank.shieldFlash > 0) tank.shieldFlash -= dt;
+}
+
+function update(dt) {
+  if (gameState === 'roundEnd') {
+    roundPauseTimer -= dt;
+    if (roundPauseTimer <= 0) {
+      if (scores[0] >= WIN_SCORE || scores[1] >= WIN_SCORE) {
+        gameState = 'matchEnd';
+        const winner = scores[0] >= WIN_SCORE ? 0 : 1;
+        const label = vsAI ? (winner === 0 ? 'YOU WIN!' : 'AI WINS!') : `PLAYER ${winner + 1} WINS!`;
+        document.getElementById('winText').textContent = label;
+        document.getElementById('winScore').textContent = `${scores[0]} - ${scores[1]}`;
+        document.getElementById('winScreen').classList.remove('hidden');
+      } else {
+        startRound();
+      }
+    }
+    // Still update particles during pause
+    updateParticles(dt);
+    return;
+  }
+  if (gameState !== 'playing') return;
+
+  // P1 input: WASD + Space
+  updateTankInput(tanks[0],
+    keys['KeyW'], keys['KeyS'], keys['KeyA'], keys['KeyD'], keys['Space'], dt);
+
+  // P2 input or AI
+  if (vsAI) {
+    updateAI(tanks[1], tanks[0], dt);
+    // Still handle cooldown and power-up timers for AI
+    if (tanks[1].cooldown > 0) tanks[1].cooldown -= dt;
+    if (tanks[1].speedBoost) {
+      tanks[1].speedTimer -= dt;
+      if (tanks[1].speedTimer <= 0) tanks[1].speedBoost = false;
+    }
+    if (tanks[1].rapidFire) {
+      tanks[1].rapidTimer -= dt;
+      if (tanks[1].rapidTimer <= 0) tanks[1].rapidFire = false;
+    }
+    if (tanks[1].mini) {
+      tanks[1].miniTimer -= dt;
+      if (tanks[1].miniTimer <= 0) { tanks[1].mini = false; tanks[1].scale = 1; }
+    }
+    if (tanks[1].powerShots) {
+      tanks[1].powerShotsTimer -= dt;
+      if (tanks[1].powerShotsTimer <= 0) tanks[1].powerShots = false;
+    }
+    if (tanks[1].shieldFlash > 0) tanks[1].shieldFlash -= dt;
+  } else {
+    updateTankInput(tanks[1],
+      keys['ArrowUp'], keys['ArrowDown'], keys['ArrowLeft'], keys['ArrowRight'], keys['Enter'], dt);
+  }
+
+  // Update bullets
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    const b = bullets[i];
+    b.life -= dt;
+    if (b.life <= 0) { bullets.splice(i, 1); continue; }
+
+    const nx = b.x + b.vx * dt;
+    const ny = b.y + b.vy * dt;
+
+    // Check wall collision for bullet
+    const col = Math.floor(nx / TILE);
+    const row = Math.floor(ny / TILE);
+    const t = tileAt(col, row);
+
+    if (t === 1 || t === 2) {
+      if (t === 2) {
+        // Destroy crate
+        setTile(col, row, 0);
+        spawnParticles(col * TILE + TILE / 2, row * TILE + TILE / 2, '#a85', 8);
+        // Power bullets blast through crates without stopping
+        if (b.power) {
+          sfxBounce();
+          continue;
+        }
+      }
+
+      if (b.bounces >= (b.maxBounces || 1)) {
+        bullets.splice(i, 1);
+        sfxBounce();
+        continue;
+      }
+      b.bounces++;
+      sfxBounce();
+
+      // Determine bounce direction
+      const prevCol = Math.floor(b.x / TILE);
+      const prevRow = Math.floor(b.y / TILE);
+      if (prevCol !== col) b.vx = -b.vx;
+      if (prevRow !== row) b.vy = -b.vy;
+      if (prevCol === col && prevRow === row) { b.vx = -b.vx; b.vy = -b.vy; }
+      continue;
+    }
+
+    b.x = nx;
+    b.y = ny;
+
+    // Check bullet-bullet collision — both destroy
+    let bulletDestroyed = false;
+    for (let j = i - 1; j >= 0; j--) {
+      const b2 = bullets[j];
+      const dx = b.x - b2.x;
+      const dy = b.y - b2.y;
+      if (dx * dx + dy * dy < 36) {
+        const mx = (b.x + b2.x) / 2, my = (b.y + b2.y) / 2;
+        spawnParticles(mx, my, '#ff0', 6);
+        sfxBounce();
+        bullets.splice(i, 1);
+        bullets.splice(j, 1);
+        bulletDestroyed = true;
+        break;
+      }
+    }
+    if (bulletDestroyed) continue;
+
+    // Check tank hit
+    for (let ti = 0; ti < tanks.length; ti++) {
+      if (ti === b.owner) continue;
+      const tank = tanks[ti];
+      if (!tank.alive) continue;
+      const dx = b.x - tank.x;
+      const dy = b.y - tank.y;
+      const hr = TANK_SIZE * 0.7 * tank.scale;
+      if (dx * dx + dy * dy < hr * hr) {
+        bullets.splice(i, 1);
+        if (tank.shield) {
+          tank.shield = false;
+          tank.shieldFlash = 10;
+          spawnParticles(tank.x, tank.y, '#4af', 10);
+          sfxBounce();
+        } else {
+          tank.alive = false;
+          sfxExplode();
+          spawnParticles(tank.x, tank.y, tank.color, 25);
+          spawnParticles(tank.x, tank.y, '#fa0', 15);
+          scores[b.owner]++;
+          gameState = 'roundEnd';
+          roundPauseTimer = 90;
+        }
+        break;
+      }
+    }
+  }
+
+  // Tank-tank collision
+  if (tanks[0].alive && tanks[1].alive) {
+    const dx = tanks[1].x - tanks[0].x;
+    const dy = tanks[1].y - tanks[0].y;
+    const dist = Math.hypot(dx, dy);
+    const r0 = TANK_SIZE * 0.7 * tanks[0].scale;
+    const r1 = TANK_SIZE * 0.7 * tanks[1].scale;
+    const minDist = r0 + r1;
+    if (dist < minDist && dist > 0) {
+      const nx = dx / dist;
+      const ny = dy / dist;
+      const overlap = minDist - dist;
+      // Push apart equally
+      tanks[0].x -= nx * overlap * 0.5;
+      tanks[0].y -= ny * overlap * 0.5;
+      tanks[1].x += nx * overlap * 0.5;
+      tanks[1].y += ny * overlap * 0.5;
+      // Dampen velocity on impact
+      if (tanks[0].vel !== undefined) tanks[0].vel *= -0.3;
+      if (tanks[1].vel !== undefined) tanks[1].vel *= -0.3;
+    }
+  }
+
+  // Power-up spawning
+  powerupTimer += dt;
+  if (powerupTimer >= 480) { // ~8 seconds at 60fps
+    powerupTimer = 0;
+    spawnPowerup();
+  }
+
+  // Power-up collection
+  for (let i = powerups.length - 1; i >= 0; i--) {
+    const p = powerups[i];
+    p.time += dt;
+    for (const tank of tanks) {
+      if (!tank.alive) continue;
+      const dx = tank.x - p.x;
+      const dy = tank.y - p.y;
+      if (dx * dx + dy * dy < (TANK_SIZE + 10) * (TANK_SIZE + 10)) {
+        sfxPowerup();
+        if (p.type === 'rapid') {
+          tank.rapidFire = true;
+          tank.rapidTimer = 300; // 5 seconds
+        } else if (p.type === 'shield') {
+          tank.shield = true;
+        } else if (p.type === 'speed') {
+          tank.speedBoost = true;
+          tank.speedTimer = 300; // 5 seconds
+        } else if (p.type === 'mini') {
+          tank.mini = true;
+          tank.miniTimer = 360; // 6 seconds
+          tank.scale = 0.5;
+        } else if (p.type === 'power') {
+          tank.powerShots = true;
+          tank.powerShotsTimer = 300; // 5 seconds
+        }
+        spawnParticles(p.x, p.y, POWERUP_COLORS[p.type], 8);
+        powerups.splice(i, 1);
+        break;
+      }
+    }
+  }
+
+  updateParticles(dt);
+}
+
+function updateParticles(dt) {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.life -= dt;
+    p.vx *= 0.97;
+    p.vy *= 0.97;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+// ---- Draw ----
+const DEPTH = 6; // Isometric depth offset
+
+function drawMap() {
+  for (let row = 0; row < ROWS; row++) {
+    for (let col = 0; col < COLS; col++) {
+      const t = tileAt(col, row);
+      const x = col * TILE;
+      const y = row * TILE;
+
+      if (t === 0) {
+        // Floor
+        ctx.fillStyle = (col + row) % 2 === 0 ? '#1a1a2a' : '#181828';
+        ctx.fillRect(x, y, TILE, TILE);
+      } else if (t === 1) {
+        // Wall - draw depth side first
+        ctx.fillStyle = '#252540';
+        ctx.fillRect(x, y + TILE - DEPTH, TILE, DEPTH);
+        // Wall top
+        ctx.fillStyle = '#3a3a5a';
+        ctx.fillRect(x, y, TILE, TILE - DEPTH);
+        // Highlight edge
+        ctx.fillStyle = '#4a4a6a';
+        ctx.fillRect(x, y, TILE, 2);
+        ctx.fillRect(x, y, 2, TILE - DEPTH);
+      } else if (t === 2) {
+        // Floor under crate
+        ctx.fillStyle = (col + row) % 2 === 0 ? '#1a1a2a' : '#181828';
+        ctx.fillRect(x, y, TILE, TILE);
+        // Crate depth
+        ctx.fillStyle = '#5a3a1a';
+        ctx.fillRect(x + 4, y + TILE - DEPTH - 4, TILE - 8, DEPTH);
+        // Crate top
+        ctx.fillStyle = '#8a6530';
+        ctx.fillRect(x + 4, y + 4, TILE - 8, TILE - 8 - DEPTH);
+        // Cross on crate
+        ctx.strokeStyle = '#6a4a20';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(x + 4, y + 4);
+        ctx.lineTo(x + TILE - 4, y + TILE - 4 - DEPTH);
+        ctx.moveTo(x + TILE - 4, y + 4);
+        ctx.lineTo(x + 4, y + TILE - 4 - DEPTH);
+        ctx.stroke();
+      }
+    }
+  }
+}
+
+function drawTank(tank) {
+  if (!tank.alive) return;
+
+  ctx.save();
+  ctx.translate(tank.x, tank.y);
+  ctx.rotate(tank.angle);
+  ctx.scale(tank.scale, tank.scale);
+
+  // Tank body depth (angled view)
+  ctx.fillStyle = tank.darkColor;
+  ctx.fillRect(-TANK_SIZE * 0.7, -TANK_SIZE * 0.5 + DEPTH * 0.5, TANK_SIZE * 1.4, TANK_SIZE + DEPTH * 0.5);
+
+  // Tank body top
+  ctx.fillStyle = tank.color;
+  ctx.fillRect(-TANK_SIZE * 0.7, -TANK_SIZE * 0.5, TANK_SIZE * 1.4, TANK_SIZE);
+
+  // Treads
+  ctx.fillStyle = '#333';
+  ctx.fillRect(-TANK_SIZE * 0.7, -TANK_SIZE * 0.55, TANK_SIZE * 1.4, 3);
+  ctx.fillRect(-TANK_SIZE * 0.7, TANK_SIZE * 0.55 - 3, TANK_SIZE * 1.4, 3);
+
+  // Turret circle
+  ctx.fillStyle = tank.darkColor;
+  ctx.beginPath();
+  ctx.arc(0, 0, TANK_SIZE * 0.35, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Barrel
+  ctx.fillStyle = '#555';
+  ctx.fillRect(0, -2.5, TANK_SIZE * 0.9, 5);
+
+  ctx.restore();
+
+  // Shield bubble
+  if (tank.shield) {
+    ctx.save();
+    ctx.globalAlpha = 0.3 + Math.sin(Date.now() * 0.01) * 0.1;
+    ctx.strokeStyle = '#4af';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(tank.x, tank.y, (TANK_SIZE + 4) * tank.scale, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Shield break flash
+  if (tank.shieldFlash > 0) {
+    ctx.save();
+    ctx.globalAlpha = tank.shieldFlash / 10;
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(tank.x, tank.y, (TANK_SIZE + 8) * tank.scale, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Speed boost indicator
+  if (tank.speedBoost) {
+    ctx.save();
+    ctx.globalAlpha = 0.4;
+    const trailX = tank.x - Math.cos(tank.angle) * TANK_SIZE;
+    const trailY = tank.y - Math.sin(tank.angle) * TANK_SIZE;
+    ctx.fillStyle = '#4e4';
+    ctx.beginPath();
+    ctx.arc(trailX, trailY, 4 + Math.sin(Date.now() * 0.02) * 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Charge indicator
+  if (tank.charging && tank.chargeTime > 0) {
+    ctx.save();
+    const progress = Math.min(tank.chargeTime / CHARGE_TIME, 1);
+    const r = (TANK_SIZE + 6) * tank.scale;
+    ctx.strokeStyle = progress >= 1 ? '#fa0' : '#888';
+    ctx.lineWidth = progress >= 1 ? 3 : 2;
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath();
+    ctx.arc(tank.x, tank.y, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+    ctx.stroke();
+    if (progress >= 1) {
+      ctx.globalAlpha = 0.15 + Math.sin(Date.now() * 0.02) * 0.1;
+      ctx.fillStyle = '#fa0';
+      ctx.beginPath();
+      ctx.arc(tank.x, tank.y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+function drawBullets() {
+  const teamColors = ['#4f4', '#f44'];
+  const teamGlow = ['#0f0', '#f00'];
+  for (const b of bullets) {
+    const color = teamColors[b.owner] || '#fff';
+    const glow = teamGlow[b.owner] || '#ff0';
+    ctx.save();
+    if (b.power) {
+      ctx.shadowColor = glow;
+      ctx.shadowBlur = 14;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, 2, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.shadowColor = glow;
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+function drawPowerups() {
+  for (const p of powerups) {
+    const bob = Math.sin(p.time * 0.08) * 3;
+    const color = POWERUP_COLORS[p.type];
+    const label = POWERUP_LABELS[p.type];
+
+    ctx.save();
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y + bob, 10, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#000';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, p.x, p.y + bob + 1);
+    ctx.restore();
+  }
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    ctx.save();
+    ctx.globalAlpha = p.life / p.maxLife;
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+    ctx.restore();
+  }
+}
+
+function drawHUD() {
+  const p1Label = 'P1';
+  const p2Label = vsAI ? 'AI' : 'P2';
+
+  // Background bar
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(0, 0, W, 28);
+
+  ctx.font = 'bold 16px sans-serif';
+  ctx.textBaseline = 'middle';
+
+  // P1 score
+  ctx.fillStyle = tanks[0].color;
+  ctx.textAlign = 'left';
+  ctx.fillText(`${p1Label}: ${scores[0]}`, 16, 14);
+
+  // P2 score
+  ctx.fillStyle = tanks[1].color;
+  ctx.textAlign = 'right';
+  ctx.fillText(`${p2Label}: ${scores[1]}`, W - 16, 14);
+
+  // Center label
+  ctx.fillStyle = '#889';
+  ctx.textAlign = 'center';
+  ctx.font = '12px sans-serif';
+  ctx.fillText(`FIRST TO ${WIN_SCORE}`, W / 2, 14);
+
+  // Power-up indicators
+  drawPowerIndicators(tanks[0], 100, 14);
+  drawPowerIndicators(tanks[1], W - 100, 14);
+}
+
+function drawPowerIndicators(tank, x, y) {
+  let ox = 0;
+  if (tank.rapidFire) {
+    ctx.fillStyle = POWERUP_COLORS.rapid;
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center';
+    const secs = Math.ceil(tank.rapidTimer / 60);
+    ctx.fillText(`R:${secs}`, x + ox, y);
+    ox += 30;
+  }
+  if (tank.speedBoost) {
+    ctx.fillStyle = POWERUP_COLORS.speed;
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center';
+    const secs = Math.ceil(tank.speedTimer / 60);
+    ctx.fillText(`V:${secs}`, x + ox, y);
+    ox += 30;
+  }
+  if (tank.shield) {
+    ctx.fillStyle = POWERUP_COLORS.shield;
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('S', x + ox, y);
+    ox += 30;
+  }
+  if (tank.mini) {
+    ctx.fillStyle = POWERUP_COLORS.mini;
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center';
+    const secs = Math.ceil(tank.miniTimer / 60);
+    ctx.fillText(`M:${secs}`, x + ox, y);
+    ox += 30;
+  }
+  if (tank.powerShots) {
+    ctx.fillStyle = POWERUP_COLORS.power;
+    ctx.font = 'bold 10px sans-serif';
+    ctx.textAlign = 'center';
+    const secs = Math.ceil(tank.powerShotsTimer / 60);
+    ctx.fillText(`P:${secs}`, x + ox, y);
+  }
+}
+
+function drawRoundEnd() {
+  if (gameState !== 'roundEnd') return;
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillRect(0, H / 2 - 30, W, 60);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 28px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const killer = tanks[0].alive ? 0 : 1;
+  const label = vsAI ? (killer === 0 ? 'YOU SCORED!' : 'AI SCORED!') : `PLAYER ${killer + 1} SCORED!`;
+  ctx.fillText(label, W / 2, H / 2);
+  ctx.restore();
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  drawMap();
+  drawPowerups();
+  drawBullets();
+  drawParticles();
+  for (const t of tanks) drawTank(t);
+  drawHUD();
+  drawRoundEnd();
+}
+
+// ---- Game Flow ----
+function startGame(ai, difficulty) {
+  vsAI = ai;
+  aiDifficulty = difficulty || 0;
+  scores = [0, 0];
+  document.getElementById('menu').classList.add('hidden');
+  document.getElementById('aiMenu').classList.add('hidden');
+  document.getElementById('winScreen').classList.add('hidden');
+  startRound();
+}
+
+function startRound() {
+  resetMap();
+  spawnTanks();
+  powerups = [];
+  powerupTimer = 0;
+  gameState = 'playing';
+}
+
+// ---- Menu Buttons ----
+document.getElementById('btnAI').onclick = () => {
+  sfxClick();
+  document.getElementById('menu').classList.add('hidden');
+  document.getElementById('aiMenu').classList.remove('hidden');
+};
+document.getElementById('btnEasy').onclick = () => { sfxClick(); startGame(true, 0); };
+document.getElementById('btnNormal').onclick = () => { sfxClick(); startGame(true, 1); };
+document.getElementById('btnHard').onclick = () => { sfxClick(); startGame(true, 2); };
+document.getElementById('btnAIBack').onclick = () => {
+  sfxClick();
+  document.getElementById('aiMenu').classList.add('hidden');
+  document.getElementById('menu').classList.remove('hidden');
+};
+document.getElementById('btn2P').onclick = () => { sfxClick(); startGame(false); };
+document.getElementById('btnHelp').onclick = () => {
+  sfxClick();
+  document.getElementById('menu').classList.add('hidden');
+  document.getElementById('howToPlay').classList.remove('hidden');
+};
+document.getElementById('btnHelpBack').onclick = () => {
+  sfxClick();
+  document.getElementById('howToPlay').classList.add('hidden');
+  document.getElementById('menu').classList.remove('hidden');
+};
+document.getElementById('btnAgain').onclick = () => {
+  sfxClick();
+  startGame(vsAI, aiDifficulty);
+};
+document.getElementById('btnMenu').onclick = () => {
+  sfxClick();
+  gameState = 'menu';
+  document.getElementById('winScreen').classList.add('hidden');
+  document.getElementById('menu').classList.remove('hidden');
+};
+
+// ---- Game Loop ----
+const FIXED_STEP = 1000 / 60;
+let lastTime = 0;
+let accumulator = 0;
+
+function gameLoop(time) {
+  requestAnimationFrame(gameLoop);
+  if (!lastTime) { lastTime = time; return; }
+  const elapsed = Math.min(time - lastTime, 50);
+  lastTime = time;
+  accumulator += elapsed;
+
+  while (accumulator >= FIXED_STEP) {
+    update(1);
+    accumulator -= FIXED_STEP;
+  }
+
+  draw();
+}
+
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
