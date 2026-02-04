@@ -876,7 +876,7 @@ function update(dt) {
       const hr = TANK_SIZE * 0.7 * tank.scale;
       if (dx * dx + dy * dy < hr * hr) {
         bullets.splice(i, 1);
-        if (tank.shield) {
+        if (tank.shield && !b.power) {
           tank.shield = false;
           tank.shieldFlash = 10;
           spawnParticles(tank.x, tank.y, '#4af', 10);
