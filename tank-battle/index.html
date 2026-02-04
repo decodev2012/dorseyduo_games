@@ -369,6 +369,11 @@ const CHARGE_TIME = 45; // frames to fully charge
 
 function spawnBullet(tank, power, charge) {
   charge = charge || 0;
+  // PowerShots powerup forces all bullets to be powered
+  if (tank.powerShots) {
+    power = true;
+    charge = Math.max(charge, 1);
+  }
   const speed = power ? BULLET_SPEED * 1.4 : BULLET_SPEED;
   // Max bounces: normal=1, charged scales from 1 to 5
   const maxBounces = power ? 2 + Math.round(charge * 3) : 1;
