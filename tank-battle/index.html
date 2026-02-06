@@ -257,18 +257,18 @@ const COLS = 20, ROWS = 14;
 // 0=empty, 1=wall (indestructible), 2=crate (destructible)
 const mapData = [
   1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,2,0,0,1,1,0,0,0,0,1,1,0,0,2,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,2,0,0,1,0,0,0,2,2,0,0,0,1,0,0,2,0,1,
   1,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,1,
-  1,0,0,0,0,0,0,2,0,0,0,0,2,0,0,0,0,0,0,1,
-  1,0,0,0,0,0,0,2,0,0,0,0,2,0,0,0,0,0,0,1,
+  1,0,1,1,0,1,0,2,0,1,1,0,2,0,1,0,1,1,0,1,
+  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+  1,0,2,0,1,1,1,0,0,2,2,0,0,1,1,1,0,2,0,1,
+  1,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,1,
+  1,1,0,0,0,2,0,0,1,0,0,1,0,0,2,0,0,0,1,1,
+  1,1,0,0,0,2,0,0,1,0,0,1,0,0,2,0,0,0,1,1,
+  1,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,1,
+  1,0,2,0,1,1,1,0,0,2,2,0,0,1,1,1,0,2,0,1,
+  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
+  1,0,1,1,0,1,0,2,0,1,1,0,2,0,1,0,1,1,0,1,
   1,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,1,
-  1,0,2,0,0,1,0,0,0,2,2,0,0,0,1,0,0,2,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
-  1,0,0,2,0,0,1,1,0,0,0,0,1,1,0,0,2,0,0,1,
-  1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,
   1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
 ];
 let map = [];
@@ -326,8 +326,8 @@ let powerupTimer = 0;
 
 function spawnTanks() {
   tanks = [
-    createTank(2.5 * TILE, 7 * TILE, 0, '#3a3', '#282'),
-    createTank(17.5 * TILE, 7 * TILE, Math.PI, '#c33', '#922'),
+    createTank(3.5 * TILE, 7 * TILE, 0, '#3a3', '#282'),
+    createTank(16.5 * TILE, 7 * TILE, Math.PI, '#c33', '#922'),
   ];
   bullets = [];
   particles = [];
@@ -440,8 +440,29 @@ function spawnParticles(x, y, color, count) {
 }
 
 // ---- AI ----
+// Raycast to check if path is blocked
+function aiRaycast(x, y, angle, distance) {
+  const steps = Math.ceil(distance / 10);
+  for (let i = 1; i <= steps; i++) {
+    const d = (i / steps) * distance;
+    const px = x + Math.cos(angle) * d;
+    const py = y + Math.sin(angle) * d;
+    if (tankCollidesWall(px, py, TANK_SIZE * 0.5)) {
+      return d;
+    }
+  }
+  return distance;
+}
+
 function updateAI(tank, target, dt) {
   if (!tank.alive || !target.alive) return;
+
+  // Initialize AI state
+  if (tank.stuckTimer === undefined) tank.stuckTimer = 0;
+  if (tank.lastX === undefined) tank.lastX = tank.x;
+  if (tank.lastY === undefined) tank.lastY = tank.y;
+  if (tank.avoidDir === undefined) tank.avoidDir = 0;
+  if (tank.avoidTimer === undefined) tank.avoidTimer = 0;
 
   // Difficulty settings
   const rotMult = [0.4, 0.7, 1.0][aiDifficulty];
@@ -486,30 +507,77 @@ function updateAI(tank, target, dt) {
   const maxSpeed = TANK_SPEED * boostMult * miniMult * dt;
   const aiAccel = 0.12 * miniMult * dt;
 
-  // Move toward aim target
-  const dist = Math.hypot(dx, dy);
-  if (goingForPowerup) {
-    // Always drive toward power-up
-    tank.vel += aiAccel;
-  } else if (dist > 100 && Math.random() < moveChance) {
-    tank.vel += aiAccel;
-  } else if (dist < 80) {
-    tank.vel -= aiAccel * 0.7;
-  } else if (!Math.random() < 0.1) {
-    tank.vel *= 0.92;
+  // Stuck detection
+  const movedDist = Math.hypot(tank.x - tank.lastX, tank.y - tank.lastY);
+  tank.lastX = tank.x;
+  tank.lastY = tank.y;
+  if (movedDist < 0.1 && Math.abs(tank.vel) > 0.5) {
+    tank.stuckTimer += dt;
+  } else {
+    tank.stuckTimer = Math.max(0, tank.stuckTimer - dt * 0.5);
   }
+
+  // If stuck for too long, pick a random escape direction
+  if (tank.stuckTimer > 30) {
+    tank.avoidDir = (Math.random() > 0.5 ? 1 : -1) * (Math.PI * 0.5 + Math.random() * Math.PI * 0.5);
+    tank.avoidTimer = 60 + Math.random() * 40;
+    tank.stuckTimer = 0;
+    tank.vel = -maxSpeed * 0.5; // Reverse
+  }
+
+  // Obstacle avoidance with raycasts
+  const lookDist = 60;
+  const frontDist = aiRaycast(tank.x, tank.y, tank.angle, lookDist);
+  const leftDist = aiRaycast(tank.x, tank.y, tank.angle - 0.5, lookDist);
+  const rightDist = aiRaycast(tank.x, tank.y, tank.angle + 0.5, lookDist);
+
+  let steerAdjust = 0;
+  if (frontDist < lookDist * 0.7) {
+    // Obstacle ahead - steer toward more open side
+    if (leftDist > rightDist) {
+      steerAdjust = -0.08 * (1 - frontDist / lookDist);
+    } else {
+      steerAdjust = 0.08 * (1 - frontDist / lookDist);
+    }
+  }
+
+  // Active avoidance maneuver
+  if (tank.avoidTimer > 0) {
+    tank.avoidTimer -= dt;
+    tank.angle += Math.sign(tank.avoidDir) * TANK_ROT_SPEED * 1.5 * dt;
+    tank.vel += aiAccel * 0.5;
+  } else {
+    // Normal movement toward aim target
+    const dist = Math.hypot(dx, dy);
+    if (goingForPowerup) {
+      tank.vel += aiAccel;
+    } else if (dist > 100 && Math.random() < moveChance) {
+      tank.vel += aiAccel;
+    } else if (dist < 80) {
+      tank.vel -= aiAccel * 0.7;
+    } else {
+      tank.vel *= 0.92;
+    }
+
+    // Rotate toward aim target (with obstacle avoidance adjustment)
+    if (Math.abs(tank.vel) > 0.05) {
+      const turnFactor = Math.abs(tank.vel) / maxSpeed;
+      const rm = goingForPowerup ? 1.0 : rotMult;
+      let turnAmount = Math.sign(diff) * TANK_ROT_SPEED * rm * dt * turnFactor;
+      // Blend in obstacle avoidance
+      if (Math.abs(steerAdjust) > 0.01) {
+        turnAmount = turnAmount * 0.3 + steerAdjust * dt * 0.7;
+      }
+      if (Math.abs(diff) > 0.05 || Math.abs(steerAdjust) > 0.01) {
+        tank.angle += turnAmount;
+      }
+    } else {
+      tank.vel += aiAccel * 0.5;
+    }
+  }
+
   tank.vel = Math.max(-maxSpeed * 0.6, Math.min(maxSpeed, tank.vel));
   if (Math.abs(tank.vel) < 0.01) tank.vel = 0;
-
-  // Rotate toward aim target only when moving
-  if (Math.abs(tank.vel) > 0.05 && Math.abs(diff) > 0.05) {
-    const turnFactor = Math.abs(tank.vel) / maxSpeed;
-    const rm = goingForPowerup ? 1.0 : rotMult;
-    tank.angle += Math.sign(diff) * TANK_ROT_SPEED * rm * dt * turnFactor;
-  } else if (Math.abs(tank.vel) <= 0.05) {
-    // Need to move to turn, so nudge forward
-    tank.vel += aiAccel * 0.5;
-  }
 
   const nx = tank.x + Math.cos(tank.angle) * tank.vel;
   const ny = tank.y + Math.sin(tank.angle) * tank.vel;
@@ -518,7 +586,7 @@ function updateAI(tank, target, dt) {
     tank.y = ny;
   } else {
     tank.vel *= -0.3;
-    tank.angle += (Math.random() - 0.5) * 0.5;
+    tank.stuckTimer += 5;
   }
 
   // Shoot if roughly aimed
