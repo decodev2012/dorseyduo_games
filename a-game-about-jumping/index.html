@@ -1200,11 +1200,11 @@
         let speedrunStartTime = 0;
         let speedrunTime = 0;
         let speedrunRunning = false;
-        let leaderboardData = [];
-        // Fetch global leaderboard on load
-        fetch('/api/leaderboard').then(r => r.json()).then(data => {
-            leaderboardData = data;
-        }).catch(() => {});
+        // JSONBin.io config — paste your API key and bin ID here
+        const JSONBIN_API_KEY = '$2a$10$tyfs0LWbj9I/b8WxxsMNlO/D.hC9luKCiojV96msYeFxwp3bdmreO';
+        const JSONBIN_BIN_ID = '6989ff27d0ea881f40ad6831';
+
+        let leaderboardData = JSON.parse(localStorage.getItem('jumpGameLeaderboard') || '[]');
 
 
         // Character customization
@@ -1516,47 +1516,59 @@
             }
         }
 
-        function saveToLeaderboard(name, time) {
-            fetch('/api/leaderboard', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, time }),
-            }).then(r => r.json()).then(data => {
-                leaderboardData = data;
-                renderLeaderboard();
-            }).catch(() => {
-                // Fallback: update locally
-                leaderboardData.push({ name, time, date: Date.now() });
-                leaderboardData.sort((a, b) => a.time - b.time);
-                leaderboardData = leaderboardData.slice(0, 5);
-            });
+        async function fetchLeaderboard() {
+            try {
+                const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+                    headers: { 'X-Master-Key': JSONBIN_API_KEY }
+                });
+                if (!res.ok) throw new Error('fetch failed');
+                const data = await res.json();
+                leaderboardData = data.record || [];
+                localStorage.setItem('jumpGameLeaderboard', JSON.stringify(leaderboardData));
+            } catch (e) {
+                console.warn('Leaderboard fetch failed, using local data:', e);
+                leaderboardData = JSON.parse(localStorage.getItem('jumpGameLeaderboard') || '[]');
+            }
+            return leaderboardData;
         }
 
-        function renderLeaderboard() {
-            const list = document.getElementById('leaderboardList');
-            // Fetch latest global leaderboard
-            fetch('/api/leaderboard').then(r => r.json()).then(data => {
-                leaderboardData = data;
-                renderLeaderboardList();
-            }).catch(() => {
-                renderLeaderboardList();
-            });
+        async function saveToLeaderboard(name, time) {
+            await fetchLeaderboard();
+            leaderboardData.push({ name, time, date: Date.now() });
+            leaderboardData.sort((a, b) => a.time - b.time);
+            leaderboardData = leaderboardData.slice(0, 10);
+            localStorage.setItem('jumpGameLeaderboard', JSON.stringify(leaderboardData));
+            try {
+                await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': JSONBIN_API_KEY
+                    },
+                    body: JSON.stringify(leaderboardData)
+                });
+            } catch (e) {
+                console.warn('Leaderboard save failed:', e);
+            }
         }
 
-        function renderLeaderboardList() {
+        async function renderLeaderboard() {
             const list = document.getElementById('leaderboardList');
+            list.innerHTML = '<div class="no-entries">Loading...</div>';
+            await fetchLeaderboard();
             if (leaderboardData.length === 0) {
                 list.innerHTML = '<div class="no-entries">No times recorded yet. Complete all 10 levels!</div>';
                 return;
             }
-            list.innerHTML = leaderboardData.slice(0, 5).map((entry, i) => {
+            list.innerHTML = leaderboardData.map((entry, i) => {
                 let rankClass = '';
                 if (i === 0) rankClass = 'gold';
                 else if (i === 1) rankClass = 'silver';
                 else if (i === 2) rankClass = 'bronze';
+                const safeName = entry.name.replace(/</g, '&lt;').replace(/>/g, '&gt;');
                 return `<div class="leaderboard-entry ${rankClass}">
                     <span class="rank">#${i + 1}</span>
-                    <span class="name">${entry.name}</span>
+                    <span class="name">${safeName}</span>
                     <span class="time">${formatTime(entry.time)}</span>
                 </div>`;
             }).join('');
@@ -3335,19 +3347,9 @@
             drawPlayer2();
         }
 
-        let _lastTime = 0;
-        let _accumulator = 0;
-        const _FIXED_STEP = 1000 / 60;
-        function gameLoop(time) {
-            if (!_lastTime) { _lastTime = time; requestAnimationFrame(gameLoop); return; }
-            const elapsed = Math.min(time - _lastTime, 50);
-            _lastTime = time;
+        function gameLoop() {
             if (gameState === 'playing' || gameState === 'testing') {
-                _accumulator += elapsed;
-                while (_accumulator >= _FIXED_STEP) {
-                    update();
-                    _accumulator -= _FIXED_STEP;
-                }
+                update();
                 draw();
             } else if (gameState === 'editor') {
                 drawEditor();
@@ -4223,9 +4225,8 @@
         });
 
         // Name entry handlers
-        document.getElementById('saveScoreBtn').addEventListener('click', () => {
+        document.getElementById('saveScoreBtn').addEventListener('click', async () => {
             const name = document.getElementById('playerName').value.trim() || 'Anonymous';
-            saveToLeaderboard(name, speedrunTime);
             document.getElementById('nameEntry').style.display = 'none';
             levelDisplay.style.display = 'none';
             escBtn.style.display = 'none';
@@ -4234,10 +4235,11 @@
             stopMusic();
             document.getElementById('musicBtn').textContent = 'Music: OFF';
             document.getElementById('musicBtn').classList.remove('on');
-            renderLeaderboard();
             document.getElementById('leaderboard').style.display = 'flex';
             gameState = 'menu';
             levelCompleted = false;
+            await saveToLeaderboard(name, speedrunTime);
+            await renderLeaderboard();
         });
 
         document.getElementById('skipScoreBtn').addEventListener('click', () => {
