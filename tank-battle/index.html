@@ -125,6 +125,22 @@
   .btn-help { background: linear-gradient(135deg, #555, #777); }
   .btn-help:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(120,120,120,0.5); }
 
+  #musicBtn {
+    position: absolute;
+    top: 8px; right: 8px;
+    z-index: 20;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: bold;
+    color: #aaa;
+    background: rgba(30, 30, 50, 0.8);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 1px;
+  }
+  #musicBtn.on { color: #4e4; border-color: rgba(80,220,80,0.4); }
+
   #howToPlay {
     position: absolute;
     top: 0; left: 0;
@@ -184,6 +200,7 @@
 <body>
 <div id="gameContainer">
   <canvas id="canvas" width="800" height="560"></canvas>
+  <button id="musicBtn">Music: OFF</button>
   <div id="menu">
     <h1>Tank Battle</h1>
     <p class="subtitle">Destroy your opponent</p>
@@ -635,17 +652,32 @@ function updateAI(tank, target, dt) {
   }
 }
 
-// ---- Sound (simple Web Audio) ----
-let audioCtx;
+// ---- Sound (Web Audio with music) ----
+let audioCtx, masterGain, musicGain, sfxGain;
+let musicPlaying = false;
+let musicInterval = null;
+let musicBeat = 0;
+
 function ensureAudio() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0.5;
+    masterGain.connect(audioCtx.destination);
+    musicGain = audioCtx.createGain();
+    musicGain.gain.value = 0.25;
+    musicGain.connect(masterGain);
+    sfxGain = audioCtx.createGain();
+    sfxGain.gain.value = 0.5;
+    sfxGain.connect(masterGain);
+  }
 }
 
 function sfxShoot() {
   ensureAudio();
   const o = audioCtx.createOscillator();
   const g = audioCtx.createGain();
-  o.connect(g); g.connect(audioCtx.destination);
+  o.connect(g); g.connect(sfxGain);
   o.type = 'square';
   o.frequency.setValueAtTime(600, audioCtx.currentTime);
   o.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.1);
@@ -658,7 +690,7 @@ function sfxPowerShot() {
   ensureAudio();
   const o = audioCtx.createOscillator();
   const g = audioCtx.createGain();
-  o.connect(g); g.connect(audioCtx.destination);
+  o.connect(g); g.connect(sfxGain);
   o.type = 'sawtooth';
   o.frequency.setValueAtTime(300, audioCtx.currentTime);
   o.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.25);
@@ -671,7 +703,7 @@ function sfxHit() {
   ensureAudio();
   const o = audioCtx.createOscillator();
   const g = audioCtx.createGain();
-  o.connect(g); g.connect(audioCtx.destination);
+  o.connect(g); g.connect(sfxGain);
   o.type = 'sawtooth';
   o.frequency.setValueAtTime(200, audioCtx.currentTime);
   o.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.3);
@@ -684,7 +716,7 @@ function sfxBounce() {
   ensureAudio();
   const o = audioCtx.createOscillator();
   const g = audioCtx.createGain();
-  o.connect(g); g.connect(audioCtx.destination);
+  o.connect(g); g.connect(sfxGain);
   o.type = 'triangle';
   o.frequency.setValueAtTime(800, audioCtx.currentTime);
   o.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.05);
@@ -697,7 +729,7 @@ function sfxPowerup() {
   ensureAudio();
   const o = audioCtx.createOscillator();
   const g = audioCtx.createGain();
-  o.connect(g); g.connect(audioCtx.destination);
+  o.connect(g); g.connect(sfxGain);
   o.type = 'sine';
   o.frequency.setValueAtTime(400, audioCtx.currentTime);
   o.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.15);
@@ -717,7 +749,7 @@ function sfxExplode() {
   const src = audioCtx.createBufferSource();
   const g = audioCtx.createGain();
   src.buffer = buf;
-  src.connect(g); g.connect(audioCtx.destination);
+  src.connect(g); g.connect(sfxGain);
   g.gain.setValueAtTime(0.25, audioCtx.currentTime);
   g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
   src.start(); src.stop(audioCtx.currentTime + 0.3);
@@ -727,12 +759,99 @@ function sfxClick() {
   ensureAudio();
   const o = audioCtx.createOscillator();
   const g = audioCtx.createGain();
-  o.connect(g); g.connect(audioCtx.destination);
+  o.connect(g); g.connect(sfxGain);
   o.type = 'sine';
   o.frequency.value = 500;
   g.gain.setValueAtTime(0.1, audioCtx.currentTime);
   g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
   o.start(); o.stop(audioCtx.currentTime + 0.05);
+}
+
+// ---- Retro Arcade Music ----
+const MUSIC_BPM = 140;
+const BEAT_MS = 60000 / MUSIC_BPM;
+// A minor pentatonic arpeggio pattern (notes in Hz)
+const arpNotes = [220, 261.6, 329.6, 392, 440, 392, 329.6, 261.6,
+                  220, 174.6, 220, 261.6, 329.6, 440, 523.3, 440];
+const bassNotes = [110, 110, 130.8, 130.8, 146.8, 146.8, 130.8, 130.8,
+                   110, 110, 130.8, 130.8, 146.8, 164.8, 146.8, 130.8];
+const kickPattern =  [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,1,0];
+const hihatPattern = [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,1,1,0];
+
+function playMusicBeat() {
+  if (!audioCtx || !musicPlaying) return;
+  const t = audioCtx.currentTime;
+  const beat = musicBeat % 16;
+
+  // Kick drum
+  if (kickPattern[beat]) {
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.connect(g); g.connect(musicGain);
+    o.type = 'sine';
+    o.frequency.setValueAtTime(150, t);
+    o.frequency.exponentialRampToValueAtTime(30, t + 0.08);
+    g.gain.setValueAtTime(0.7, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+    o.start(t); o.stop(t + 0.1);
+  }
+
+  // Hi-hat
+  if (hihatPattern[beat]) {
+    const bufSize = audioCtx.sampleRate * 0.04;
+    const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) d[i] = Math.random() * 2 - 1;
+    const src = audioCtx.createBufferSource();
+    const hp = audioCtx.createBiquadFilter();
+    const g = audioCtx.createGain();
+    src.buffer = buf;
+    hp.type = 'highpass'; hp.frequency.value = 7000;
+    src.connect(hp); hp.connect(g); g.connect(musicGain);
+    g.gain.setValueAtTime(0.3, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
+    src.start(t); src.stop(t + 0.04);
+  }
+
+  // Bass (square wave, low octave)
+  const bo = audioCtx.createOscillator();
+  const bg = audioCtx.createGain();
+  bo.connect(bg); bg.connect(musicGain);
+  bo.type = 'square';
+  bo.frequency.value = bassNotes[beat];
+  bg.gain.setValueAtTime(0.25, t);
+  bg.gain.exponentialRampToValueAtTime(0.001, t + BEAT_MS / 1200);
+  bo.start(t); bo.stop(t + BEAT_MS / 1200);
+
+  // Arpeggio lead (square wave chiptune)
+  const ao = audioCtx.createOscillator();
+  const ag = audioCtx.createGain();
+  ao.connect(ag); ag.connect(musicGain);
+  ao.type = 'square';
+  ao.frequency.value = arpNotes[beat];
+  ag.gain.setValueAtTime(0.15, t);
+  ag.gain.setValueAtTime(0.15, t + BEAT_MS / 1500);
+  ag.gain.exponentialRampToValueAtTime(0.001, t + BEAT_MS / 1100);
+  ao.start(t); ao.stop(t + BEAT_MS / 1100);
+
+  musicBeat++;
+}
+
+function startMusic() {
+  ensureAudio();
+  if (musicPlaying) return;
+  musicPlaying = true;
+  musicBeat = 0;
+  musicInterval = setInterval(playMusicBeat, BEAT_MS);
+}
+
+function stopMusic() {
+  musicPlaying = false;
+  if (musicInterval) { clearInterval(musicInterval); musicInterval = null; }
+}
+
+function toggleMusic() {
+  if (musicPlaying) stopMusic(); else startMusic();
 }
 
 // ---- Update ----
@@ -1370,6 +1489,20 @@ function startRound() {
   gameState = 'playing';
 }
 
+// ---- Music Button ----
+document.getElementById('musicBtn').addEventListener('click', () => {
+  ensureAudio();
+  toggleMusic();
+  const btn = document.getElementById('musicBtn');
+  if (musicPlaying) {
+    btn.textContent = 'Music: ON';
+    btn.classList.add('on');
+  } else {
+    btn.textContent = 'Music: OFF';
+    btn.classList.remove('on');
+  }
+});
+
 // ---- Menu Buttons ----
 document.getElementById('btnAI').onclick = () => {
   sfxClick();
@@ -1401,6 +1534,9 @@ document.getElementById('btnAgain').onclick = () => {
 };
 document.getElementById('btnMenu').onclick = () => {
   sfxClick();
+  stopMusic();
+  document.getElementById('musicBtn').textContent = 'Music: OFF';
+  document.getElementById('musicBtn').classList.remove('on');
   gameState = 'menu';
   document.getElementById('winScreen').classList.add('hidden');
   document.getElementById('menu').classList.remove('hidden');
