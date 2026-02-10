@@ -1078,15 +1078,27 @@ function update(dt) {
     }
     if (bulletDestroyed) continue;
 
-    // Check tank hit
+    // Check tank hit (swept along bullet path to prevent tunneling)
+    const bpx = b.x - b.vx * dt; // previous position
+    const bpy = b.y - b.vy * dt;
     for (let ti = 0; ti < tanks.length; ti++) {
       if (ti === b.owner) continue;
       const tank = tanks[ti];
       if (!tank.alive) continue;
-      const dx = b.x - tank.x;
-      const dy = b.y - tank.y;
-      const hr = TANK_SIZE * 0.7 * tank.scale;
-      if (dx * dx + dy * dy < hr * hr) {
+      const hr = TANK_SIZE * 0.9 * tank.scale;
+      // Check multiple points along the bullet's path this frame
+      const stepDist = Math.hypot(b.vx * dt, b.vy * dt);
+      const steps = Math.max(1, Math.ceil(stepDist / (hr * 0.5)));
+      let hit = false;
+      for (let s = 0; s <= steps; s++) {
+        const t2 = s / steps;
+        const sx = bpx + (b.x - bpx) * t2;
+        const sy = bpy + (b.y - bpy) * t2;
+        const dx = sx - tank.x;
+        const dy = sy - tank.y;
+        if (dx * dx + dy * dy < hr * hr) { hit = true; break; }
+      }
+      if (hit) {
         bullets.splice(i, 1);
         if (tank.shield && !b.power) {
           tank.shield = false;
