@@ -1518,12 +1518,16 @@
 
         async function fetchLeaderboard() {
             try {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 5000);
                 const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
-                    headers: { 'X-Master-Key': JSONBIN_API_KEY }
+                    headers: { 'X-Master-Key': JSONBIN_API_KEY },
+                    signal: controller.signal
                 });
+                clearTimeout(timeout);
                 if (!res.ok) throw new Error('fetch failed');
                 const data = await res.json();
-                leaderboardData = data.record || [];
+                leaderboardData = (data.record || []).filter(e => e.name && typeof e.time === 'number');
                 localStorage.setItem('jumpGameLeaderboard', JSON.stringify(leaderboardData));
             } catch (e) {
                 console.warn('Leaderboard fetch failed, using local data:', e);
