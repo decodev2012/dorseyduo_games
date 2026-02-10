@@ -471,6 +471,22 @@ function aiRaycast(x, y, angle, distance) {
   return distance;
 }
 
+// Check if a crate blocks the line from (x,y) toward the target
+function aiCrateInPath(x, y, angle, distance) {
+  const step = TILE * 0.4;
+  const steps = Math.ceil(distance / step);
+  for (let i = 1; i <= steps; i++) {
+    const d = i * step;
+    const px = x + Math.cos(angle) * d;
+    const py = y + Math.sin(angle) * d;
+    const col = Math.floor(px / TILE);
+    const row = Math.floor(py / TILE);
+    if (tileAt(col, row) === 2) return true;
+    if (tileAt(col, row) === 1) return false; // wall blocks before crate
+  }
+  return false;
+}
+
 function updateAI(tank, target, dt) {
   if (!tank.alive || !target.alive) return;
 
@@ -612,7 +628,11 @@ function updateAI(tank, target, dt) {
 
   const chargeChance = [0.08, 0.15, 0.25][aiDifficulty];
 
-  if (Math.abs(enemyDiff) < shootThresh && tank.cooldown <= 0 && !goingForPowerup) {
+  // Check if a crate is blocking the path to the enemy
+  const crateBlocking = aiCrateInPath(tank.x, tank.y, tank.angle, Math.hypot(edx, edy));
+  const wantsToShoot = Math.abs(enemyDiff) < shootThresh || crateBlocking;
+
+  if (wantsToShoot && tank.cooldown <= 0 && !goingForPowerup) {
     if (!tank.charging && Math.random() < shootChance * dt) {
       // Decide whether to charge or quick fire
       if (Math.random() < chargeChance) {
@@ -639,7 +659,7 @@ function updateAI(tank, target, dt) {
         tank.chargeTime = 0;
       }
     }
-  } else if (tank.charging && Math.abs(enemyDiff) >= shootThresh) {
+  } else if (tank.charging && !wantsToShoot) {
     // Lost aim while charging — fire what we have
     const charge = Math.min(tank.chargeTime / CHARGE_TIME, 1);
     const powered = charge >= 1;
