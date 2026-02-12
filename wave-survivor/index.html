@@ -310,6 +310,12 @@ canvas.addEventListener('mousedown', () => {
 });
 canvas.addEventListener('mouseup', () => mouse.down = false);
 canvas.addEventListener('dragstart', e => e.preventDefault());
+canvas.addEventListener('wheel', e => {
+  if (state === 'menu' && menuTab === 'levelselect') {
+    levelSelectScroll = Math.max(0, Math.min(levelSelectScroll + e.deltaY, 400));
+    e.preventDefault();
+  }
+}, { passive: false });
 
 let projectiles = [];
 let enemies = [];
@@ -744,12 +750,12 @@ function getSkinRects() {
 
 function getLevelSelectRects() {
   const cols = 5, btnW = 80, btnH = 50, gapX = 16, gapY = 16;
-  const rows = Math.ceil(20 / cols);
+  const rows = Math.ceil(50 / cols);
   const totalW = cols * btnW + (cols - 1) * gapX;
   const startX = (canvas.width - totalW) / 2;
-  const startY = 150;
+  const startY = 150 - levelSelectScroll;
   const rects = [];
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 50; i++) {
     const col = i % cols;
     const row = Math.floor(i / cols);
     rects.push({ x: startX + col * (btnW + gapX), y: startY + row * (btnH + gapY), w: btnW, h: btnH, wave: i + 1 });
