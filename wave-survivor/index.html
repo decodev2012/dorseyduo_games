@@ -1195,7 +1195,7 @@ function update() {
             spawnParticles(e.x, e.y, '#ff4500', 20);
             if (Math.hypot(player.x - e.x, player.y - e.y) < 100 && player.invuln <= 0) {
               if (player.shieldTimer > 0) { player.invuln = 15; spawnDamageNumber(player.x, player.y - 20, 'BLOCKED', '#3498db'); }
-              else { player.hp -= 30; player.invuln = 30; spawnDamageNumber(player.x, player.y - 20, 30, '#ff4444'); }
+              else { player.hp = Math.max(0, player.hp - 30); player.invuln = 30; spawnDamageNumber(player.x, player.y - 20, 30, '#ff4444'); }
             }
           }
         }
@@ -1225,7 +1225,7 @@ function update() {
           spawnParticles(e.x, e.y, '#d6eaf8', 12);
           if (Math.hypot(player.x - e.x, player.y - e.y) < 180 && player.invuln <= 0) {
             if (player.shieldTimer > 0) { player.invuln = 15; spawnDamageNumber(player.x, player.y - 20, 'BLOCKED', '#3498db'); }
-            else { player.hp -= 20; player.invuln = 30; spawnDamageNumber(player.x, player.y - 20, 20, '#85c1e9'); }
+            else { player.hp = Math.max(0, player.hp - 20); player.invuln = 30; spawnDamageNumber(player.x, player.y - 20, 20, '#85c1e9'); }
           }
         }
       }
@@ -1253,7 +1253,7 @@ function update() {
             spawnParticles(e.x, e.y, '#6c3483', 15);
             if (Math.hypot(player.x - e.x, player.y - e.y) < 120 && player.invuln <= 0) {
               if (player.shieldTimer > 0) { player.invuln = 15; spawnDamageNumber(player.x, player.y - 20, 'BLOCKED', '#3498db'); }
-              else { player.hp -= 35; player.invuln = 30; spawnDamageNumber(player.x, player.y - 20, 35, '#ff4444'); }
+              else { player.hp = Math.max(0, player.hp - 35); player.invuln = 30; spawnDamageNumber(player.x, player.y - 20, 35, '#ff4444'); }
             }
           }
         }
