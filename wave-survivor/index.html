@@ -1802,6 +1802,7 @@ function drawEnemy(e) {
 }
 
 function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   // Screen shake
   ctx.save();
   if (shakeTime > 0) {
