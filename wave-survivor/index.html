@@ -498,11 +498,11 @@ function createBrain() {
 }
 
 const bossTypes = [
-  { name: 'Demon Lord', bossId: 'demon', hp: 4000, speed: 0.5, size: 50, color: '#8b0000', damage: 25, score: 500,
+  { name: 'Demon Lord', bossId: 'demon', hp: 8000, speed: 0.5, size: 50, color: '#8b0000', damage: 25, score: 500,
     phases: ['chase', 'slam', 'chase', 'fireball', 'chase', 'summon'], auraColor: '#ff6600' },
-  { name: 'Frost Titan', bossId: 'frost', hp: 3000, speed: 0.4, size: 55, color: '#1a5276', damage: 20, score: 750,
+  { name: 'Frost Titan', bossId: 'frost', hp: 8000, speed: 0.4, size: 55, color: '#1a5276', damage: 20, score: 750,
     phases: ['chase', 'icestorm', 'chase', 'freeze', 'chase', 'summon'], auraColor: '#85c1e9' },
-  { name: 'Shadow Dragon', bossId: 'dragon', hp: 4000, speed: 0.6, size: 48, color: '#2c003e', damage: 30, score: 1000,
+  { name: 'Shadow Dragon', bossId: 'dragon', hp: 8000, speed: 0.6, size: 48, color: '#2c003e', damage: 30, score: 1000,
     phases: ['chase', 'breath', 'chase', 'divebomb', 'chase', 'summon'], auraColor: '#9b59b6' }
 ];
 
@@ -621,6 +621,7 @@ const allUpgrades = [
     desc: 'Heal HP for each enemy killed',
     color: '#50c878',
     icon: 'V',
+    rare: true,
     apply() { player.lifeSteal += 3; },
     stat() { return `${player.lifeSteal} -> ${player.lifeSteal + 3} HP/kill`; }
   },
@@ -680,7 +681,14 @@ function showUpgradeScreen() {
   const pool = allUpgrades.filter(u => !(u.name === 'Last Stand' && player.lastStand) && !(u.name === 'Explosive Rounds' && player.explosive));
   upgradeChoices = [];
   for (let i = 0; i < 3 && pool.length > 0; i++) {
-    const idx = Math.floor(Math.random() * pool.length);
+    const weights = pool.map(u => u.rare ? 0.25 : 1);
+    const totalWeight = weights.reduce((a, b) => a + b, 0);
+    let roll = Math.random() * totalWeight;
+    let idx = 0;
+    for (idx = 0; idx < weights.length; idx++) {
+      roll -= weights[idx];
+      if (roll <= 0) break;
+    }
     upgradeChoices.push(pool.splice(idx, 1)[0]);
   }
 }
