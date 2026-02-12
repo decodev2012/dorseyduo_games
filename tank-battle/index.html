@@ -787,38 +787,55 @@ function sfxClick() {
   o.start(); o.stop(audioCtx.currentTime + 0.05);
 }
 
-// ---- Retro Arcade Music ----
-const MUSIC_BPM = 140;
+// ---- Intense Fast Music ----
+const MUSIC_BPM = 180;
 const BEAT_MS = 60000 / MUSIC_BPM;
-// A minor pentatonic arpeggio pattern (notes in Hz)
-const arpNotes = [220, 261.6, 329.6, 392, 440, 392, 329.6, 261.6,
-                  220, 174.6, 220, 261.6, 329.6, 440, 523.3, 440];
-const bassNotes = [110, 110, 130.8, 130.8, 146.8, 146.8, 130.8, 130.8,
-                   110, 110, 130.8, 130.8, 146.8, 164.8, 146.8, 130.8];
-const kickPattern =  [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,1,0];
-const hihatPattern = [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,1,1,0];
+const kickPattern =  [1,0,1,0, 1,0,1,0, 1,0,1,0, 1,1,1,0];
+const hihatPattern = [1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1];
+const snarePattern = [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,1];
+const bassNotes =  [55, 55, 55, 55, 65.4, 65.4, 73.4, 73.4,
+                    55, 55, 55, 55, 82.4, 73.4, 65.4, 55];
+const leadNotes =  [440, 0, 523.3, 0, 659.3, 0, 523.3, 440,
+                    392, 0, 440, 523.3, 659.3, 784, 659.3, 0];
 
 function playMusicBeat() {
   if (!audioCtx || !musicPlaying) return;
   const t = audioCtx.currentTime;
   const beat = musicBeat % 16;
 
-  // Kick drum
+  // Kick drum — punchy
   if (kickPattern[beat]) {
     const o = audioCtx.createOscillator();
     const g = audioCtx.createGain();
     o.connect(g); g.connect(musicGain);
     o.type = 'sine';
-    o.frequency.setValueAtTime(150, t);
-    o.frequency.exponentialRampToValueAtTime(30, t + 0.08);
-    g.gain.setValueAtTime(0.7, t);
-    g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
-    o.start(t); o.stop(t + 0.1);
+    o.frequency.setValueAtTime(180, t);
+    o.frequency.exponentialRampToValueAtTime(35, t + 0.06);
+    g.gain.setValueAtTime(0.8, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+    o.start(t); o.stop(t + 0.08);
   }
 
-  // Hi-hat
+  // Snare — noise burst
+  if (snarePattern[beat]) {
+    const bufSize = audioCtx.sampleRate * 0.07;
+    const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) d[i] = Math.random() * 2 - 1;
+    const src = audioCtx.createBufferSource();
+    const bp = audioCtx.createBiquadFilter();
+    const g = audioCtx.createGain();
+    src.buffer = buf;
+    bp.type = 'bandpass'; bp.frequency.value = 3000; bp.Q.value = 0.8;
+    src.connect(bp); bp.connect(g); g.connect(musicGain);
+    g.gain.setValueAtTime(0.5, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+    src.start(t); src.stop(t + 0.07);
+  }
+
+  // Hi-hat — tight and fast
   if (hihatPattern[beat]) {
-    const bufSize = audioCtx.sampleRate * 0.04;
+    const bufSize = audioCtx.sampleRate * 0.02;
     const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
     const d = buf.getChannelData(0);
     for (let i = 0; i < bufSize; i++) d[i] = Math.random() * 2 - 1;
@@ -826,33 +843,34 @@ function playMusicBeat() {
     const hp = audioCtx.createBiquadFilter();
     const g = audioCtx.createGain();
     src.buffer = buf;
-    hp.type = 'highpass'; hp.frequency.value = 7000;
+    hp.type = 'highpass'; hp.frequency.value = 9000;
     src.connect(hp); hp.connect(g); g.connect(musicGain);
-    g.gain.setValueAtTime(0.3, t);
-    g.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
-    src.start(t); src.stop(t + 0.04);
+    g.gain.setValueAtTime(0.2, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.02);
+    src.start(t); src.stop(t + 0.02);
   }
 
-  // Bass (square wave, low octave)
+  // Bass — aggressive sawtooth
   const bo = audioCtx.createOscillator();
   const bg = audioCtx.createGain();
   bo.connect(bg); bg.connect(musicGain);
-  bo.type = 'square';
+  bo.type = 'sawtooth';
   bo.frequency.value = bassNotes[beat];
-  bg.gain.setValueAtTime(0.25, t);
-  bg.gain.exponentialRampToValueAtTime(0.001, t + BEAT_MS / 1200);
-  bo.start(t); bo.stop(t + BEAT_MS / 1200);
+  bg.gain.setValueAtTime(0.3, t);
+  bg.gain.exponentialRampToValueAtTime(0.001, t + BEAT_MS / 1100);
+  bo.start(t); bo.stop(t + BEAT_MS / 1100);
 
-  // Arpeggio lead (square wave chiptune)
-  const ao = audioCtx.createOscillator();
-  const ag = audioCtx.createGain();
-  ao.connect(ag); ag.connect(musicGain);
-  ao.type = 'square';
-  ao.frequency.value = arpNotes[beat];
-  ag.gain.setValueAtTime(0.15, t);
-  ag.gain.setValueAtTime(0.15, t + BEAT_MS / 1500);
-  ag.gain.exponentialRampToValueAtTime(0.001, t + BEAT_MS / 1100);
-  ao.start(t); ao.stop(t + BEAT_MS / 1100);
+  // Lead — sharp sawtooth, only on non-zero notes
+  if (leadNotes[beat] > 0) {
+    const lo = audioCtx.createOscillator();
+    const lg = audioCtx.createGain();
+    lo.connect(lg); lg.connect(musicGain);
+    lo.type = 'sawtooth';
+    lo.frequency.value = leadNotes[beat];
+    lg.gain.setValueAtTime(0.12, t);
+    lg.gain.exponentialRampToValueAtTime(0.001, t + BEAT_MS / 1000);
+    lo.start(t); lo.stop(t + BEAT_MS / 1000);
+  }
 
   musicBeat++;
 }
