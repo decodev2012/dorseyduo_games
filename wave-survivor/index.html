@@ -1076,6 +1076,10 @@ function update() {
           const kbAngle = Math.atan2(e.y - player.y, e.x - player.x);
           e.x += Math.cos(kbAngle) * kb;
           e.y += Math.sin(kbAngle) * kb;
+          if (e.isBoss) {
+            e.x = Math.max(e.size, Math.min(canvas.width - e.size, e.x));
+            e.y = Math.max(e.size, Math.min(canvas.height - e.size, e.y));
+          }
           const stunFrames = e.isBoss ? Math.min(30, player.knockback * 5) : player.knockback * 5;
           if (!e.isBoss || !e.stunned) e.stunned = Math.max(e.stunned || 0, stunFrames);
         }
