@@ -204,6 +204,7 @@ let shakeTime = 0;
 let particles = [];
 let damageNumbers = [];
 let upgradeChoices = [];
+let lastUpgradeNames = [];
 let upgradeHover = -1;
 let upgradeCounts = {};
 let menuTab = 'main'; // main, records, customize, levelselect
@@ -333,51 +334,53 @@ const bgCanvas = document.createElement('canvas');
 bgCanvas.width = canvas.width;
 bgCanvas.height = canvas.height;
 const bgCtx = bgCanvas.getContext('2d');
-(function generateBackground() {
-  // Base dark earth
-  bgCtx.fillStyle = '#2a3a1e';
-  bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+const groundThemes = [
+  { base: '#2a3a1e', patches: ['#2f4a20','#33421c','#263818','#3a4e28','#2b3d1a'], grass: [50,90,30] },
+  { base: '#1a2a3a', patches: ['#1e3350','#1c2d42','#182838','#28404e','#1a303d'], grass: [30,70,100] },
+  { base: '#3a1a1e', patches: ['#4a2025','#42201c','#381a18','#4e2828','#3d1a1b'], grass: [90,40,30] },
+  { base: '#2a2a1e', patches: ['#3a3820','#33301c','#2e2818','#3e3e28','#302d1a'], grass: [80,80,30] },
+  { base: '#1e1a2a', patches: ['#282050','#221c42','#1e1838','#30284e','#261a3d'], grass: [60,40,90] },
+];
+let currentGroundTheme = -1;
 
-  // Dirt/grass patches
+function generateBackground(themeIdx) {
+  if (themeIdx === currentGroundTheme) return;
+  currentGroundTheme = themeIdx;
+  const t = groundThemes[themeIdx % groundThemes.length];
+  bgCtx.fillStyle = t.base;
+  bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
   for (let i = 0; i < 120; i++) {
     const x = Math.random() * bgCanvas.width;
     const y = Math.random() * bgCanvas.height;
     const r = Math.random() * 40 + 15;
-    const colors = ['#2f4a20', '#33421c', '#263818', '#3a4e28', '#2b3d1a'];
-    bgCtx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+    bgCtx.fillStyle = t.patches[Math.floor(Math.random() * t.patches.length)];
     bgCtx.globalAlpha = 0.4 + Math.random() * 0.3;
     bgCtx.beginPath();
     bgCtx.ellipse(x, y, r, r * (0.6 + Math.random() * 0.4), Math.random() * Math.PI, 0, Math.PI * 2);
     bgCtx.fill();
   }
   bgCtx.globalAlpha = 1;
-
-  // Small stones
   for (let i = 0; i < 30; i++) {
     const x = Math.random() * bgCanvas.width;
     const y = Math.random() * bgCanvas.height;
     const r = Math.random() * 4 + 2;
-    bgCtx.fillStyle = `rgba(${80 + Math.random()*40}, ${75 + Math.random()*30}, ${65 + Math.random()*20}, 0.5)`;
+    bgCtx.fillStyle = `rgba(${80+Math.random()*40},${75+Math.random()*30},${65+Math.random()*20},0.5)`;
     bgCtx.beginPath();
     bgCtx.ellipse(x, y, r, r * 0.7, Math.random() * Math.PI, 0, Math.PI * 2);
     bgCtx.fill();
   }
-
-  // Grass blades
   for (let i = 0; i < 300; i++) {
     const x = Math.random() * bgCanvas.width;
     const y = Math.random() * bgCanvas.height;
     const h = Math.random() * 10 + 4;
     const lean = (Math.random() - 0.5) * 6;
-    bgCtx.strokeStyle = `rgba(${50 + Math.random()*40}, ${90 + Math.random()*50}, ${30 + Math.random()*20}, ${0.3 + Math.random()*0.3})`;
+    bgCtx.strokeStyle = `rgba(${t.grass[0]+Math.random()*40},${t.grass[1]+Math.random()*50},${t.grass[2]+Math.random()*20},${0.3+Math.random()*0.3})`;
     bgCtx.lineWidth = 1;
     bgCtx.beginPath();
     bgCtx.moveTo(x, y);
     bgCtx.lineTo(x + lean, y - h);
     bgCtx.stroke();
   }
-
-  // Subtle dark patches for depth
   for (let i = 0; i < 15; i++) {
     const x = Math.random() * bgCanvas.width;
     const y = Math.random() * bgCanvas.height;
@@ -387,7 +390,8 @@ const bgCtx = bgCanvas.getContext('2d');
     bgCtx.arc(x, y, r, 0, Math.PI * 2);
     bgCtx.fill();
   }
-})();
+}
+generateBackground(0);
 
 function startGame(startWave) {
   startMusic('gameplay');
@@ -435,6 +439,7 @@ function startGame(startWave) {
 
 function nextWave() {
   wave++;
+  generateBackground(Math.floor((wave - 1) / 10));
   waveTimer = 90;
   state = 'waveIntro';
   playSound(wave % 10 === 0 ? 'boss' : 'wave');
@@ -745,7 +750,8 @@ const allUpgrades = [
 function showUpgradeScreen() {
   state = 'upgrade';
   // Pick 3 random unique upgrades
-  const pool = allUpgrades.filter(u => !(u.name === 'Last Stand' && player.lastStand) && !(u.name === 'Explosive Rounds' && player.explosive));
+  let pool = allUpgrades.filter(u => !(u.name === 'Last Stand' && player.lastStand) && !(u.name === 'Explosive Rounds' && player.explosive) && !lastUpgradeNames.includes(u.name));
+  if (pool.length < 3) pool = allUpgrades.filter(u => !(u.name === 'Last Stand' && player.lastStand) && !(u.name === 'Explosive Rounds' && player.explosive));
   upgradeChoices = [];
   for (let i = 0; i < 3 && pool.length > 0; i++) {
     const weights = pool.map(u => u.rare ? 0.25 : 1);
@@ -758,6 +764,7 @@ function showUpgradeScreen() {
     }
     upgradeChoices.push(pool.splice(idx, 1)[0]);
   }
+  lastUpgradeNames = upgradeChoices.map(u => u.name);
 }
 
 function pickUpgrade(index) {
@@ -1356,11 +1363,11 @@ function update() {
           if (distToPlayer > 60) {
             const blend = Math.min(1, distToPlayer / 200);
             const moveAngle = directAngle * (1 - blend * 0.3) + attackAngle * (blend * 0.3);
-            e.x += Math.cos(moveAngle) * e.speed * 1.4;
-            e.y += Math.sin(moveAngle) * e.speed * 1.4;
+            e.x += Math.cos(moveAngle) * e.speed * 2;
+            e.y += Math.sin(moveAngle) * e.speed * 2;
           } else {
-            e.x += Math.cos(directAngle) * e.speed * 1.4;
-            e.y += Math.sin(directAngle) * e.speed * 1.4;
+            e.x += Math.cos(directAngle) * e.speed * 2;
+            e.y += Math.sin(directAngle) * e.speed * 2;
           }
         } else if (brain) {
           // Guard: stay between brain and player, forming a shield
@@ -1380,7 +1387,7 @@ function update() {
             const targetY = brain.y + Math.sin(guardAngle) * guardDist;
             const toTargetAngle = Math.atan2(targetY - e.y, targetX - e.x);
             const tDist = Math.hypot(targetX - e.x, targetY - e.y);
-            const moveSpeed = Math.min(e.speed * 1.2, tDist * 0.06);
+            const moveSpeed = Math.min(e.speed * 2, tDist * 0.06);
             e.x += Math.cos(toTargetAngle) * moveSpeed;
             e.y += Math.sin(toTargetAngle) * moveSpeed;
           }
