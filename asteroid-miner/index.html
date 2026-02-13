@@ -85,6 +85,8 @@ function sfxOre() { playTone(600, 900, 0.12, 0.12); }
 function sfxDamage() { playTone(100, 50, 0.15, 0.25, 'square'); }
 function sfxUpgrade() { playTone(400, 800, 0.3, 0.15); }
 function sfxShield() { playTone(500, 300, 0.1, 0.15); }
+function sfxAlienShoot() { playTone(900, 400, 0.12, 0.08, 'sawtooth'); }
+function sfxAlienHit() { playTone(250, 100, 0.15, 0.12, 'square'); }
 function sfxDeath() {
   const a = getAudio(), t = a.currentTime;
   [0, 0.1, 0.2, 0.35].forEach((d, i) => {
@@ -169,7 +171,7 @@ const SPAWN_RADIUS = 3;
 const DESPAWN_DIST = CHUNK_SIZE * (SPAWN_RADIUS + 2);
 const LASER_SPEED = 10;
 const LASER_LIFE = 50;
-const BASE_LASER_CD = 8;
+const BASE_LASER_CD = 18;
 const SHIP_RADIUS = 12;
 const STATION_RADIUS = 35;
 const ORE_LIFE = 600;
@@ -193,11 +195,14 @@ const ORE_TYPES = [
 ];
 
 // ── Game State ──
-let state = 'menu'; // menu, playing, shop
+let state = 'menu'; // menu, playing, shop, gameover
 let mode = '1P';
 let ships = [];
 let lasers, asteroids, oreDrops, particles, populatedChunks;
+let alienBases, alienProjectiles, botShips;
+let stationHp, stationMaxHp, stationDestroyed;
 let totalOreMined = 0;
+let botColorIdx = 0;
 let shopShip = null; // which ship is in the shop
 let shopSelection = 0;
 let stationAngle = 0;
@@ -218,7 +223,7 @@ for (let i = 0; i < 200; i++) {
 function createShip(x, y, color, cockpitColor, num) {
   return {
     x, y, angle: -Math.PI / 2, vx: 0, vy: 0,
-    hp: 5, maxHp: 5, ore: 0,
+    hp: 5, maxHp: 5, ore: 0, totalOre: 0,
     shield: 0, maxShield: 0, shieldTimer: 0,
     thrustPower: 0.12, laserDamage: 1, laserCooldown: 0,
     invuln: 0, alive: true,
@@ -228,6 +233,265 @@ function createShip(x, y, color, cockpitColor, num) {
   };
 }
 
+const BOT_COLORS = [
+  { color: '#f80', cockpit: '#fda' },
+  { color: '#c4f', cockpit: '#eaf' },
+  { color: '#ff4', cockpit: '#ffa' },
+  { color: '#f44', cockpit: '#faa' },
+  { color: '#4ff', cockpit: '#aff' },
+  { color: '#f4a', cockpit: '#fca' },
+  { color: '#8f4', cockpit: '#bfa' },
+  { color: '#48f', cockpit: '#8af' },
+];
+
+function createBotShip(base) {
+  const ci = botColorIdx++ % BOT_COLORS.length;
+  const bot = {
+    x: base.x, y: base.y, angle: Math.random() * Math.PI * 2,
+    vx: 0, vy: 0, hp: 5, maxHp: 5, ore: 0, totalOre: 0,
+    shield: 0, maxShield: 0, shieldTimer: 0,
+    thrustPower: 0.12, laserDamage: 1, laserCooldown: 0,
+    invuln: 60, alive: true,
+    upgrades: { hull: 0, engine: 0, laser: 0, rate: 0, shield: 0, magnet: 0 },
+    thrusting: false,
+    color: BOT_COLORS[ci].color, cockpitColor: BOT_COLORS[ci].cockpit,
+    homeBase: base, state: 'mining',
+    targetAst: null, targetEnemy: null, respawnTimer: 0,
+    num: -(ci + 1), isBot: true, grudge: 0,
+  };
+  base.botShip = bot;
+  return bot;
+}
+
+function botSteer(bot, tx, ty, shouldThrust) {
+  const desired = Math.atan2(ty - bot.y, tx - bot.x);
+  let diff = desired - bot.angle;
+  while (diff > Math.PI) diff -= Math.PI * 2;
+  while (diff < -Math.PI) diff += Math.PI * 2;
+  const turnSpd = 0.04;
+  if (Math.abs(diff) < turnSpd) bot.angle = desired;
+  else if (diff > 0) bot.angle += turnSpd;
+  else bot.angle -= turnSpd;
+  if (shouldThrust && Math.abs(diff) < Math.PI / 2.5) {
+    bot.vx += Math.cos(bot.angle) * bot.thrustPower;
+    bot.vy += Math.sin(bot.angle) * bot.thrustPower;
+    bot.thrusting = true;
+  }
+  if (!bot.thrusting) { bot.vx *= 0.99; bot.vy *= 0.99; }
+}
+
+function botTryShoot(bot) {
+  if (bot.laserCooldown > 0) return;
+  const cd = Math.max(8, BASE_LASER_CD - bot.upgrades.rate * 3);
+  const nx = bot.x + Math.cos(bot.angle) * 16;
+  const ny = bot.y + Math.sin(bot.angle) * 16;
+  lasers.push({
+    x: nx, y: ny,
+    vx: Math.cos(bot.angle) * LASER_SPEED + bot.vx * 0.3,
+    vy: Math.sin(bot.angle) * LASER_SPEED + bot.vy * 0.3,
+    life: LASER_LIFE, owner: -1, damage: bot.laserDamage,
+    color: bot.color, isBot: true, botRef: bot,
+  });
+  bot.laserCooldown = cd;
+}
+
+function botAutoUpgrade(bot) {
+  const totalUp = Object.values(bot.upgrades).reduce((a, v) => a + v, 0);
+  // Early: engine, hull, magnet for mining. Later: laser, rate, shield for combat.
+  const priority = totalUp < 3
+    ? ['engine', 'hull', 'magnet', 'laser', 'rate', 'shield']
+    : ['laser', 'rate', 'hull', 'shield', 'engine', 'magnet'];
+  for (const key of priority) {
+    const level = bot.upgrades[key];
+    if (level < 3) {
+      const cost = UPGRADES[key].costs[level];
+      if (bot.ore >= cost) {
+        bot.ore -= cost;
+        bot.upgrades[key]++;
+        if (key === 'hull') { bot.maxHp = 5 + bot.upgrades.hull * 2; bot.hp = bot.maxHp; }
+        if (key === 'engine') bot.thrustPower = 0.12 + bot.upgrades.engine * 0.02;
+        if (key === 'laser') bot.laserDamage = 1 + Math.floor(bot.upgrades.laser * 0.5);
+        if (key === 'shield') { bot.maxShield = bot.upgrades.shield; bot.shield = bot.maxShield; }
+        return;
+      }
+    }
+  }
+}
+
+function damageBotShip(bot, dmg, fromX, fromY, fromPlayer) {
+  if (bot.shield >= 1) {
+    bot.shield = Math.max(0, bot.shield - dmg);
+    bot.shieldTimer = 0;
+    spawnParticles(bot.x, bot.y, '#4df', 6, 2);
+    if (fromPlayer) bot.grudge += dmg;
+    return;
+  }
+  bot.hp -= dmg;
+  bot.invuln = INVULN_TIME;
+  bot.shieldTimer = 0;
+  if (fromPlayer) bot.grudge += dmg * 2;
+  const dist = Math.hypot(bot.x - fromX, bot.y - fromY);
+  if (dist > 0) { bot.vx = ((bot.x - fromX) / dist) * 3; bot.vy = ((bot.y - fromY) / dist) * 3; }
+  spawnParticles(bot.x, bot.y, bot.color, 8, 2);
+  if (bot.hp <= 0) {
+    spawnParticles(bot.x, bot.y, '#f80', 20, 4);
+    spawnParticles(bot.x, bot.y, bot.color, 15, 3);
+    sfxDeath();
+    bot.alive = false;
+    // Drop some ore on death
+    const dropCount = Math.min(5, Math.floor(bot.ore / 2));
+    for (let k = 0; k < dropCount; k++) {
+      oreDrops.push({
+        x: bot.x + (Math.random() - 0.5) * 20, y: bot.y + (Math.random() - 0.5) * 20,
+        vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2,
+        type: 1, value: 2, color: '#fe4', life: 500
+      });
+    }
+    bot.ore = 0;
+    bot.respawnTimer = 300;
+    // Killed by player — respawn angry
+    if (fromPlayer) bot.grudge = 10;
+  }
+}
+
+function updateBotShip(bot) {
+  if (!bot.alive) {
+    // Respawn at home base if it still exists
+    if (bot.homeBase && alienBases.includes(bot.homeBase)) {
+      bot.respawnTimer--;
+      if (bot.respawnTimer <= 0) {
+        bot.alive = true;
+        bot.x = bot.homeBase.x; bot.y = bot.homeBase.y;
+        bot.vx = 0; bot.vy = 0;
+        bot.hp = bot.maxHp; bot.shield = bot.maxShield;
+        bot.shieldTimer = 0; bot.invuln = 120;
+        bot.state = bot.grudge >= 5 ? 'revenge' : 'mining';
+        bot.targetAst = null; bot.targetEnemy = null;
+      }
+    }
+    return;
+  }
+  if (bot.invuln > 0) bot.invuln--;
+  if (bot.laserCooldown > 0) bot.laserCooldown--;
+  // Shield regen
+  if (bot.maxShield > 0) {
+    bot.shieldTimer++;
+    if (bot.shieldTimer >= SHIELD_REGEN_DELAY && bot.shield < bot.maxShield)
+      bot.shield = Math.min(bot.maxShield, bot.shield + 0.02);
+  }
+
+  const hpPct = bot.hp / bot.maxHp;
+  const hasBase = bot.homeBase && alienBases.includes(bot.homeBase);
+  const totalUpgrades = Object.values(bot.upgrades).reduce((a, v) => a + v, 0);
+
+  // Early game: passive (mine & upgrade). Later: aggressive.
+  // Only pick fights if upgraded enough, or if holding a grudge
+  const aggressive = totalUpgrades >= 3 || bot.grudge >= 2;
+  const detectRange = aggressive ? 250 : 100;
+
+  // Find nearest enemy (player or other bot)
+  let nearestEnemy = null, enemyDist = detectRange;
+  for (const s of ships) {
+    if (!s.alive) continue;
+    const d = Math.hypot(s.x - bot.x, s.y - bot.y);
+    if (d < enemyDist) { enemyDist = d; nearestEnemy = s; }
+  }
+  for (const other of botShips) {
+    if (!other.alive || other === bot) continue;
+    const d = Math.hypot(other.x - bot.x, other.y - bot.y);
+    if (d < enemyDist) { enemyDist = d; nearestEnemy = other; }
+  }
+
+  // Grudge decays slowly
+  if (bot.grudge > 0) bot.grudge -= 0.002;
+
+  // State transitions
+  if (hpPct < 0.35 && hasBase && bot.state !== 'revenge') {
+    bot.state = 'returning'; bot.targetEnemy = null;
+  } else if (bot.grudge >= 5 && bot.state !== 'returning' && !stationDestroyed) {
+    bot.state = 'revenge'; bot.targetEnemy = null;
+  } else if (bot.state !== 'revenge') {
+    if (nearestEnemy && bot.state !== 'returning') {
+      bot.state = 'fighting'; bot.targetEnemy = nearestEnemy;
+    } else if (bot.state === 'fighting' && !nearestEnemy) {
+      bot.state = 'mining'; bot.targetEnemy = null;
+    }
+  }
+  // Revenge ends when grudge runs out or station destroyed
+  if (bot.state === 'revenge' && (bot.grudge < 1 || stationDestroyed)) {
+    bot.state = 'mining'; bot.grudge = 0;
+  }
+  // Return to upgrade if enough ore (check in mining OR fighting states)
+  if ((bot.state === 'mining' || bot.state === 'fighting') && hasBase) {
+    const upKeys = Object.keys(UPGRADES);
+    for (const key of upKeys) {
+      const level = bot.upgrades[key];
+      if (level < 3 && bot.ore >= UPGRADES[key].costs[level]) {
+        bot.state = 'returning'; bot.targetEnemy = null; break;
+      }
+    }
+  }
+
+  bot.thrusting = false;
+
+  if (bot.state === 'mining') {
+    // Find asteroid to mine
+    if (!bot.targetAst || bot.targetAst.hp <= 0 || !asteroids.includes(bot.targetAst)) {
+      bot.targetAst = null;
+      let bestD = 600;
+      for (const a of asteroids) {
+        const d = Math.hypot(a.x - bot.x, a.y - bot.y);
+        if (d < bestD) { bestD = d; bot.targetAst = a; }
+      }
+    }
+    if (bot.targetAst) {
+      const d = Math.hypot(bot.targetAst.x - bot.x, bot.targetAst.y - bot.y);
+      botSteer(bot, bot.targetAst.x, bot.targetAst.y, d > 100);
+      if (d < 200) botTryShoot(bot);
+    } else {
+      // Roam
+      botSteer(bot, bot.x + Math.cos(bot.angle) * 200, bot.y + Math.sin(bot.angle) * 200, true);
+    }
+  } else if (bot.state === 'returning') {
+    if (hasBase) {
+      const d = Math.hypot(bot.homeBase.x - bot.x, bot.homeBase.y - bot.y);
+      botSteer(bot, bot.homeBase.x, bot.homeBase.y, d > 30);
+      if (d < 50) {
+        bot.hp = Math.min(bot.maxHp, bot.hp + 0.15);
+        bot.shield = Math.min(bot.maxShield, bot.shield + 0.05);
+        if (bot.hp >= bot.maxHp) { botAutoUpgrade(bot); bot.state = 'mining'; bot.targetAst = null; }
+      }
+    } else { bot.state = 'mining'; }
+  } else if (bot.state === 'fighting') {
+    const e = bot.targetEnemy;
+    if (e && ((e.alive !== undefined && e.alive) || (e.hp > 0))) {
+      const d = Math.hypot(e.x - bot.x, e.y - bot.y);
+      if (d > 400) { bot.state = 'mining'; bot.targetEnemy = null; }
+      else { botSteer(bot, e.x, e.y, d > 80); botTryShoot(bot); }
+    } else { bot.state = 'mining'; bot.targetEnemy = null; }
+  } else if (bot.state === 'revenge') {
+    // Head to player station and attack it
+    const d = Math.hypot(bot.x, bot.y);
+    botSteer(bot, 0, 0, d > 60);
+    if (d < 200) botTryShoot(bot);
+    // Also fight any player in the way
+    if (nearestEnemy && nearestEnemy.num > 0 && enemyDist < 150) {
+      botSteer(bot, nearestEnemy.x, nearestEnemy.y, true);
+      botTryShoot(bot);
+    }
+  }
+
+  // Apply velocity
+  const maxSpd = 4 + bot.upgrades.engine * 0.5;
+  const spd = Math.hypot(bot.vx, bot.vy);
+  if (spd > maxSpd) { bot.vx = (bot.vx / spd) * maxSpd; bot.vy = (bot.vy / spd) * maxSpd; }
+  bot.x += bot.vx; bot.y += bot.vy;
+
+  if (bot.thrusting) {
+    spawnParticles(bot.x - Math.cos(bot.angle) * 14, bot.y - Math.sin(bot.angle) * 14, '#f80', 1, 1);
+  }
+}
+
 function initGame() {
   ships = [];
   ships.push(createShip(-30, -80, '#4f8', '#aff', 1));
@@ -235,6 +499,9 @@ function initGame() {
     ships.push(createShip(30, -80, '#f84', '#ffa', 2));
   }
   lasers = []; asteroids = []; oreDrops = []; particles = [];
+  alienBases = []; alienProjectiles = []; botShips = [];
+  botColorIdx = 0;
+  stationHp = 30; stationMaxHp = 30; stationDestroyed = false;
   populatedChunks = new Set();
   totalOreMined = 0;
   shopShip = null; shopSelection = 0;
@@ -286,6 +553,19 @@ function spawnChunksFor(s) {
         if (tR < cc) type = 2; else if (tR < cc + gc) type = 1; else type = 0;
         spawnAsteroid(ax, ay, size, type);
       }
+      // Alien base: chance to spawn in nearby chunks — each gets one bot miner
+      if (dist >= 2 && Math.random() < 0.15) {
+        const bx = cx * CHUNK_SIZE + Math.random() * CHUNK_SIZE;
+        const by = cy * CHUNK_SIZE + Math.random() * CHUNK_SIZE;
+        const base = {
+          x: bx, y: by, hp: 8 + Math.floor(dist), maxHp: 8 + Math.floor(dist),
+          shootTimer: 0, shootCd: 80 + Math.floor(Math.random() * 40),
+          range: 300 + dist * 20, radius: 20, angle: Math.random() * Math.PI * 2,
+          flashTimer: 0
+        };
+        alienBases.push(base);
+        botShips.push(createBotShip(base));
+      }
     }
   }
 }
@@ -297,6 +577,33 @@ function cleanupFar() {
     let near = false;
     for (const s of ships) { if (s.alive && Math.hypot(a.x - s.x, a.y - s.y) < DESPAWN_DIST) { near = true; break; } }
     if (!near) asteroids.splice(i, 1);
+  }
+  // Cleanup far alien bases and projectiles
+  for (let i = alienBases.length - 1; i >= 0; i--) {
+    const b = alienBases[i];
+    let near = false;
+    for (const s of ships) { if (s.alive && Math.hypot(b.x - s.x, b.y - s.y) < DESPAWN_DIST) { near = true; break; } }
+    if (!near) alienBases.splice(i, 1);
+  }
+  for (let i = alienProjectiles.length - 1; i >= 0; i--) {
+    const p = alienProjectiles[i];
+    p.life--;
+    if (p.life <= 0) { alienProjectiles.splice(i, 1); continue; }
+    let near = false;
+    for (const s of ships) { if (s.alive && Math.hypot(p.x - s.x, p.y - s.y) < DESPAWN_DIST) { near = true; break; } }
+    if (!near) alienProjectiles.splice(i, 1);
+  }
+  // Cleanup bot ships: remove if home base was cleaned up
+  for (let i = botShips.length - 1; i >= 0; i--) {
+    const b = botShips[i];
+    if (b.homeBase && !alienBases.includes(b.homeBase)) {
+      botShips.splice(i, 1); continue;
+    }
+    if (!b.alive && !b.homeBase) { botShips.splice(i, 1); continue; }
+    let near = false;
+    for (const s of ships) { if (s.alive && Math.hypot(b.x - s.x, b.y - s.y) < DESPAWN_DIST) { near = true; break; } }
+    if (b.homeBase && Math.hypot(b.x - b.homeBase.x, b.y - b.homeBase.y) < DESPAWN_DIST) near = true;
+    if (!near && b.alive) { botShips.splice(i, 1); }
   }
 }
 
@@ -323,6 +630,7 @@ function getShipKeys(num) {
 
 function updateShip(s) {
   if (!s.alive) return;
+  if (state === 'shop' && s === shopShip) return;
   const k = getShipKeys(s.num);
   const turnSpeed = 0.05;
 
@@ -354,7 +662,7 @@ function updateShip(s) {
   }
 
   // Shoot
-  const cd = Math.max(3, BASE_LASER_CD - s.upgrades.rate * 2);
+  const cd = Math.max(8, BASE_LASER_CD - s.upgrades.rate * 3);
   if (keys[k.shoot] && s.laserCooldown <= 0) {
     const nx = s.x + Math.cos(s.angle) * 16, ny = s.y + Math.sin(s.angle) * 16;
     lasers.push({ x: nx, y: ny, vx: Math.cos(s.angle) * LASER_SPEED + s.vx * 0.3, vy: Math.sin(s.angle) * LASER_SPEED + s.vy * 0.3, life: LASER_LIFE, owner: s.num, damage: s.laserDamage, color: s.num === 1 ? '#f44' : '#fa4' });
@@ -363,7 +671,7 @@ function updateShip(s) {
   }
 
   // Dock
-  if (keyPressed(k.dock) && Math.hypot(s.x, s.y) < STATION_RADIUS + 40) {
+  if (!stationDestroyed && keyPressed(k.dock) && Math.hypot(s.x, s.y) < STATION_RADIUS + 40) {
     shopShip = s;
     shopSelection = 0;
     state = 'shop';
@@ -376,6 +684,7 @@ function updateShip(s) {
 }
 
 function damageShip(s, dmg, fromX, fromY) {
+  if (state === 'shop' && s === shopShip) return;
   // Shield absorbs first
   if (s.shield >= 1) {
     s.shield = Math.max(0, s.shield - dmg);
@@ -399,16 +708,23 @@ function damageShip(s, dmg, fromX, fromY) {
     spawnParticles(s.x, s.y, '#f80', 30, 4);
     spawnParticles(s.x, s.y, '#ff0', 20, 3);
     sfxDeath();
-    // Respawn at station, lose all ore
-    s.x = 0; s.y = -80;
-    s.vx = 0; s.vy = 0;
-    s.angle = -Math.PI / 2;
-    s.hp = s.maxHp;
-    s.shield = s.maxShield;
-    s.shieldTimer = 0;
-    s.ore = 0;
-    s.invuln = 120;
-    s.laserCooldown = 0;
+    if (stationDestroyed) {
+      // No respawn — game over
+      s.alive = false;
+      // Check if all player ships dead
+      if (ships.every(sh => !sh.alive)) state = 'gameover';
+    } else {
+      // Respawn at station, lose all ore
+      s.x = 0; s.y = -80;
+      s.vx = 0; s.vy = 0;
+      s.angle = -Math.PI / 2;
+      s.hp = s.maxHp;
+      s.shield = s.maxShield;
+      s.shieldTimer = 0;
+      s.ore = 0;
+      s.invuln = 120;
+      s.laserCooldown = 0;
+    }
   }
 }
 
@@ -455,6 +771,7 @@ function update() {
     o.x += o.vx; o.y += o.vy; o.vx *= 0.99; o.vy *= 0.99; o.life--;
     if (o.life <= 0) { oreDrops.splice(i, 1); continue; }
 
+    let collected = false;
     for (const s of ships) {
       if (!s.alive) continue;
       const range = BASE_ORE_RANGE + s.upgrades.magnet * 15;
@@ -469,11 +786,191 @@ function update() {
 
       if (dist < range) {
         s.ore += o.value;
+        s.totalOre += o.value;
         totalOreMined += o.value;
         oreDrops.splice(i, 1);
         sfxOre();
+        collected = true;
         break;
       }
+    }
+    if (!collected) {
+      for (const b of botShips) {
+        if (!b.alive) continue;
+        const range = BASE_ORE_RANGE + b.upgrades.magnet * 15;
+        const dist = Math.hypot(o.x - b.x, o.y - b.y);
+        if (b.upgrades.magnet > 0 && dist < range * 2.5) {
+          const pull = 0.3 * b.upgrades.magnet;
+          o.vx += ((b.x - o.x) / dist) * pull;
+          o.vy += ((b.y - o.y) / dist) * pull;
+        }
+        if (dist < range) { b.ore += o.value; b.totalOre += o.value; oreDrops.splice(i, 1); collected = true; break; }
+      }
+    }
+  }
+
+  // Alien bases: shoot at nearby ships
+  for (const b of alienBases) {
+    b.angle += 0.01;
+    if (b.flashTimer > 0) b.flashTimer--;
+    b.shootTimer--;
+    if (b.shootTimer > 0) continue;
+    // Find nearest alive ship in range
+    let target = null, bestD = b.range;
+    for (const s of ships) {
+      if (!s.alive) continue;
+      const d = Math.hypot(s.x - b.x, s.y - b.y);
+      if (d < bestD) { bestD = d; target = s; }
+    }
+    if (target) {
+      b.shootTimer = b.shootCd;
+      const ang = Math.atan2(target.y - b.y, target.x - b.x);
+      // Lead the target slightly
+      const spd = 3.5;
+      alienProjectiles.push({
+        x: b.x, y: b.y,
+        vx: Math.cos(ang) * spd + (Math.random() - 0.5) * 0.5,
+        vy: Math.sin(ang) * spd + (Math.random() - 0.5) * 0.5,
+        life: 180
+      });
+      sfxAlienShoot();
+    }
+  }
+
+  // Alien projectiles: move + hit ships
+  for (let i = alienProjectiles.length - 1; i >= 0; i--) {
+    const p = alienProjectiles[i];
+    p.x += p.vx; p.y += p.vy;
+    for (const s of ships) {
+      if (!s.alive || s.invuln > 0) continue;
+      if (Math.hypot(p.x - s.x, p.y - s.y) < SHIP_RADIUS + 4) {
+        damageShip(s, 1, p.x, p.y);
+        alienProjectiles.splice(i, 1);
+        sfxAlienHit();
+        break;
+      }
+    }
+  }
+
+  // Lasers vs alien bases (only player lasers)
+  for (let i = lasers.length - 1; i >= 0; i--) {
+    const l = lasers[i];
+    if (l.isBot) continue;
+    for (let j = alienBases.length - 1; j >= 0; j--) {
+      const b = alienBases[j];
+      if (Math.hypot(l.x - b.x, l.y - b.y) < b.radius) {
+        b.hp -= l.damage;
+        b.flashTimer = 6;
+        lasers.splice(i, 1);
+        spawnParticles(l.x, l.y, '#0f0', 5, 1.5);
+        if (b.hp <= 0) {
+          // Destroyed: drop lots of ore
+          spawnParticles(b.x, b.y, '#0f0', 20, 3);
+          spawnParticles(b.x, b.y, '#0a0', 15, 2);
+          for (let k = 0; k < 5; k++) {
+            oreDrops.push({
+              x: b.x + (Math.random() - 0.5) * 20,
+              y: b.y + (Math.random() - 0.5) * 20,
+              vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2,
+              type: Math.random() < 0.3 ? 2 : 1, value: 3 + Math.floor(Math.random() * 4),
+              life: 600
+            });
+          }
+          alienBases.splice(j, 1);
+          sfxBreak();
+        } else { sfxHit(); }
+        break;
+      }
+    }
+  }
+
+  // Update bot ships (rival miners)
+  for (const b of botShips) updateBotShip(b);
+
+  // Bot vs asteroid collision
+  for (const b of botShips) {
+    if (!b.alive || b.invuln > 0) continue;
+    for (const a of asteroids) {
+      if (Math.hypot(b.x - a.x, b.y - a.y) < SHIP_RADIUS + a.radius) {
+        damageBotShip(b, a.size === 'large' ? 2 : 1, a.x, a.y);
+        break;
+      }
+    }
+  }
+
+  // Bot lasers vs player ships
+  for (let i = lasers.length - 1; i >= 0; i--) {
+    const l = lasers[i];
+    if (!l.isBot) continue;
+    let hit = false;
+    for (const s of ships) {
+      if (!s.alive || s.invuln > 0) continue;
+      if (Math.hypot(l.x - s.x, l.y - s.y) < SHIP_RADIUS) {
+        damageShip(s, l.damage, l.x, l.y);
+        lasers.splice(i, 1); hit = true; sfxAlienHit(); break;
+      }
+    }
+    if (hit) continue;
+    // Bot lasers vs other bots
+    for (const b of botShips) {
+      if (!b.alive || b.invuln > 0 || b === l.botRef) continue;
+      if (Math.hypot(l.x - b.x, l.y - b.y) < SHIP_RADIUS) {
+        damageBotShip(b, l.damage, l.x, l.y);
+        lasers.splice(i, 1); sfxHit(); break;
+      }
+    }
+  }
+
+  // Player lasers vs bot ships
+  for (let i = lasers.length - 1; i >= 0; i--) {
+    const l = lasers[i];
+    if (l.isBot) continue;
+    for (const b of botShips) {
+      if (!b.alive || b.invuln > 0) continue;
+      if (Math.hypot(l.x - b.x, l.y - b.y) < SHIP_RADIUS) {
+        damageBotShip(b, l.damage, l.x, l.y, true);
+        lasers.splice(i, 1); spawnParticles(l.x, l.y, b.color, 4, 1.5); sfxHit(); break;
+      }
+    }
+  }
+
+  // Ship vs bot ship collision
+  for (const s of ships) {
+    if (!s.alive || s.invuln > 0) continue;
+    for (const b of botShips) {
+      if (!b.alive || b.invuln > 0) continue;
+      if (Math.hypot(s.x - b.x, s.y - b.y) < SHIP_RADIUS * 2) {
+        damageShip(s, 1, b.x, b.y);
+        damageBotShip(b, 1, s.x, s.y, true);
+        break;
+      }
+    }
+  }
+
+  // Bot lasers + alien projectiles damage station
+  if (!stationDestroyed) {
+    for (let i = lasers.length - 1; i >= 0; i--) {
+      const l = lasers[i];
+      if (!l.isBot) continue;
+      if (Math.hypot(l.x, l.y) < STATION_RADIUS) {
+        stationHp--; lasers.splice(i, 1);
+        spawnParticles(l.x, l.y, '#fa0', 4, 1.5);
+        screenShake = Math.max(screenShake, 3);
+      }
+    }
+    for (let i = alienProjectiles.length - 1; i >= 0; i--) {
+      const p = alienProjectiles[i];
+      if (Math.hypot(p.x, p.y) < STATION_RADIUS) {
+        stationHp--; alienProjectiles.splice(i, 1);
+        spawnParticles(p.x, p.y, '#fa0', 4, 1.5);
+        screenShake = Math.max(screenShake, 3);
+      }
+    }
+    if (stationHp <= 0) {
+      stationHp = 0; stationDestroyed = true;
+      spawnParticles(0, 0, '#f80', 30, 4);
+      spawnParticles(0, 0, '#8af', 20, 3);
+      screenShake = 15;
     }
   }
 
@@ -484,10 +981,6 @@ function update() {
   stationAngle += 0.005;
   updateParticles();
   if (screenShake > 0) screenShake *= 0.85;
-
-  // Check game over
-
-  copyKeys();
 }
 
 function destroyAsteroid(a, idx, ownerNum) {
@@ -532,13 +1025,12 @@ function updateShop() {
     state = 'playing';
     shopShip = null;
   }
-  copyKeys();
 }
 
 function applyUpgrade(s, key) {
-  if (key === 'hull') { s.maxHp = 5 + s.upgrades.hull * 3; s.hp = s.maxHp; }
-  if (key === 'engine') s.thrustPower = 0.12 + s.upgrades.engine * 0.04;
-  if (key === 'laser') s.laserDamage = 1 + s.upgrades.laser;
+  if (key === 'hull') { s.maxHp = 5 + s.upgrades.hull * 2; s.hp = s.maxHp; }
+  if (key === 'engine') s.thrustPower = 0.12 + s.upgrades.engine * 0.02;
+  if (key === 'laser') s.laserDamage = 1 + Math.floor(s.upgrades.laser * 0.5);
   if (key === 'shield') { s.maxShield = s.upgrades.shield; s.shield = s.maxShield; }
   // rate and magnet are applied dynamically in update
 }
@@ -566,17 +1058,41 @@ function drawStation(activeShip) {
   ctx.save();
   ctx.translate(sp.x, sp.y);
   ctx.rotate(stationAngle);
-  ctx.strokeStyle = '#8af'; ctx.lineWidth = 2;
-  ctx.beginPath();
-  for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; if (i === 0) ctx.moveTo(Math.cos(a) * STATION_RADIUS, Math.sin(a) * STATION_RADIUS); else ctx.lineTo(Math.cos(a) * STATION_RADIUS, Math.sin(a) * STATION_RADIUS); }
-  ctx.closePath(); ctx.stroke();
-  ctx.fillStyle = 'rgba(100,150,255,0.1)'; ctx.fill();
-  ctx.fillStyle = '#46a'; ctx.fillRect(-45, -4, 16, 8); ctx.fillRect(29, -4, 16, 8);
-  ctx.fillStyle = '#8af'; ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill();
+  if (stationDestroyed) {
+    // Destroyed look: grey, broken
+    ctx.strokeStyle = '#555'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; const r = STATION_RADIUS * (0.6 + Math.sin(i * 3) * 0.3); if (i === 0) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r); else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+    ctx.closePath(); ctx.stroke();
+    ctx.fillStyle = 'rgba(80,80,80,0.1)'; ctx.fill();
+    ctx.fillStyle = '#333'; ctx.fillRect(-45, -3, 12, 6); ctx.fillRect(30, -2, 10, 4);
+    ctx.fillStyle = '#555'; ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill();
+  } else {
+    ctx.strokeStyle = '#8af'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; if (i === 0) ctx.moveTo(Math.cos(a) * STATION_RADIUS, Math.sin(a) * STATION_RADIUS); else ctx.lineTo(Math.cos(a) * STATION_RADIUS, Math.sin(a) * STATION_RADIUS); }
+    ctx.closePath(); ctx.stroke();
+    ctx.fillStyle = 'rgba(100,150,255,0.1)'; ctx.fill();
+    ctx.fillStyle = '#46a'; ctx.fillRect(-45, -4, 16, 8); ctx.fillRect(29, -4, 16, 8);
+    ctx.fillStyle = '#8af'; ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill();
+  }
   ctx.restore();
 
+  // Station HP bar
+  if (!stationDestroyed && stationHp < stationMaxHp) {
+    const bw = 50, bh = 4;
+    const hpFrac = stationHp / stationMaxHp;
+    ctx.fillStyle = '#300'; ctx.fillRect(sp.x - bw/2, sp.y + STATION_RADIUS + 8, bw, bh);
+    ctx.fillStyle = hpFrac > 0.5 ? '#8af' : hpFrac > 0.25 ? '#fa0' : '#f44';
+    ctx.fillRect(sp.x - bw/2, sp.y + STATION_RADIUS + 8, bw * hpFrac, bh);
+  }
+  if (stationDestroyed) {
+    ctx.fillStyle = '#f44'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('DESTROYED', sp.x, sp.y + STATION_RADIUS + 14);
+  }
+
   // Dock prompt for active ship
-  if (activeShip && activeShip.alive && Math.hypot(activeShip.x, activeShip.y) < STATION_RADIUS + 60) {
+  if (!stationDestroyed && activeShip && activeShip.alive && Math.hypot(activeShip.x, activeShip.y) < STATION_RADIUS + 60) {
     ctx.strokeStyle = 'rgba(100,200,255,0.4)'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
     ctx.beginPath(); ctx.arc(sp.x, sp.y, STATION_RADIUS + 40, 0, Math.PI * 2); ctx.stroke();
     ctx.setLineDash([]);
@@ -636,6 +1152,91 @@ function drawLasers() {
   }
 }
 
+function drawAlienBases() {
+  for (const b of alienBases) {
+    const sp = w2s(b.x, b.y);
+    if (sp.x < viewX - 40 || sp.x > viewX + viewW + 40 || sp.y < viewY - 40 || sp.y > viewY + viewH + 40) continue;
+    // Detection range ring
+    const nearShip = ships.some(s => s.alive && Math.hypot(s.x - b.x, s.y - b.y) < b.range);
+    if (nearShip) {
+      ctx.strokeStyle = 'rgba(255,0,0,0.08)'; ctx.lineWidth = 1;
+      // Scale range to screen (approximate)
+      ctx.beginPath(); ctx.arc(sp.x, sp.y, b.range * (viewW / 800), 0, Math.PI * 2); ctx.stroke();
+    }
+    // Base glow
+    ctx.fillStyle = b.flashTimer > 0 ? 'rgba(255,255,100,0.15)' : 'rgba(0,255,0,0.06)';
+    ctx.beginPath(); ctx.arc(sp.x, sp.y, 28, 0, Math.PI * 2); ctx.fill();
+    // Base body: hexagon
+    ctx.fillStyle = b.flashTimer > 0 ? '#4a4' : '#1a3a1a';
+    ctx.strokeStyle = '#0f0'; ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = b.angle + i * Math.PI / 3;
+      const px = sp.x + Math.cos(a) * b.radius, py = sp.y + Math.sin(a) * b.radius;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // Inner eye — shows bot color if it has a bot
+    ctx.fillStyle = nearShip ? '#f00' : (b.botShip ? b.botShip.color : '#0f0');
+    ctx.beginPath(); ctx.arc(sp.x, sp.y, 5, 0, Math.PI * 2); ctx.fill();
+    // HP bar
+    if (b.hp < b.maxHp) {
+      const bw = 30, bh = 3;
+      ctx.fillStyle = '#300'; ctx.fillRect(sp.x - bw/2, sp.y - b.radius - 8, bw, bh);
+      ctx.fillStyle = '#0f0'; ctx.fillRect(sp.x - bw/2, sp.y - b.radius - 8, bw * (b.hp / b.maxHp), bh);
+    }
+  }
+}
+
+function drawAlienProjectiles() {
+  ctx.fillStyle = '#0f0';
+  for (const p of alienProjectiles) {
+    const sp = w2s(p.x, p.y);
+    // Glow
+    ctx.globalAlpha = 0.3;
+    ctx.beginPath(); ctx.arc(sp.x, sp.y, 5, 0, Math.PI * 2); ctx.fill();
+    // Core
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#4f4';
+    ctx.beginPath(); ctx.arc(sp.x, sp.y, 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#0f0';
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawBotShips() {
+  for (const b of botShips) {
+    if (!b.alive) continue;
+    drawShipAt(b);
+    // Angry indicator when seeking revenge
+    if (b.state === 'revenge') {
+      const sp2 = w2s(b.x, b.y);
+      ctx.fillStyle = '#f44'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('!', sp2.x, sp2.y - 20);
+      // Red glow around ship
+      ctx.strokeStyle = 'rgba(255,50,50,0.4)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(sp2.x, sp2.y, SHIP_RADIUS + 4, 0, Math.PI * 2); ctx.stroke();
+    }
+    // HP bar above bot
+    if (b.hp < b.maxHp) {
+      const sp = w2s(b.x, b.y);
+      const bw = 22, bh = 3;
+      ctx.fillStyle = '#300'; ctx.fillRect(sp.x - bw/2, sp.y - 18, bw, bh);
+      ctx.fillStyle = b.color; ctx.fillRect(sp.x - bw/2, sp.y - 18, bw * (b.hp / b.maxHp), bh);
+    }
+    // Upgrade level indicators (small dots below ship)
+    const sp = w2s(b.x, b.y);
+    const totalUpgrades = Object.values(b.upgrades).reduce((a, v) => a + v, 0);
+    if (totalUpgrades > 0) {
+      ctx.fillStyle = b.color; ctx.globalAlpha = 0.6;
+      for (let i = 0; i < Math.min(totalUpgrades, 8); i++) {
+        ctx.beginPath(); ctx.arc(sp.x - (totalUpgrades - 1) * 2.5 + i * 5, sp.y + 16, 1.5, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+
 function drawOreDrops() {
   for (const o of oreDrops) {
     const sp = w2s(o.x, o.y);
@@ -656,6 +1257,14 @@ function drawParticlesWorld() {
     ctx.beginPath(); ctx.arc(sp.x, sp.y, p.size, 0, Math.PI * 2); ctx.fill();
   }
   ctx.globalAlpha = 1;
+}
+
+function getStandings() {
+  const list = [];
+  for (const s of ships) list.push({ color: s.color, totalOre: s.totalOre, isPlayer: true, num: s.num, alive: s.alive });
+  for (const b of botShips) list.push({ color: b.color, totalOre: b.totalOre, isPlayer: false, alive: b.alive });
+  list.sort((a, b) => b.totalOre - a.totalOre);
+  return list;
 }
 
 function drawHUDFor(s) {
@@ -732,8 +1341,74 @@ function drawHUDFor(s) {
     }
   }
 
+  // Alien bases on minimap
+  for (const b of alienBases) {
+    const bx = mmCx + (b.x - s.x) * mmScale, by = mmCy + (b.y - s.y) * mmScale;
+    if (bx >= mmX && bx <= mmX + mmW && by >= mmY && by <= mmY + mmH) {
+      ctx.fillStyle = '#0f0'; ctx.globalAlpha = 0.8; ctx.fillRect(bx - 2, by - 2, 4, 4); ctx.globalAlpha = 1;
+    }
+  }
+
+  // Bot ships on minimap
+  for (const b of botShips) {
+    if (!b.alive) continue;
+    const bx = mmCx + (b.x - s.x) * mmScale, by = mmCy + (b.y - s.y) * mmScale;
+    if (bx >= mmX && bx <= mmX + mmW && by >= mmY && by <= mmY + mmH) {
+      ctx.fillStyle = b.color; ctx.globalAlpha = 0.9;
+      ctx.beginPath(); ctx.arc(bx, by, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+
   // Self on minimap
   ctx.fillStyle = s.color; ctx.beginPath(); ctx.arc(mmCx, mmCy, 2, 0, Math.PI * 2); ctx.fill();
+
+  // Compass arrows pointing to each bot
+  for (const b of botShips) {
+    if (!b.alive) continue;
+    const bp = w2s(b.x, b.y);
+    // Only show arrow if bot is off-screen
+    if (bp.x >= viewX + 20 && bp.x <= viewX + viewW - 20 && bp.y >= viewY + 20 && bp.y <= viewY + viewH - 20) continue;
+    const ang = Math.atan2(b.y - s.y, b.x - s.x);
+    const margin = 18;
+    // Clamp to screen edge
+    const cx = viewX + viewW / 2, cy = viewY + viewH / 2;
+    const hw = viewW / 2 - margin, hh = viewH / 2 - margin;
+    let ax = cx + Math.cos(ang) * hw, ay = cy + Math.sin(ang) * hh;
+    // Clamp properly to rectangle edge
+    const scale = Math.min(hw / Math.abs(Math.cos(ang) || 0.001), hh / Math.abs(Math.sin(ang) || 0.001));
+    ax = cx + Math.cos(ang) * scale;
+    ay = cy + Math.sin(ang) * scale;
+    // Draw arrow (red if angry)
+    const angry = b.state === 'revenge';
+    ctx.save(); ctx.translate(ax, ay); ctx.rotate(ang);
+    ctx.fillStyle = angry ? '#f44' : b.color; ctx.globalAlpha = 0.85;
+    ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-5, -5); ctx.lineTo(-2, 0); ctx.lineTo(-5, 5); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 0.5; ctx.font = '8px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText((angry ? '! ' : '') + Math.round(Math.hypot(b.x - s.x, b.y - s.y)) + 'm', 0, -9);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  // Leaderboard
+  const standings = getStandings();
+  if (standings.length > 1) {
+    const lbX = viewX + 6, lbY = viewY + viewH - mmH - 16 - Math.min(standings.length, 6) * 14;
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillRect(lbX, lbY - 14, 90, Math.min(standings.length, 6) * 14 + 16);
+    ctx.textAlign = 'left'; ctx.font = 'bold 9px sans-serif'; ctx.fillStyle = '#8af';
+    ctx.fillText('LEADERBOARD', lbX + 4, lbY - 3);
+    ctx.font = '10px sans-serif';
+    for (let i = 0; i < Math.min(standings.length, 6); i++) {
+      const e = standings[i];
+      const isMe = e.isPlayer && e.num === s.num;
+      ctx.fillStyle = isMe ? '#fff' : (e.alive ? e.color : '#555');
+      const label = e.isPlayer ? (mode === '2P' ? `P${e.num}` : 'YOU') : 'Bot';
+      ctx.fillText(`${i + 1}. ${label}`, lbX + 4, lbY + 10 + i * 14);
+      ctx.fillStyle = isMe ? '#fe4' : '#aaa';
+      ctx.fillText(`${e.totalOre}`, lbX + 52, lbY + 10 + i * 14);
+    }
+  }
 
   ctx.textAlign = 'left';
 }
@@ -750,6 +1425,9 @@ function drawViewport(s, vx, vy, vw, vh) {
   drawStation(s);
   drawOreDrops();
   drawAsteroids();
+  drawAlienBases();
+  drawBotShips();
+  drawAlienProjectiles();
   drawLasers();
   drawParticlesWorld();
   for (const sh of ships) { if (sh.alive) drawShipAt(sh); }
@@ -846,6 +1524,31 @@ function drawMenu() {
   ctx.fillText('P2: Arrows + Enter + RShift', canvas.width / 2, 440);
 }
 
+function drawGameOver() {
+  ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 36px sans-serif'; ctx.fillStyle = '#f44';
+  ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 60);
+  ctx.font = '18px sans-serif'; ctx.fillStyle = '#fa0';
+  ctx.fillText('Your base was destroyed', canvas.width / 2, canvas.height / 2 - 20);
+  ctx.fillStyle = '#f66';
+  ctx.fillText('and you were destroyed', canvas.width / 2, canvas.height / 2 + 10);
+  // Final standings
+  const standings = getStandings();
+  const startY = canvas.height / 2 + 40;
+  ctx.font = 'bold 13px sans-serif'; ctx.fillStyle = '#8af';
+  ctx.fillText('FINAL STANDINGS', canvas.width / 2, startY);
+  ctx.font = '12px sans-serif';
+  for (let i = 0; i < Math.min(standings.length, 8); i++) {
+    const e = standings[i];
+    ctx.fillStyle = e.isPlayer ? '#4f8' : e.color;
+    const label = e.isPlayer ? (mode === '2P' ? `P${e.num}` : 'YOU') : `Bot`;
+    ctx.fillText(`#${i + 1}  ${label} — ${e.totalOre} ore`, canvas.width / 2, startY + 18 + i * 15);
+  }
+  ctx.font = '16px sans-serif'; ctx.fillStyle = '#8af';
+  ctx.fillText('Press Space to return to menu', canvas.width / 2, startY + 30 + Math.min(standings.length, 8) * 15);
+}
+
 // ── Main Loop ──
 let lastTime = 0, acc = 0;
 const STEP = 1000 / 60;
@@ -858,7 +1561,11 @@ function gameLoop(timestamp) {
   while (acc >= STEP) {
     acc -= STEP;
     if (state === 'playing') update();
-    else if (state === 'shop') updateShop();
+    else if (state === 'shop') { update(); updateShop(); }
+    else if (state === 'gameover') {
+      if (keyPressed('Space')) { state = 'menu'; stopMusic(); }
+    }
+    copyKeys();
   }
 
   const shakeX = (Math.random() - 0.5) * screenShake;
@@ -869,7 +1576,7 @@ function gameLoop(timestamp) {
 
   if (state === 'menu') {
     drawMenu();
-  } else if (state === 'playing' || state === 'shop') {
+  } else if (state === 'playing' || state === 'shop' || state === 'gameover') {
     if (mode === '1P') {
       drawViewport(ships[0], 0, 0, canvas.width, canvas.height);
     } else {
@@ -881,6 +1588,7 @@ function gameLoop(timestamp) {
       ctx.beginPath(); ctx.moveTo(canvas.width / 2, 0); ctx.lineTo(canvas.width / 2, canvas.height); ctx.stroke();
     }
     if (state === 'shop') drawShop();
+    if (state === 'gameover') drawGameOver();
   }
 
   ctx.restore();
