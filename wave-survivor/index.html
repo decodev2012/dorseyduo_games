@@ -225,7 +225,7 @@ const skins = [
   { name: 'Fire Mage', body: '#c0392b', hood: '#922b21', eyes: '#f9e79f', staff: '#7b241c', orb: '#e67e22', orbGlow: 'rgba(230,126,34,0.3)',
     ability: 'Inferno', abilityDesc: 'Ring of fire damages all enemies', cooldown: 480, unlockWave: 20 },
   { name: 'Bugler', body: '#d4a017', hood: '#b8860b', eyes: '#fff8dc', staff: '#c8a415', orb: '#ffd700', orbGlow: 'rgba(255,215,0,0.3)',
-    ability: 'Rally Call', abilityDesc: 'Instantly restore 10 ammo', cooldown: 300, unlockWave: 0 }
+    ability: 'Rally Call', abilityDesc: 'Fill ammo to max', cooldown: 300, unlockWave: 0 }
 ];
 
 function isSkinUnlocked(i) {
@@ -450,9 +450,9 @@ function spawnWave() {
     return;
   }
   const count = 4 + wave * 3;
-  const spawnBrain = wave >= 3 && wave % 3 === 0;
+  const spawnBrain = wave > 8 && wave % 3 === 0;
   enemiesRemaining = count + (spawnBrain ? 1 : 0);
-  // Spawn one brain every 3 waves (wave 3+)
+  // Spawn one brain every 3 waves (past wave 8)
   if (spawnBrain) {
     setTimeout(() => {
       if (state === 'gameover') return;
@@ -941,10 +941,10 @@ function activateAbility() {
       }
     }
   } else if (skin.name === 'Bugler') {
-    // Rally Call - instantly restore 10 ammo
-    player.ammo = Math.min(player.maxAmmo, player.ammo + 10);
+    // Rally Call - fill ammo to max
+    player.ammo = player.maxAmmo;
     spawnParticles(player.x, player.y, '#ffd700', 15);
-    spawnDamageNumber(player.x, player.y - 20, '+10 AMMO', '#ffd700');
+    spawnDamageNumber(player.x, player.y - 20, 'MAX AMMO', '#ffd700');
   }
   // Clean up dead enemies from abilities
   for (let i = enemies.length - 1; i >= 0; i--) {
