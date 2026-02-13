@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marble Race</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; overflow: hidden; font-family: 'Segoe UI', Tahoma, sans-serif; }
+#gameCanvas { position: absolute; top: 0; left: 0; }
+#hudCanvas { position: absolute; top: 0; left: 0; pointer-events: none; }
+#ui {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+#ui > * { pointer-events: auto; }
+.menu-panel {
+  background: rgba(10, 10, 30, 0.92);
+  border: 2px solid #445;
+  border-radius: 16px;
+  padding: 2.5rem 3rem;
+  text-align: center;
+  color: #e0e0e0;
+  max-width: 500px;
+}
+.menu-panel h1 {
+  font-size: 2.4rem;
+  margin-bottom: 0.4rem;
+  background: linear-gradient(135deg, #ff6b1a, #ffd93d, #ff6b1a);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.menu-panel h2 { font-size: 1.5rem; margin-bottom: 1rem; color: #ccc; }
+.menu-panel p { color: #999; margin-bottom: 1.5rem; line-height: 1.5; }
+.btn {
+  display: inline-block; padding: 0.8rem 2rem; margin: 0.4rem;
+  border: 2px solid #ff6b1a; border-radius: 8px;
+  background: rgba(255, 107, 26, 0.15); color: #ffaa66;
+  font-size: 1.1rem; cursor: pointer; transition: all 0.2s;
+}
+.btn:hover { background: rgba(255, 107, 26, 0.35); transform: translateY(-2px); }
+.marble-pick { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 1rem 0; }
+.marble-opt {
+  width: 48px; height: 48px; border-radius: 50%;
+  border: 3px solid #333; cursor: pointer; transition: all 0.2s;
+}
+.marble-opt:hover { transform: scale(1.15); border-color: #fff; }
+.marble-opt.selected { border-color: #fff; box-shadow: 0 0 15px rgba(255,255,255,0.5); transform: scale(1.2); }
+.results-list { text-align: left; margin: 1rem 0; }
+.results-list div {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 12px; font-size: 1.1rem; border-radius: 6px;
+}
+.results-list div:first-child { background: rgba(255,215,0,0.15); }
+.results-dot { width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<canvas id="hudCanvas"></canvas>
+<div id="ui">
+  <div id="menuPanel" class="menu-panel">
+    <h1>MARBLE RACE</h1>
+    <p>Marbles race down a wild Hot Wheels-style track!<br>Pick your favorite or take control yourself.</p>
+    <button class="btn" onclick="startMode('spectator')">Spectator Mode</button>
+    <button class="btn" onclick="startMode('player')">Player Control</button>
+  </div>
+  <div id="bettingPanel" class="menu-panel hidden">
+    <h2>Pick Your Marble</h2>
+    <div class="marble-pick" id="marblePick"></div>
+    <p id="pickLabel" style="min-height:1.5em"></p>
+    <button class="btn" id="goBtn" onclick="startRace()" style="opacity:0.4;pointer-events:none">Start Race</button>
+  </div>
+  <div id="resultsPanel" class="menu-panel hidden">
+    <h2 id="resultsTitle">Race Results</h2>
+    <div class="results-list" id="resultsList"></div>
+    <button class="btn" onclick="backToMenu()">Play Again</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ─── CONSTANTS ───
+const MARBLE_COLORS = [
+  { name: 'Red', hex: '#ff4444' }, { name: 'Blue', hex: '#4488ff' },
+  { name: 'Green', hex: '#44cc66' }, { name: 'Gold', hex: '#ffcc00' },
+  { name: 'Pink', hex: '#ff66cc' }, { name: 'Cyan', hex: '#44dddd' },
+  { name: 'Orange', hex: '#ff8833' }, { name: 'White', hex: '#eeeeff' }
+];
+const MR = 0.5;          // marble radius
+const GRAVITY = 16;
+const SUB_STEPS = 4;
+const TRACK_HW = 2.8;    // track half-width
+const WALL_H = 1.4;      // wall height
+const FLOOR_REST = 0.08;
+const WALL_REST = 0.85;
+const NUDGE = 8;
+const BOOST_F = 12;
+const BOOST_CD = 2;
+const BANK_STR = 35;
+const SEG_SEARCH = 50;
+
+// ─── GLOBALS ───
+let scene, camera, renderer, clock;
+let hudCanvas, hudCtx;
+let gameState = 'menu';
+let gameMode = 'spectator';
+let selectedMarble = -1;
+let marbles = [];
+let trackFrames = [];
+let trackCurve = null;
+let trackMeshes = [];
+let gateActive = false;
+let gateFrameIdx = 0;
+let finishedMarbles = [];
+let boostCooldown = 0;
+let keys = {};
+let audioCtx = null;
+let camPos = new THREE.Vector3(0, 90, 40);
+let camLook = new THREE.Vector3(0, 80, 0);
+
+// ─── THREE.JS SETUP ───
+function initScene() {
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x080810);
+  scene.fog = new THREE.FogExp2(0x080810, 0.006);
+
+  camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 600);
+  camera.position.copy(camPos);
+
+  renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gameCanvas'), antialias: true });
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  hudCanvas = document.getElementById('hudCanvas');
+  hudCtx = hudCanvas.getContext('2d');
+  hudCanvas.width = innerWidth;
+  hudCanvas.height = innerHeight;
+
+  scene.add(new THREE.AmbientLight(0x445566, 0.7));
+
+  const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+  dir.position.set(30, 100, 50);
+  dir.castShadow = true;
+  dir.shadow.mapSize.set(2048, 2048);
+  const sc = dir.shadow.camera;
+  sc.left = -80; sc.right = 80; sc.top = 100; sc.bottom = -20; sc.near = 1; sc.far = 300;
+  scene.add(dir);
+
+  scene.add(new THREE.DirectionalLight(0x6688cc, 0.3).position.set(-20, 40, -30) && scene.children[scene.children.length - 1]);
+  const p = new THREE.PointLight(0xff8844, 0.5, 200);
+  p.position.set(0, 40, 0);
+  scene.add(p);
+
+  // Ground
+  const gnd = new THREE.Mesh(
+    new THREE.PlaneGeometry(400, 400),
+    new THREE.MeshStandardMaterial({ color: 0x0c0c14, roughness: 0.95 })
+  );
+  gnd.rotation.x = -Math.PI / 2;
+  gnd.position.y = -2;
+  gnd.receiveShadow = true;
+  scene.add(gnd);
+
+  clock = new THREE.Clock();
+}
+
+// ─── TRACK PATH ───
+function getTrackPoints() {
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  return [
+    // ── Starting straight (flat launch pad) ──
+    V(0, 60, 0),
+    V(0, 59.5, -6),
+    V(0, 59, -12),
+
+    // ── Big first drop ──
+    V(0, 52, -24),
+    V(0, 44, -38),
+
+    // ── Wide banked right turn ──
+    V(10, 42, -50),
+    V(26, 40, -54),
+    V(40, 38, -46),
+    V(44, 36, -32),
+
+    // ── Long straight with gentle downhill ──
+    V(44, 34, -16),
+    V(44, 32, 0),
+
+    // ── Hill bump (up then down) ──
+    V(44, 34, 14),
+    V(44, 33, 24),
+    V(44, 30, 32),
+
+    // ── Left hairpin ──
+    V(38, 28, 42),
+    V(26, 26, 48),
+    V(14, 25, 44),
+    V(8, 24, 34),
+
+    // ── Steep drop chute ──
+    V(8, 20, 22),
+    V(8, 15, 10),
+
+    // ── S-curves (quick chicane) ──
+    V(14, 14, 2),
+    V(4, 13, -6),
+    V(14, 12, -14),
+    V(4, 11, -22),
+
+    // ── Banked left turn into back section ──
+    V(-4, 10, -30),
+    V(-16, 9, -32),
+    V(-24, 8, -24),
+
+    // ── Flat speed section (long straight) ──
+    V(-24, 7, -10),
+    V(-24, 6.5, 6),
+
+    // ── Tight right corkscrew (one full loop descending) ──
+    V(-18, 5.5, 16),
+    V(-10, 4.5, 20),
+    V(-6, 3.5, 12),
+    V(-12, 2.5, 6),
+
+    // ── Final sweeping left curve ──
+    V(-20, 2, 0),
+    V(-22, 1.5, -12),
+    V(-16, 1, -20),
+
+    // ── Finish straight ──
+    V(-8, 0.5, -24),
+    V(0, 0.2, -24),
+    V(6, 0, -24),
+  ];
+}
+
+// ─── TRACK FRAME COMPUTATION ───
+function computeFrames(curve, count) {
+  const frames = [];
+  const rawBank = [];
+  const worldUp = new THREE.Vector3(0, 1, 0);
+
+  // First pass: positions, tangents, raw banking
+  for (let i = 0; i < count; i++) {
+    const t = i / (count - 1);
+    const pos = curve.getPointAt(t);
+    const tang = curve.getTangentAt(t);
+
+    let right = new THREE.Vector3().crossVectors(tang, worldUp).normalize();
+    if (right.lengthSq() < 0.01) right.set(1, 0, 0);
+
+    // Curvature for banking
+    const dt = 0.003;
+    const t0 = Math.max(0.001, t - dt);
+    const t1 = Math.min(0.999, t + dt);
+    const tang0 = curve.getTangentAt(t0);
+    const tang1 = curve.getTangentAt(t1);
+    const curv = new THREE.Vector3().subVectors(tang1, tang0);
+    const lateral = curv.dot(right);
+    rawBank.push(Math.max(-0.7, Math.min(0.7, lateral * BANK_STR)));
+
+    frames.push({ pos, tang, t });
+  }
+
+  // Smooth banking
+  for (let pass = 0; pass < 8; pass++) {
+    const tmp = [...rawBank];
+    for (let i = 1; i < count - 1; i++) {
+      rawBank[i] = tmp[i - 1] * 0.25 + tmp[i] * 0.5 + tmp[i + 1] * 0.25;
+    }
+  }
+  // Flatten start/end banking
+  for (let i = 0; i < Math.min(15, count); i++) rawBank[i] *= i / 15;
+  for (let i = count - 10; i < count; i++) rawBank[i] *= (count - 1 - i) / 10;
+
+  // Second pass: apply banking
+  const result = [];
+  for (let i = 0; i < count; i++) {
+    const { pos, tang } = frames[i];
+    let right = new THREE.Vector3().crossVectors(tang, worldUp).normalize();
+    if (right.lengthSq() < 0.01) right.set(1, 0, 0);
+    let up = new THREE.Vector3().crossVectors(right, tang).normalize();
+
+    if (Math.abs(rawBank[i]) > 0.005) {
+      const q = new THREE.Quaternion().setFromAxisAngle(tang, rawBank[i]);
+      right.applyQuaternion(q);
+      up.applyQuaternion(q);
+    }
+
+    // Wider at start
+    const tParam = i / (count - 1);
+    let hw = TRACK_HW;
+    if (tParam < 0.04) hw = TRACK_HW + 1.0 * (1 - tParam / 0.04);
+
+    result.push({
+      px: pos.x, py: pos.y, pz: pos.z,
+      tx: tang.x, ty: tang.y, tz: tang.z,
+      rx: right.x, ry: right.y, rz: right.z,
+      ux: up.x, uy: up.y, uz: up.z,
+      hw
+    });
+  }
+  return result;
+}
+
+// ─── TRACK MESH ───
+function buildTrackMesh(frames) {
+  // Clear old track
+  trackMeshes.forEach(m => scene.remove(m));
+  trackMeshes = [];
+
+  const n = frames.length;
+
+  // Floor
+  const fPos = new Float32Array(n * 2 * 3);
+  const fIdx = [];
+  // Left wall
+  const lPos = new Float32Array(n * 2 * 3);
+  const lIdx = [];
+  // Right wall
+  const rPos = new Float32Array(n * 2 * 3);
+  const rIdx = [];
+  // Rail tops
+  const rlPos = new Float32Array(n * 2 * 3);
+  const rlIdx = [];
+  const rrPos = new Float32Array(n * 2 * 3);
+  const rrIdx = [];
+
+  for (let i = 0; i < n; i++) {
+    const f = frames[i];
+    const hw = f.hw;
+    // Floor: left and right edges
+    const flx = f.px - f.rx * hw, fly = f.py - f.ry * hw, flz = f.pz - f.rz * hw;
+    const frx = f.px + f.rx * hw, fry = f.py + f.ry * hw, frz = f.pz + f.rz * hw;
+    fPos[i * 6] = flx; fPos[i * 6 + 1] = fly; fPos[i * 6 + 2] = flz;
+    fPos[i * 6 + 3] = frx; fPos[i * 6 + 4] = fry; fPos[i * 6 + 5] = frz;
+
+    // Left wall: bottom (=floor left edge) and top
+    lPos[i * 6] = flx; lPos[i * 6 + 1] = fly; lPos[i * 6 + 2] = flz;
+    lPos[i * 6 + 3] = flx + f.ux * WALL_H;
+    lPos[i * 6 + 4] = fly + f.uy * WALL_H;
+    lPos[i * 6 + 5] = flz + f.uz * WALL_H;
+
+    // Right wall: bottom and top
+    rPos[i * 6] = frx; rPos[i * 6 + 1] = fry; rPos[i * 6 + 2] = frz;
+    rPos[i * 6 + 3] = frx + f.ux * WALL_H;
+    rPos[i * 6 + 4] = fry + f.uy * WALL_H;
+    rPos[i * 6 + 5] = frz + f.uz * WALL_H;
+
+    // Rail strips on top of walls
+    const railW = 0.12;
+    rlPos[i * 6] = flx + f.ux * WALL_H - f.rx * railW;
+    rlPos[i * 6 + 1] = fly + f.uy * WALL_H - f.ry * railW;
+    rlPos[i * 6 + 2] = flz + f.uz * WALL_H - f.rz * railW;
+    rlPos[i * 6 + 3] = flx + f.ux * WALL_H + f.rx * railW;
+    rlPos[i * 6 + 4] = fly + f.uy * WALL_H + f.ry * railW;
+    rlPos[i * 6 + 5] = flz + f.uz * WALL_H + f.rz * railW;
+
+    rrPos[i * 6] = frx + f.ux * WALL_H - f.rx * railW;
+    rrPos[i * 6 + 1] = fry + f.uy * WALL_H - f.ry * railW;
+    rrPos[i * 6 + 2] = frz + f.uz * WALL_H - f.rz * railW;
+    rrPos[i * 6 + 3] = frx + f.ux * WALL_H + f.rx * railW;
+    rrPos[i * 6 + 4] = fry + f.uy * WALL_H + f.ry * railW;
+    rrPos[i * 6 + 5] = frz + f.uz * WALL_H + f.rz * railW;
+
+    if (i > 0) {
+      const b = (i - 1) * 2, c = i * 2;
+      fIdx.push(b, c, b + 1, b + 1, c, c + 1);
+      lIdx.push(b, b + 1, c, b + 1, c + 1, c);
+      rIdx.push(b, c, b + 1, b + 1, c, c + 1);
+      rlIdx.push(b, c, b + 1, b + 1, c, c + 1);
+      rrIdx.push(b, c, b + 1, b + 1, c, c + 1);
+    }
+  }
+
+  function makeMesh(posArr, idxArr, color, metalness, roughness) {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
+    geo.setIndex(idxArr);
+    geo.computeVertexNormals();
+    const mat = new THREE.MeshStandardMaterial({
+      color, metalness, roughness, side: THREE.DoubleSide
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    scene.add(mesh);
+    trackMeshes.push(mesh);
+    return mesh;
+  }
+
+  makeMesh(fPos, fIdx, 0xFF6B1A, 0.1, 0.55);       // orange floor
+  makeMesh(lPos, lIdx, 0xDD5500, 0.15, 0.5);        // left wall
+  makeMesh(rPos, rIdx, 0xDD5500, 0.15, 0.5);        // right wall
+  makeMesh(rlPos, rlIdx, 0xCCCCDD, 0.7, 0.15);      // left rail (chrome)
+  makeMesh(rrPos, rrIdx, 0xCCCCDD, 0.7, 0.15);      // right rail (chrome)
+
+  // Underside
+  const uPos = new Float32Array(fPos);
+  makeMesh(uPos, [...fIdx].reverse(), 0x332200, 0.1, 0.8);
+}
+
+// ─── TRACK SUPPORTS ───
+function addSupports(frames) {
+  const mat = new THREE.MeshStandardMaterial({ color: 0x556677, roughness: 0.6, metalness: 0.3 });
+  const groundY = -2;
+  for (let i = 15; i < frames.length - 5; i += 18) {
+    const f = frames[i];
+    const h = f.py - groundY;
+    if (h < 2) continue;
+    // Two supports per point (left and right)
+    for (const side of [-1, 1]) {
+      const sx = f.px + f.rx * f.hw * side * 0.6;
+      const sz = f.pz + f.rz * f.hw * side * 0.6;
+      const geo = new THREE.CylinderGeometry(0.18, 0.25, h, 8);
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(sx, groundY + h / 2, sz);
+      mesh.castShadow = true;
+      scene.add(mesh);
+      trackMeshes.push(mesh);
+    }
+    // Cross beam
+    const beamGeo = new THREE.BoxGeometry(f.hw * 1.3, 0.2, 0.2);
+    const beam = new THREE.Mesh(beamGeo, mat);
+    beam.position.set(f.px, f.py - 0.3, f.pz);
+    // Align beam with track right direction
+    beam.lookAt(f.px + f.rx, f.py + f.ry - 0.3, f.pz + f.rz);
+    scene.add(beam);
+    trackMeshes.push(beam);
+  }
+}
+
+// ─── FINISH LINE ───
+function addFinishLine(frames) {
+  const last = frames[frames.length - 1];
+  const geo = new THREE.PlaneGeometry(last.hw * 2, 1);
+  const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(last.px, last.py + 0.05, last.pz);
+  // Orient to track
+  const up = new THREE.Vector3(last.ux, last.uy, last.uz);
+  const tang = new THREE.Vector3(last.tx, last.ty, last.tz);
+  mesh.lookAt(last.px + last.ux, last.py + last.uy, last.pz + last.uz);
+  scene.add(mesh);
+  trackMeshes.push(mesh);
+
+  // Checkered pattern with second mesh
+  const geo2 = new THREE.PlaneGeometry(last.hw * 2, 0.6);
+  const mat2 = new THREE.MeshBasicMaterial({ color: 0x222222, side: THREE.DoubleSide });
+  const mesh2 = new THREE.Mesh(geo2, mat2);
+  mesh2.position.set(
+    last.px - last.tx * 0.4, last.py - last.ty * 0.4 + 0.05, last.pz - last.tz * 0.4
+  );
+  mesh2.lookAt(
+    last.px - last.tx * 0.4 + last.ux,
+    last.py - last.ty * 0.4 + last.uy + 0.05,
+    last.pz - last.tz * 0.4 + last.uz
+  );
+  scene.add(mesh2);
+  trackMeshes.push(mesh2);
+}
+
+// ─── BUILD FULL TRACK ───
+function buildTrack() {
+  const pts = getTrackPoints();
+  trackCurve = new THREE.CatmullRomCurve3(pts);
+  const totalLen = trackCurve.getLength();
+  const numFrames = Math.ceil(totalLen / 0.7);
+  trackFrames = computeFrames(trackCurve, numFrames);
+  gateFrameIdx = Math.floor(numFrames * 0.02);
+  buildTrackMesh(trackFrames);
+  addSupports(trackFrames);
+  addFinishLine(trackFrames);
+}
+
+// ─── MARBLES ───
+function createMarbles() {
+  marbles = [];
+  finishedMarbles = [];
+  gateActive = true;
+
+  const startIdx = Math.max(2, gateFrameIdx - 6);
+  const positions = [];
+  // 2 rows of 4
+  for (let row = 0; row < 2; row++) {
+    const fi = startIdx - row * 4;
+    const f = trackFrames[Math.max(0, fi)];
+    for (let col = 0; col < 4; col++) {
+      const across = -1.5 + col * 1.0;
+      positions.push({
+        x: f.px + f.rx * across + f.ux * MR,
+        y: f.py + f.ry * across + f.uy * MR,
+        z: f.pz + f.rz * across + f.uz * MR,
+        seg: Math.max(0, fi)
+      });
+    }
+  }
+
+  for (let i = 0; i < 8; i++) {
+    const c = MARBLE_COLORS[i];
+    const geo = new THREE.SphereGeometry(MR, 24, 16);
+    const mat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(c.hex), metalness: 0.3, roughness: 0.2
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+
+    const p = positions[i];
+    mesh.position.set(p.x, p.y, p.z);
+    scene.add(mesh);
+
+    let ring = null;
+    if (i === selectedMarble) {
+      const rGeo = new THREE.TorusGeometry(MR + 0.2, 0.06, 8, 24);
+      ring = new THREE.Mesh(rGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }));
+      mesh.add(ring);
+    }
+
+    marbles.push({
+      mesh, ring,
+      x: p.x, y: p.y, z: p.z,
+      vx: 0, vy: 0, vz: 0,
+      color: c.hex, name: c.name,
+      finished: false, finishTime: 0, idx: i,
+      segIdx: p.seg
+    });
+  }
+}
+
+// ─── PHYSICS ───
+function findNearestSeg(m) {
+  let best = Infinity, bestI = m.segIdx;
+  const lo = Math.max(0, m.segIdx - SEG_SEARCH);
+  const hi = Math.min(trackFrames.length - 1, m.segIdx + SEG_SEARCH);
+  for (let i = lo; i <= hi; i++) {
+    const f = trackFrames[i];
+    const dx = m.x - f.px, dy = m.y - f.py, dz = m.z - f.pz;
+    const d = dx * dx + dy * dy + dz * dz;
+    if (d < best) { best = d; bestI = i; }
+  }
+  m.segIdx = bestI;
+  return bestI;
+}
+
+function trackCollision(m, fi) {
+  const f = trackFrames[fi];
+  const dx = m.x - f.px, dy = m.y - f.py, dz = m.z - f.pz;
+  const across = dx * f.rx + dy * f.ry + dz * f.rz;
+  const above = dx * f.ux + dy * f.uy + dz * f.uz;
+  const along = dx * f.tx + dy * f.ty + dz * f.tz;
+
+  // Only collide if reasonably close
+  if (Math.abs(along) > 3 || Math.abs(across) > f.hw + 2 || above > WALL_H + 3 || above < -2) return;
+
+  // Floor collision
+  if (above < MR) {
+    const pen = MR - above;
+    m.x += f.ux * pen; m.y += f.uy * pen; m.z += f.uz * pen;
+    const vn = m.vx * f.ux + m.vy * f.uy + m.vz * f.uz;
+    if (vn < 0) {
+      m.vx -= (1 + FLOOR_REST) * vn * f.ux;
+      m.vy -= (1 + FLOOR_REST) * vn * f.uy;
+      m.vz -= (1 + FLOOR_REST) * vn * f.uz;
+      if (Math.abs(vn) > 3) playSound('bounce');
+    }
+  }
+
+  // Left wall
+  if (across < -f.hw + MR) {
+    const pen = -f.hw + MR - across;
+    m.x += f.rx * pen; m.y += f.ry * pen; m.z += f.rz * pen;
+    const vn = m.vx * f.rx + m.vy * f.ry + m.vz * f.rz;
+    if (vn < 0) {
+      m.vx -= (1 + WALL_REST) * vn * f.rx;
+      m.vy -= (1 + WALL_REST) * vn * f.ry;
+      m.vz -= (1 + WALL_REST) * vn * f.rz;
+      if (Math.abs(vn) > 2) playSound('bounce');
+    }
+  }
+
+  // Right wall
+  if (across > f.hw - MR) {
+    const pen = across - f.hw + MR;
+    m.x -= f.rx * pen; m.y -= f.ry * pen; m.z -= f.rz * pen;
+    const vn = m.vx * f.rx + m.vy * f.ry + m.vz * f.rz;
+    if (vn > 0) {
+      m.vx -= (1 + WALL_REST) * vn * f.rx;
+      m.vy -= (1 + WALL_REST) * vn * f.ry;
+      m.vz -= (1 + WALL_REST) * vn * f.rz;
+      if (Math.abs(vn) > 2) playSound('bounce');
+    }
+  }
+}
+
+function gateCollision(m) {
+  if (!gateActive) return;
+  const f = trackFrames[gateFrameIdx];
+  const dx = m.x - f.px, dy = m.y - f.py, dz = m.z - f.pz;
+  const along = dx * f.tx + dy * f.ty + dz * f.tz;
+  if (along > -MR && along < MR) {
+    const pen = MR - along;
+    m.x -= f.tx * pen; m.y -= f.ty * pen; m.z -= f.tz * pen;
+    const vn = m.vx * f.tx + m.vy * f.ty + m.vz * f.tz;
+    if (vn > 0) {
+      m.vx -= (1 + 0.3) * vn * f.tx;
+      m.vy -= (1 + 0.3) * vn * f.ty;
+      m.vz -= (1 + 0.3) * vn * f.tz;
+    }
+  }
+}
+
+function marbleCollision(a, b) {
+  const dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z;
+  const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+  if (dist < MR * 2 && dist > 0.001) {
+    const nx = dx / dist, ny = dy / dist, nz = dz / dist;
+    const pen = (MR * 2 - dist) / 2;
+    a.x += nx * pen; a.y += ny * pen; a.z += nz * pen;
+    b.x -= nx * pen; b.y -= ny * pen; b.z -= nz * pen;
+    const rv = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny + (a.vz - b.vz) * nz;
+    if (rv < 0) {
+      a.vx -= rv * nx; a.vy -= rv * ny; a.vz -= rv * nz;
+      b.vx += rv * nx; b.vy += rv * ny; b.vz += rv * nz;
+    }
+  }
+}
+
+function physicsStep(dt) {
+  const sdt = dt / SUB_STEPS;
+  for (let s = 0; s < SUB_STEPS; s++) {
+    for (const m of marbles) {
+      if (m.finished) continue;
+
+      // Gravity (world down)
+      m.vy -= GRAVITY * sdt;
+
+      // Player controls: nudge along track right/forward
+      if (gameMode === 'player' && m.idx === selectedMarble && gameState === 'racing') {
+        const f = trackFrames[m.segIdx];
+        if (keys['KeyA'] || keys['ArrowLeft']) {
+          m.vx -= f.rx * NUDGE * sdt; m.vy -= f.ry * NUDGE * sdt; m.vz -= f.rz * NUDGE * sdt;
+        }
+        if (keys['KeyD'] || keys['ArrowRight']) {
+          m.vx += f.rx * NUDGE * sdt; m.vy += f.ry * NUDGE * sdt; m.vz += f.rz * NUDGE * sdt;
+        }
+        if (keys['KeyW'] || keys['ArrowUp']) {
+          m.vx += f.tx * NUDGE * sdt; m.vy += f.ty * NUDGE * sdt; m.vz += f.tz * NUDGE * sdt;
+        }
+        if (keys['KeyS'] || keys['ArrowDown']) {
+          m.vx -= f.tx * NUDGE * 0.5 * sdt; m.vy -= f.ty * NUDGE * 0.5 * sdt; m.vz -= f.tz * NUDGE * 0.5 * sdt;
+        }
+        if (keys['Space'] && boostCooldown <= 0) {
+          m.vx += f.tx * BOOST_F; m.vy += f.ty * BOOST_F; m.vz += f.tz * BOOST_F;
+          boostCooldown = BOOST_CD;
+          playSound('boost');
+          keys['Space'] = false;
+        }
+      }
+
+      // AI jitter (random lateral nudges)
+      if (gameMode === 'spectator' || m.idx !== selectedMarble) {
+        const f = trackFrames[m.segIdx];
+        const jit = (Math.random() - 0.5) * 3 * sdt;
+        m.vx += f.rx * jit; m.vy += f.ry * jit; m.vz += f.rz * jit;
+      }
+
+      // Integrate
+      m.x += m.vx * sdt;
+      m.y += m.vy * sdt;
+      m.z += m.vz * sdt;
+
+      // Speed cap
+      const spd = Math.sqrt(m.vx * m.vx + m.vy * m.vy + m.vz * m.vz);
+      if (spd > 35) {
+        const sc = 35 / spd;
+        m.vx *= sc; m.vy *= sc; m.vz *= sc;
+      }
+
+      // Track collision (nearest segment only — checking neighbors causes
+      // spurious wall hits on curves that kill speed)
+      const si = findNearestSeg(m);
+      trackCollision(m, si);
+
+      // Gate
+      gateCollision(m);
+
+      // Safety: if marble falls way below ground, reset to last known track pos
+      if (m.y < -10) {
+        const f = trackFrames[m.segIdx];
+        m.x = f.px + f.ux * MR; m.y = f.py + f.uy * MR; m.z = f.pz + f.uz * MR;
+        m.vx = 0; m.vy = 0; m.vz = 0;
+      }
+    }
+
+    // Marble-marble
+    for (let i = 0; i < marbles.length; i++)
+      for (let j = i + 1; j < marbles.length; j++)
+        marbleCollision(marbles[i], marbles[j]);
+  }
+
+  // Update meshes and check finish
+  for (const m of marbles) {
+    m.mesh.position.set(m.x, m.y, m.z);
+    if (!m.finished) {
+      const spd = Math.sqrt(m.vx * m.vx + m.vy * m.vy + m.vz * m.vz);
+      if (spd > 0.1) {
+        const ax = new THREE.Vector3(
+          m.vy * m.vz > 0 ? -m.vz : m.vz,
+          0,
+          m.vx
+        ).normalize();
+        if (ax.lengthSq() > 0.01) m.mesh.rotateOnWorldAxis(ax, spd * dt / MR * 0.3);
+      }
+      // Finish: within last few frames
+      if (m.segIdx >= trackFrames.length - 8) {
+        m.finished = true;
+        m.finishTime = clock.elapsedTime;
+        m.vx *= 0.2; m.vy *= 0.2; m.vz *= 0.2;
+        finishedMarbles.push(m);
+        if (finishedMarbles.length === 1) playSound('finish');
+        if (finishedMarbles.length === marbles.length) endRace();
+      }
+    }
+  }
+}
+
+// ─── CAMERA ───
+function updateCamera(dt) {
+  let targetMarble;
+  if (gameMode === 'player' && selectedMarble >= 0 && marbles.length > 0) {
+    targetMarble = marbles[selectedMarble];
+  } else if (marbles.length > 0) {
+    if (spectatingIdx >= 0 && spectatingIdx < marbles.length) {
+      targetMarble = marbles[spectatingIdx];
+    } else {
+      const active = marbles.filter(m => !m.finished);
+      if (active.length > 0) {
+        active.sort((a, b) => b.segIdx - a.segIdx);
+        targetMarble = active[0];
+      } else {
+        targetMarble = marbles[0];
+      }
+    }
+  }
+
+  if (!targetMarble) return;
+
+  const f = trackFrames[Math.min(targetMarble.segIdx, trackFrames.length - 1)];
+  const dist = gameMode === 'player' ? 14 : 20;
+  const height = gameMode === 'player' ? 5 : 8;
+
+  // Position behind and above along track
+  const tgtPos = new THREE.Vector3(
+    targetMarble.x - f.tx * dist + f.ux * height,
+    targetMarble.y - f.ty * dist + f.uy * height + 3,
+    targetMarble.z - f.tz * dist + f.uz * height
+  );
+
+  // Look ahead of marble
+  const tgtLook = new THREE.Vector3(
+    targetMarble.x + f.tx * 8,
+    targetMarble.y + f.ty * 8,
+    targetMarble.z + f.tz * 8
+  );
+
+  const lerp = 1 - Math.pow(0.03, dt);
+  camPos.lerp(tgtPos, lerp);
+  camLook.lerp(tgtLook, lerp);
+  camera.position.copy(camPos);
+  camera.lookAt(camLook);
+}
+
+// ─── HUD ───
+function drawHUD() {
+  hudCtx.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
+  if (gameState !== 'racing') return;
+
+  const W = hudCanvas.width, H = hudCanvas.height;
+
+  // Sort by progress (segIdx, finished first)
+  const sorted = [...marbles].sort((a, b) => {
+    if (a.finished && b.finished) return a.finishTime - b.finishTime;
+    if (a.finished) return -1;
+    if (b.finished) return 1;
+    return b.segIdx - a.segIdx;
+  });
+
+  hudCtx.save();
+  const px = W - 165, py = 20;
+  hudCtx.fillStyle = 'rgba(10, 10, 30, 0.8)';
+  hudCtx.beginPath();
+  hudCtx.roundRect(px - 10, py - 5, 155, sorted.length * 28 + 32, 8);
+  hudCtx.fill();
+
+  hudCtx.fillStyle = '#aaa';
+  hudCtx.font = 'bold 13px "Segoe UI", sans-serif';
+  hudCtx.fillText('POSITIONS', px + 25, py + 14);
+
+  hudCtx.font = '13px "Segoe UI", sans-serif';
+  sorted.forEach((m, i) => {
+    const row = py + 28 + i * 28;
+    hudCtx.beginPath();
+    hudCtx.arc(px + 10, row, 8, 0, Math.PI * 2);
+    hudCtx.fillStyle = m.color;
+    hudCtx.fill();
+    if (m.idx === selectedMarble || (gameMode === 'spectator' && m.idx === spectatingIdx)) {
+      hudCtx.strokeStyle = '#fff'; hudCtx.lineWidth = 2; hudCtx.stroke();
+    }
+    hudCtx.fillStyle = m.finished ? '#6c6' : '#ccc';
+    hudCtx.fillText(`${i + 1}. ${m.name}`, px + 26, row + 4);
+    if (m.finished) { hudCtx.fillStyle = '#696'; hudCtx.fillText('\u2713', px + 125, row + 4); }
+  });
+  hudCtx.restore();
+
+  // Spectating indicator
+  if (gameMode === 'spectator') {
+    const sx = 20, sy = H - 46;
+    hudCtx.fillStyle = 'rgba(10, 10, 30, 0.8)';
+    hudCtx.beginPath(); hudCtx.roundRect(sx - 5, sy - 18, 180, 38, 6); hudCtx.fill();
+    hudCtx.font = '12px "Segoe UI", sans-serif';
+    hudCtx.fillStyle = '#777';
+    hudCtx.fillText('\u25C0 \u25B6 switch marble', sx, sy - 3);
+    if (spectatingIdx >= 0) {
+      const mc = MARBLE_COLORS[spectatingIdx];
+      hudCtx.beginPath();
+      hudCtx.arc(sx + 10, sy + 12, 7, 0, Math.PI * 2);
+      hudCtx.fillStyle = mc.hex; hudCtx.fill();
+      hudCtx.fillStyle = '#ccc'; hudCtx.font = '13px "Segoe UI", sans-serif';
+      hudCtx.fillText(mc.name, sx + 24, sy + 16);
+    } else {
+      hudCtx.fillStyle = '#999'; hudCtx.font = '13px "Segoe UI", sans-serif';
+      hudCtx.fillText('Following leader', sx, sy + 16);
+    }
+  }
+
+  // Boost meter
+  if (gameMode === 'player') {
+    const bx = 20, by = H - 60, bw = 120, bh = 16;
+    const pct = Math.max(0, 1 - boostCooldown / BOOST_CD);
+    hudCtx.fillStyle = 'rgba(10, 10, 30, 0.8)';
+    hudCtx.beginPath(); hudCtx.roundRect(bx - 5, by - 22, bw + 10, 50, 6); hudCtx.fill();
+    hudCtx.fillStyle = '#aaa'; hudCtx.font = '12px "Segoe UI", sans-serif';
+    hudCtx.fillText('BOOST [Space]', bx, by - 6);
+    hudCtx.fillStyle = '#333'; hudCtx.fillRect(bx, by, bw, bh);
+    hudCtx.fillStyle = pct >= 1 ? '#ff6b1a' : '#553300';
+    hudCtx.fillRect(bx, by, bw * pct, bh);
+    if (pct >= 1) { hudCtx.fillStyle = '#ffaa66'; hudCtx.fillText('READY', bx + bw / 2 - 18, by + 12); }
+  }
+}
+
+// ─── SOUND ───
+function initAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+function playSound(type) {
+  if (!audioCtx) return;
+  try {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    const t = audioCtx.currentTime;
+    switch (type) {
+      case 'bounce':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(220, t);
+        osc.frequency.exponentialRampToValueAtTime(110, t + 0.06);
+        gain.gain.setValueAtTime(0.06, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+        osc.start(t); osc.stop(t + 0.08); break;
+      case 'countdown':
+        osc.type = 'sine'; osc.frequency.setValueAtTime(440, t);
+        gain.gain.setValueAtTime(0.15, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+        osc.start(t); osc.stop(t + 0.2); break;
+      case 'go':
+        osc.type = 'sine'; osc.frequency.setValueAtTime(880, t);
+        gain.gain.setValueAtTime(0.2, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+        osc.start(t); osc.stop(t + 0.3); break;
+      case 'finish':
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(300, t);
+        osc.frequency.exponentialRampToValueAtTime(900, t + 0.4);
+        gain.gain.setValueAtTime(0.15, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+        osc.start(t); osc.stop(t + 0.5); break;
+      case 'win':
+        gain.gain.setValueAtTime(0.15, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523, t);
+        osc.frequency.setValueAtTime(659, t + 0.15);
+        osc.frequency.setValueAtTime(784, t + 0.3);
+        osc.frequency.setValueAtTime(1047, t + 0.45);
+        osc.start(t); osc.stop(t + 0.8); break;
+      case 'boost':
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, t);
+        osc.frequency.exponentialRampToValueAtTime(300, t + 0.15);
+        gain.gain.setValueAtTime(0.1, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+        osc.start(t); osc.stop(t + 0.2); break;
+    }
+  } catch (e) {}
+}
+
+// ─── GAME STATE ───
+function startMode(mode) {
+  initAudio();
+  gameMode = mode;
+  selectedMarble = -1;
+  document.getElementById('menuPanel').classList.add('hidden');
+  document.getElementById('bettingPanel').classList.remove('hidden');
+  buildMarblePicker();
+}
+
+function buildMarblePicker() {
+  const c = document.getElementById('marblePick');
+  c.innerHTML = '';
+  MARBLE_COLORS.forEach((col, i) => {
+    const d = document.createElement('div');
+    d.className = 'marble-opt';
+    d.style.background = col.hex;
+    d.title = col.name;
+    d.onclick = () => pickMarble(i);
+    c.appendChild(d);
+  });
+}
+
+function pickMarble(idx) {
+  selectedMarble = idx;
+  document.querySelectorAll('.marble-opt').forEach((el, i) => el.classList.toggle('selected', i === idx));
+  document.getElementById('pickLabel').textContent = `You picked: ${MARBLE_COLORS[idx].name}`;
+  const btn = document.getElementById('goBtn');
+  btn.style.opacity = '1'; btn.style.pointerEvents = 'auto';
+}
+
+function startRace() {
+  document.getElementById('bettingPanel').classList.add('hidden');
+  buildTrack();
+  createMarbles();
+  gameState = 'countdown';
+  countdownNum = 3;
+
+  // Init camera near start
+  if (marbles.length > 0) {
+    const f = trackFrames[gateFrameIdx];
+    camPos.set(f.px - f.tx * 20 + 0, f.py + 10, f.pz - f.tz * 20 + 15);
+    camLook.set(f.px, f.py, f.pz);
+  }
+
+  showCountdown();
+}
+
+let countdownNum = 0;
+
+function showCountdown() {
+  if (countdownNum > 0) {
+    drawCountdownText(countdownNum.toString());
+    playSound('countdown');
+    countdownNum--;
+    setTimeout(showCountdown, 900);
+  } else {
+    drawCountdownText('GO!');
+    playSound('go');
+    setTimeout(() => {
+      gameState = 'racing';
+      gateActive = false;
+      // Give marbles an initial forward push down the track
+      for (const m of marbles) {
+        const f = trackFrames[m.segIdx];
+        m.vx += f.tx * 6;
+        m.vy += f.ty * 6;
+        m.vz += f.tz * 6;
+      }
+    }, 500);
+  }
+}
+
+function drawCountdownText(text) {
+  const W = hudCanvas.width, H = hudCanvas.height;
+  hudCtx.clearRect(0, 0, W, H);
+  hudCtx.save();
+  hudCtx.font = 'bold 120px "Segoe UI", sans-serif';
+  hudCtx.textAlign = 'center'; hudCtx.textBaseline = 'middle';
+  hudCtx.fillStyle = text === 'GO!' ? '#6bcb77' : '#fff';
+  hudCtx.shadowColor = text === 'GO!' ? '#6bcb77' : '#ff6b1a';
+  hudCtx.shadowBlur = 30;
+  hudCtx.fillText(text, W / 2, H / 2);
+  hudCtx.restore();
+}
+
+function endRace() {
+  gameState = 'results';
+  setTimeout(() => {
+    const winner = finishedMarbles[0];
+    const isWin = winner && winner.idx === selectedMarble;
+    if (isWin) playSound('win');
+    document.getElementById('resultsTitle').textContent = isWin ? 'You Won!' : `${winner.name} Wins!`;
+    const list = document.getElementById('resultsList');
+    list.innerHTML = '';
+    finishedMarbles.forEach((m, i) => {
+      const d = document.createElement('div');
+      const isP = m.idx === selectedMarble;
+      d.innerHTML = `<span style="font-weight:bold;width:28px">${i + 1}.</span>
+        <span class="results-dot" style="background:${m.color}"></span>
+        <span>${m.name}${isP ? ' (You)' : ''}</span>`;
+      if (isP) d.style.background = 'rgba(255,107,26,0.15)';
+      list.appendChild(d);
+    });
+    document.getElementById('resultsPanel').classList.remove('hidden');
+  }, 1000);
+}
+
+function backToMenu() {
+  document.getElementById('resultsPanel').classList.add('hidden');
+  document.getElementById('menuPanel').classList.remove('hidden');
+  gameState = 'menu';
+  spectatingIdx = -1;
+  for (const m of marbles) scene.remove(m.mesh);
+  marbles = [];
+  trackMeshes.forEach(m => scene.remove(m));
+  trackMeshes = [];
+  trackFrames = [];
+  hudCtx.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
+}
+
+// ─── INPUT ───
+let spectatingIdx = -1; // -1 = auto follow leader
+document.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (e.code === 'Space') e.preventDefault();
+  // Arrow keys cycle spectated marble in spectator mode
+  if (gameMode === 'spectator' && gameState === 'racing') {
+    if (e.code === 'ArrowRight' || e.code === 'ArrowDown') {
+      spectatingIdx = (spectatingIdx + 1) % 8;
+      e.preventDefault();
+    }
+    if (e.code === 'ArrowLeft' || e.code === 'ArrowUp') {
+      spectatingIdx = (spectatingIdx + 7) % 8;
+      e.preventDefault();
+    }
+  }
+});
+document.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// ─── RESIZE ───
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  hudCanvas.width = innerWidth;
+  hudCanvas.height = innerHeight;
+});
+
+// ─── MAIN LOOP ───
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 1 / 30);
+
+  if (gameState === 'racing') {
+    physicsStep(dt);
+    boostCooldown = Math.max(0, boostCooldown - dt);
+    drawHUD();
+  }
+
+  if (gameState === 'racing' || gameState === 'countdown' || gameState === 'results') {
+    updateCamera(dt || 0.016);
+  }
+
+  renderer.render(scene, camera);
+}
+
+// ─── INIT ───
+initScene();
+animate();
+</script>
+</body>
+</html>
