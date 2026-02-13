@@ -58,26 +58,26 @@ function sfxLaser() {
   o2.start(t); o2.stop(t + 0.1);
 }
 
-// Thruster hum
-let thrusterNode = null, thrusterGain = null;
-function startThruster() {
-  if (thrusterNode) return;
-  const a = getAudio();
-  thrusterNode = a.createOscillator();
-  thrusterGain = a.createGain();
-  thrusterNode.type = 'sine';
-  thrusterNode.frequency.value = 80;
-  thrusterGain.gain.value = 0;
-  thrusterNode.connect(thrusterGain);
-  thrusterGain.connect(a.destination);
-  thrusterNode.start();
-}
+// Thruster hum — only exists while thrusting
+let thrusterNode = null, thrusterGain = null, thrusterIsOn = false;
 function setThrusterOn(on) {
-  if (!thrusterGain) return;
-  const a = getAudio(), t = a.currentTime;
-  thrusterGain.gain.cancelScheduledValues(t);
-  thrusterGain.gain.setValueAtTime(thrusterGain.gain.value, t);
-  thrusterGain.gain.linearRampToValueAtTime(on ? 0.025 : 0, t + 0.08);
+  if (on === thrusterIsOn) return;
+  thrusterIsOn = on;
+  const a = getAudio();
+  if (on) {
+    thrusterNode = a.createOscillator();
+    thrusterGain = a.createGain();
+    thrusterNode.type = 'sine';
+    thrusterNode.frequency.value = 80;
+    thrusterGain.gain.value = 0.025;
+    thrusterNode.connect(thrusterGain);
+    thrusterGain.connect(a.destination);
+    thrusterNode.start();
+  } else if (thrusterNode) {
+    try { thrusterNode.stop(); } catch(e) {}
+    thrusterNode.disconnect(); thrusterGain.disconnect();
+    thrusterNode = null; thrusterGain = null;
+  }
 }
 function sfxHit() { playTone(200, 80, 0.08, 0.15, 'sawtooth'); }
 function sfxBreak() { playTone(150, 40, 0.2, 0.2, 'sawtooth'); }
@@ -195,16 +195,14 @@ const ORE_TYPES = [
 ];
 
 // ── Game State ──
-let state = 'menu'; // menu, playing, shop, gameover
+let state = 'menu'; // menu, playing, gameover
 let mode = '1P';
 let ships = [];
 let lasers, asteroids, oreDrops, particles, populatedChunks;
 let alienBases, alienProjectiles, botShips;
-let stationHp, stationMaxHp, stationDestroyed;
+let stations; // array of { x, y, hp, maxHp, destroyed, owner (ship num) }
 let totalOreMined = 0;
 let botColorIdx = 0;
-let shopShip = null; // which ship is in the shop
-let shopSelection = 0;
 let stationAngle = 0;
 let screenShake = 0;
 let hoverMode = false, hoverStart = false;
@@ -230,6 +228,7 @@ function createShip(x, y, color, cockpitColor, num) {
     upgrades: { hull: 0, engine: 0, laser: 0, rate: 0, shield: 0, magnet: 0 },
     thrusting: false,
     color, cockpitColor, num,
+    inShop: false, shopSelection: 0, shopOpenCd: 0,
   };
 }
 
@@ -410,7 +409,7 @@ function updateBotShip(bot) {
   // State transitions
   if (hpPct < 0.35 && hasBase && bot.state !== 'revenge') {
     bot.state = 'returning'; bot.targetEnemy = null;
-  } else if (bot.grudge >= 5 && bot.state !== 'returning' && !stationDestroyed) {
+  } else if (bot.grudge >= 5 && bot.state !== 'returning' && stations.some(st => !st.destroyed)) {
     bot.state = 'revenge'; bot.targetEnemy = null;
   } else if (bot.state !== 'revenge') {
     if (nearestEnemy && bot.state !== 'returning') {
@@ -420,7 +419,7 @@ function updateBotShip(bot) {
     }
   }
   // Revenge ends when grudge runs out or station destroyed
-  if (bot.state === 'revenge' && (bot.grudge < 1 || stationDestroyed)) {
+  if (bot.state === 'revenge' && (bot.grudge < 1 || stations.every(st => st.destroyed))) {
     bot.state = 'mining'; bot.grudge = 0;
   }
   // Return to upgrade if enough ore (check in mining OR fighting states)
@@ -472,10 +471,17 @@ function updateBotShip(bot) {
       else { botSteer(bot, e.x, e.y, d > 80); botTryShoot(bot); }
     } else { bot.state = 'mining'; bot.targetEnemy = null; }
   } else if (bot.state === 'revenge') {
-    // Head to player station and attack it
-    const d = Math.hypot(bot.x, bot.y);
-    botSteer(bot, 0, 0, d > 60);
-    if (d < 200) botTryShoot(bot);
+    // Head to nearest player station and attack it
+    let tgt = null, tgtD = Infinity;
+    for (const st of stations) {
+      if (st.destroyed) continue;
+      const dd = Math.hypot(bot.x - st.x, bot.y - st.y);
+      if (dd < tgtD) { tgtD = dd; tgt = st; }
+    }
+    if (tgt) {
+      botSteer(bot, tgt.x, tgt.y, tgtD > 60);
+      if (tgtD < 200) botTryShoot(bot);
+    }
     // Also fight any player in the way
     if (nearestEnemy && nearestEnemy.num > 0 && enemyDist < 150) {
       botSteer(bot, nearestEnemy.x, nearestEnemy.y, true);
@@ -496,21 +502,32 @@ function updateBotShip(bot) {
 
 function initGame() {
   ships = [];
-  ships.push(createShip(-30, -80, '#4f8', '#aff', 1));
-  if (mode === '2P') {
-    ships.push(createShip(30, -80, '#f84', '#ffa', 2));
+  stations = [];
+  if (mode === '1P') {
+    const st = { x: 0, y: 0, hp: 30, maxHp: 30, destroyed: false, owner: 1, color: '#8af' };
+    stations.push(st);
+    const s1 = createShip(-30, -80, '#4f8', '#aff', 1);
+    s1.station = st;
+    ships.push(s1);
+  } else {
+    const st1 = { x: -400, y: 0, hp: 30, maxHp: 30, destroyed: false, owner: 1, color: '#4f8' };
+    const st2 = { x: 400, y: 0, hp: 30, maxHp: 30, destroyed: false, owner: 2, color: '#f84' };
+    stations.push(st1, st2);
+    const s1 = createShip(st1.x - 30, st1.y - 80, '#4f8', '#aff', 1);
+    s1.station = st1;
+    ships.push(s1);
+    const s2 = createShip(st2.x + 30, st2.y - 80, '#f84', '#ffa', 2);
+    s2.station = st2;
+    ships.push(s2);
   }
   lasers = []; asteroids = []; oreDrops = []; particles = [];
   alienBases = []; alienProjectiles = []; botShips = [];
   botColorIdx = 0;
-  stationHp = 30; stationMaxHp = 30; stationDestroyed = false;
   populatedChunks = new Set();
   totalOreMined = 0;
-  shopShip = null; shopSelection = 0;
   state = 'playing';
   spawnChunksFor(ships[0]);
   startMusic();
-  startThruster();
 }
 
 // ── Asteroids ──
@@ -555,8 +572,8 @@ function spawnChunksFor(s) {
         if (tR < cc) type = 2; else if (tR < cc + gc) type = 1; else type = 0;
         spawnAsteroid(ax, ay, size, type);
       }
-      // Alien base: chance to spawn in nearby chunks — each gets one bot miner
-      if (dist >= 2 && Math.random() < 0.15) {
+      // Alien base: chance to spawn in nearby chunks — each gets one bot miner (max 10)
+      if (dist >= 2 && Math.random() < 0.15 && botShips.length < 10) {
         const bx = cx * CHUNK_SIZE + Math.random() * CHUNK_SIZE;
         const by = cy * CHUNK_SIZE + Math.random() * CHUNK_SIZE;
         const base = {
@@ -632,7 +649,7 @@ function getShipKeys(num) {
 
 function updateShip(s) {
   if (!s.alive) return;
-  if (state === 'shop' && s === shopShip) return;
+  if (s.inShop) return;
   const k = getShipKeys(s.num);
   const turnSpeed = 0.05;
 
@@ -673,10 +690,10 @@ function updateShip(s) {
   }
 
   // Dock
-  if (!stationDestroyed && keyPressed(k.dock) && Math.hypot(s.x, s.y) < STATION_RADIUS + 40) {
-    shopShip = s;
-    shopSelection = 0;
-    state = 'shop';
+  if (!s.station.destroyed && keyPressed(k.dock) && Math.hypot(s.x - s.station.x, s.y - s.station.y) < STATION_RADIUS + 40) {
+    s.inShop = true;
+    s.shopSelection = 0;
+    s.shopOpenCd = 2;
   }
 
   // Thruster particles
@@ -686,7 +703,7 @@ function updateShip(s) {
 }
 
 function damageShip(s, dmg, fromX, fromY) {
-  if (state === 'shop' && s === shopShip) return;
+  if (s.inShop) return;
   // Shield absorbs first
   if (s.shield >= 1) {
     s.shield = Math.max(0, s.shield - dmg);
@@ -710,14 +727,14 @@ function damageShip(s, dmg, fromX, fromY) {
     spawnParticles(s.x, s.y, '#f80', 30, 4);
     spawnParticles(s.x, s.y, '#ff0', 20, 3);
     sfxDeath();
-    if (stationDestroyed) {
+    if (s.station.destroyed) {
       // No respawn — game over
       s.alive = false;
       // Check if all player ships dead
       if (ships.every(sh => !sh.alive)) state = 'gameover';
     } else {
       // Respawn at station, lose all ore
-      s.x = 0; s.y = -80;
+      s.x = s.station.x; s.y = s.station.y - 80;
       s.vx = 0; s.vy = 0;
       s.angle = -Math.PI / 2;
       s.hp = s.maxHp;
@@ -951,29 +968,30 @@ function update() {
     }
   }
 
-  // Bot lasers + alien projectiles damage station
-  if (!stationDestroyed) {
+  // Bot lasers + alien projectiles damage stations
+  for (const st of stations) {
+    if (st.destroyed) continue;
     for (let i = lasers.length - 1; i >= 0; i--) {
       const l = lasers[i];
       if (!l.isBot) continue;
-      if (Math.hypot(l.x, l.y) < STATION_RADIUS) {
-        stationHp--; lasers.splice(i, 1);
+      if (Math.hypot(l.x - st.x, l.y - st.y) < STATION_RADIUS) {
+        st.hp--; lasers.splice(i, 1);
         spawnParticles(l.x, l.y, '#fa0', 4, 1.5);
         screenShake = Math.max(screenShake, 3);
       }
     }
     for (let i = alienProjectiles.length - 1; i >= 0; i--) {
       const p = alienProjectiles[i];
-      if (Math.hypot(p.x, p.y) < STATION_RADIUS) {
-        stationHp--; alienProjectiles.splice(i, 1);
+      if (Math.hypot(p.x - st.x, p.y - st.y) < STATION_RADIUS) {
+        st.hp--; alienProjectiles.splice(i, 1);
         spawnParticles(p.x, p.y, '#fa0', 4, 1.5);
         screenShake = Math.max(screenShake, 3);
       }
     }
-    if (stationHp <= 0) {
-      stationHp = 0; stationDestroyed = true;
-      spawnParticles(0, 0, '#f80', 30, 4);
-      spawnParticles(0, 0, '#8af', 20, 3);
+    if (st.hp <= 0) {
+      st.hp = 0; st.destroyed = true;
+      spawnParticles(st.x, st.y, '#f80', 30, 4);
+      spawnParticles(st.x, st.y, st.color, 20, 3);
       screenShake = 15;
     }
   }
@@ -1002,21 +1020,21 @@ function destroyAsteroid(a, idx, ownerNum) {
 
 // ── Shop ──
 const REPAIR_COST = 20;
-function updateShop() {
-  const s = shopShip;
+function updateShopFor(s) {
+  if (s.shopOpenCd > 0) { s.shopOpenCd--; return; }
   const k = getShipKeys(s.num);
   const upKeys = Object.keys(UPGRADES);
   const totalItems = upKeys.length + 1; // upgrades + repair
 
   if (keyPressed(k.up) || (s.num === 1 && keyPressed('KeyW')) || (s.num === 2 && keyPressed('ArrowUp'))) {
-    shopSelection = (shopSelection - 1 + totalItems) % totalItems;
+    s.shopSelection = (s.shopSelection - 1 + totalItems) % totalItems;
   }
   if (keyPressed(k.down) || (s.num === 1 && keyPressed('KeyS')) || (s.num === 2 && keyPressed('ArrowDown'))) {
-    shopSelection = (shopSelection + 1) % totalItems;
+    s.shopSelection = (s.shopSelection + 1) % totalItems;
   }
-  if (keyPressed(k.shoot) || keyPressed('Space') || keyPressed('Enter')) {
-    if (shopSelection < upKeys.length) {
-      const key = upKeys[shopSelection];
+  if (keyPressed(k.shoot) || (s.num === 1 && keyPressed('Space')) || (s.num === 2 && keyPressed('Enter'))) {
+    if (s.shopSelection < upKeys.length) {
+      const key = upKeys[s.shopSelection];
       const level = s.upgrades[key];
       if (level < 3) {
         const cost = UPGRADES[key].costs[level];
@@ -1037,8 +1055,7 @@ function updateShop() {
     }
   }
   if (keyPressed(k.dock) || keyPressed('Escape')) {
-    state = 'playing';
-    shopShip = null;
+    s.inShop = false;
   }
 }
 
@@ -1068,52 +1085,59 @@ function drawStars() {
   }
 }
 
-function drawStation(activeShip) {
-  const sp = w2s(0, 0);
-  ctx.save();
-  ctx.translate(sp.x, sp.y);
-  ctx.rotate(stationAngle);
-  if (stationDestroyed) {
-    // Destroyed look: grey, broken
-    ctx.strokeStyle = '#555'; ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; const r = STATION_RADIUS * (0.6 + Math.sin(i * 3) * 0.3); if (i === 0) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r); else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
-    ctx.closePath(); ctx.stroke();
-    ctx.fillStyle = 'rgba(80,80,80,0.1)'; ctx.fill();
-    ctx.fillStyle = '#333'; ctx.fillRect(-45, -3, 12, 6); ctx.fillRect(30, -2, 10, 4);
-    ctx.fillStyle = '#555'; ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill();
-  } else {
-    ctx.strokeStyle = '#8af'; ctx.lineWidth = 2;
-    ctx.beginPath();
-    for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; if (i === 0) ctx.moveTo(Math.cos(a) * STATION_RADIUS, Math.sin(a) * STATION_RADIUS); else ctx.lineTo(Math.cos(a) * STATION_RADIUS, Math.sin(a) * STATION_RADIUS); }
-    ctx.closePath(); ctx.stroke();
-    ctx.fillStyle = 'rgba(100,150,255,0.1)'; ctx.fill();
-    ctx.fillStyle = '#46a'; ctx.fillRect(-45, -4, 16, 8); ctx.fillRect(29, -4, 16, 8);
-    ctx.fillStyle = '#8af'; ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill();
-  }
-  ctx.restore();
+function drawStations(activeShip) {
+  for (const st of stations) {
+    const sp = w2s(st.x, st.y);
+    ctx.save();
+    ctx.translate(sp.x, sp.y);
+    ctx.rotate(stationAngle);
+    if (st.destroyed) {
+      ctx.strokeStyle = '#555'; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; const r = STATION_RADIUS * (0.6 + Math.sin(i * 3) * 0.3); if (i === 0) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r); else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+      ctx.closePath(); ctx.stroke();
+      ctx.fillStyle = 'rgba(80,80,80,0.1)'; ctx.fill();
+      ctx.fillStyle = '#333'; ctx.fillRect(-45, -3, 12, 6); ctx.fillRect(30, -2, 10, 4);
+      ctx.fillStyle = '#555'; ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill();
+    } else {
+      ctx.strokeStyle = st.color; ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; if (i === 0) ctx.moveTo(Math.cos(a) * STATION_RADIUS, Math.sin(a) * STATION_RADIUS); else ctx.lineTo(Math.cos(a) * STATION_RADIUS, Math.sin(a) * STATION_RADIUS); }
+      ctx.closePath(); ctx.stroke();
+      ctx.globalAlpha = 0.1; ctx.fillStyle = st.color; ctx.fill(); ctx.globalAlpha = 1;
+      ctx.fillStyle = st.color; ctx.globalAlpha = 0.4; ctx.fillRect(-45, -4, 16, 8); ctx.fillRect(29, -4, 16, 8); ctx.globalAlpha = 1;
+      ctx.fillStyle = st.color; ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
 
-  // Station HP bar
-  if (!stationDestroyed && stationHp < stationMaxHp) {
-    const bw = 50, bh = 4;
-    const hpFrac = stationHp / stationMaxHp;
-    ctx.fillStyle = '#300'; ctx.fillRect(sp.x - bw/2, sp.y + STATION_RADIUS + 8, bw, bh);
-    ctx.fillStyle = hpFrac > 0.5 ? '#8af' : hpFrac > 0.25 ? '#fa0' : '#f44';
-    ctx.fillRect(sp.x - bw/2, sp.y + STATION_RADIUS + 8, bw * hpFrac, bh);
-  }
-  if (stationDestroyed) {
-    ctx.fillStyle = '#f44'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('DESTROYED', sp.x, sp.y + STATION_RADIUS + 14);
-  }
+    // Station HP bar
+    if (!st.destroyed && st.hp < st.maxHp) {
+      const bw = 50, bh = 4;
+      const hpFrac = st.hp / st.maxHp;
+      ctx.fillStyle = '#300'; ctx.fillRect(sp.x - bw/2, sp.y + STATION_RADIUS + 8, bw, bh);
+      ctx.fillStyle = hpFrac > 0.5 ? st.color : hpFrac > 0.25 ? '#fa0' : '#f44';
+      ctx.fillRect(sp.x - bw/2, sp.y + STATION_RADIUS + 8, bw * hpFrac, bh);
+    }
+    if (st.destroyed) {
+      ctx.fillStyle = '#f44'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('DESTROYED', sp.x, sp.y + STATION_RADIUS + 14);
+    }
 
-  // Dock prompt for active ship
-  if (!stationDestroyed && activeShip && activeShip.alive && Math.hypot(activeShip.x, activeShip.y) < STATION_RADIUS + 60) {
-    ctx.strokeStyle = 'rgba(100,200,255,0.4)'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
-    ctx.beginPath(); ctx.arc(sp.x, sp.y, STATION_RADIUS + 40, 0, Math.PI * 2); ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle = 'rgba(100,200,255,0.7)'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
-    const dockKey = activeShip.num === 1 ? 'E' : 'RShift';
-    ctx.fillText(`Press ${dockKey} to dock`, sp.x, sp.y + STATION_RADIUS + 55);
+    // Dock prompt — only for the ship that owns this station
+    if (!st.destroyed && activeShip && activeShip.alive && activeShip.station === st && Math.hypot(activeShip.x - st.x, activeShip.y - st.y) < STATION_RADIUS + 60) {
+      ctx.strokeStyle = 'rgba(100,200,255,0.4)'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.arc(sp.x, sp.y, STATION_RADIUS + 40, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(100,200,255,0.7)'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+      const dockKey = activeShip.num === 1 ? 'E' : 'RShift';
+      ctx.fillText(`Press ${dockKey} to dock`, sp.x, sp.y + STATION_RADIUS + 55);
+    }
+
+    // Owner label in 2P
+    if (mode === '2P' && !st.destroyed) {
+      ctx.fillStyle = st.color; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(`P${st.owner}`, sp.x, sp.y - STATION_RADIUS - 8);
+    }
   }
 }
 
@@ -1311,7 +1335,7 @@ function drawHUDFor(s) {
   ctx.textAlign = 'right'; ctx.font = 'bold 13px sans-serif';
   ctx.fillStyle = '#fe4'; ctx.fillText(`Ore: ${s.ore}`, topRight, hy + 13);
   ctx.font = '10px sans-serif'; ctx.fillStyle = '#8af';
-  ctx.fillText(`Stn: ${Math.round(Math.hypot(s.x, s.y))}m`, topRight, hy + 26);
+  ctx.fillText(`Stn: ${Math.round(Math.hypot(s.x - s.station.x, s.y - s.station.y))}m`, topRight, hy + 26);
 
   // Player label in 2P
   if (mode === '2P') {
@@ -1328,18 +1352,21 @@ function drawHUDFor(s) {
   ctx.strokeStyle = '#333'; ctx.lineWidth = 1; ctx.strokeRect(mmX, mmY, mmW, mmH);
   const mmCx = mmX + mmW / 2, mmCy = mmY + mmH / 2;
 
-  // Station on minimap
-  const stx = mmCx + (0 - s.x) * mmScale, sty = mmCy + (0 - s.y) * mmScale;
-  if (stx >= mmX && stx <= mmX + mmW && sty >= mmY && sty <= mmY + mmH) {
-    ctx.fillStyle = '#8af'; ctx.beginPath(); ctx.arc(stx, sty, 2.5, 0, Math.PI * 2); ctx.fill();
-  } else {
-    const ang = Math.atan2(-s.y, -s.x);
-    const ax = mmCx + Math.cos(ang) * (mmW / 2 - 8), ay = mmCy + Math.sin(ang) * (mmH / 2 - 8);
-    ctx.fillStyle = '#8af'; ctx.beginPath();
-    ctx.moveTo(ax + Math.cos(ang) * 5, ay + Math.sin(ang) * 5);
-    ctx.lineTo(ax + Math.cos(ang + 2.5) * 4, ay + Math.sin(ang + 2.5) * 4);
-    ctx.lineTo(ax + Math.cos(ang - 2.5) * 4, ay + Math.sin(ang - 2.5) * 4);
-    ctx.closePath(); ctx.fill();
+  // Stations on minimap
+  for (const st of stations) {
+    const stx = mmCx + (st.x - s.x) * mmScale, sty = mmCy + (st.y - s.y) * mmScale;
+    const stCol = st.destroyed ? '#555' : st.color;
+    if (stx >= mmX && stx <= mmX + mmW && sty >= mmY && sty <= mmY + mmH) {
+      ctx.fillStyle = stCol; ctx.beginPath(); ctx.arc(stx, sty, 2.5, 0, Math.PI * 2); ctx.fill();
+    } else {
+      const ang = Math.atan2(st.y - s.y, st.x - s.x);
+      const ax = mmCx + Math.cos(ang) * (mmW / 2 - 8), ay = mmCy + Math.sin(ang) * (mmH / 2 - 8);
+      ctx.fillStyle = stCol; ctx.beginPath();
+      ctx.moveTo(ax + Math.cos(ang) * 5, ay + Math.sin(ang) * 5);
+      ctx.lineTo(ax + Math.cos(ang + 2.5) * 4, ay + Math.sin(ang + 2.5) * 4);
+      ctx.lineTo(ax + Math.cos(ang - 2.5) * 4, ay + Math.sin(ang - 2.5) * 4);
+      ctx.closePath(); ctx.fill();
+    }
   }
 
   // Other ships on minimap
@@ -1440,7 +1467,7 @@ function drawViewport(s, vx, vy, vw, vh) {
   ctx.fillStyle = '#000'; ctx.fillRect(vx, vy, vw, vh);
 
   drawStars();
-  drawStation(s);
+  drawStations(s);
   drawOreDrops();
   drawAsteroids();
   drawAlienBases();
@@ -1454,24 +1481,26 @@ function drawViewport(s, vx, vy, vw, vh) {
   ctx.restore();
 }
 
-function drawShop() {
-  const s = shopShip;
-  ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-  const pw = 380, ph = 470;
-  const px = (canvas.width - pw) / 2, py = (canvas.height - ph) / 2;
+function drawShop(s, vx, vy, vw, vh) {
+  ctx.save();
+  ctx.beginPath(); ctx.rect(vx, vy, vw, vh); ctx.clip();
+  ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(vx, vy, vw, vh);
+  const pw = Math.min(380, vw - 20), ph = 470;
+  const px = vx + (vw - pw) / 2, py = vy + (vh - ph) / 2;
+  const cx = vx + vw / 2;
   ctx.fillStyle = '#0a0a2a'; ctx.strokeStyle = '#8af'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 12); ctx.fill(); ctx.stroke();
 
   ctx.textAlign = 'center'; ctx.font = 'bold 22px sans-serif'; ctx.fillStyle = '#8af';
-  ctx.fillText(mode === '2P' ? `P${s.num} SHOP` : 'STATION SHOP', canvas.width / 2, py + 32);
+  ctx.fillText(mode === '2P' ? `P${s.num} SHOP` : 'STATION SHOP', cx, py + 32);
   ctx.font = '13px sans-serif'; ctx.fillStyle = '#fe4';
-  ctx.fillText(`Ore: ${s.ore}`, canvas.width / 2, py + 52);
+  ctx.fillText(`Ore: ${s.ore}`, cx, py + 52);
 
   const upKeys = Object.keys(UPGRADES);
   for (let i = 0; i < upKeys.length; i++) {
     const key = upKeys[i], up = UPGRADES[key], level = s.upgrades[key];
     const iy = py + 65 + i * 52;
-    const sel = shopSelection === i;
+    const sel = s.shopSelection === i;
 
     if (sel) { ctx.fillStyle = 'rgba(100,150,255,0.12)'; ctx.fillRect(px + 12, iy - 2, pw - 24, 48); }
 
@@ -1490,7 +1519,7 @@ function drawShop() {
   // Repair option
   const repairIdx = upKeys.length;
   const ry = py + 65 + repairIdx * 52;
-  const rSel = shopSelection === repairIdx;
+  const rSel = s.shopSelection === repairIdx;
   if (rSel) { ctx.fillStyle = 'rgba(100,150,255,0.12)'; ctx.fillRect(px + 12, ry - 2, pw - 24, 48); }
   ctx.textAlign = 'left'; ctx.font = 'bold 15px sans-serif'; ctx.fillStyle = rSel ? '#fff' : '#aaa';
   ctx.fillText('Repair', px + 20, ry + 16);
@@ -1507,7 +1536,8 @@ function drawShop() {
 
   ctx.textAlign = 'center'; ctx.font = '11px sans-serif'; ctx.fillStyle = '#555';
   const dockKey = s.num === 1 ? 'E' : 'RShift';
-  ctx.fillText(`Up/Down: Select | Shoot: Buy | ${dockKey}: Leave`, canvas.width / 2, py + ph - 12);
+  ctx.fillText(`Up/Down: Select | Shoot: Buy | ${dockKey}: Leave`, cx, py + ph - 12);
+  ctx.restore();
 }
 
 // ── Menu ──
@@ -1596,9 +1626,10 @@ function gameLoop(timestamp) {
 
   while (acc >= STEP) {
     acc -= STEP;
-    if (state === 'playing') update();
-    else if (state === 'shop') { update(); updateShop(); }
-    else if (state === 'gameover') {
+    if (state === 'playing') {
+      update();
+      for (const s of ships) { if (s.inShop) updateShopFor(s); }
+    } else if (state === 'gameover') {
       if (keyPressed('Space')) { state = 'menu'; stopMusic(); }
     }
     copyKeys();
@@ -1612,18 +1643,21 @@ function gameLoop(timestamp) {
 
   if (state === 'menu') {
     drawMenu();
-  } else if (state === 'playing' || state === 'shop' || state === 'gameover') {
+  } else if (state === 'playing' || state === 'gameover') {
     if (mode === '1P') {
       drawViewport(ships[0], 0, 0, canvas.width, canvas.height);
+      if (ships[0].inShop) drawShop(ships[0], 0, 0, canvas.width, canvas.height);
     } else {
       // Splitscreen
       drawViewport(ships[0], 0, 0, canvas.width / 2, canvas.height);
       drawViewport(ships[1], canvas.width / 2, 0, canvas.width / 2, canvas.height);
+      // Shop overlays per-player
+      if (ships[0].inShop) drawShop(ships[0], 0, 0, canvas.width / 2, canvas.height);
+      if (ships[1].inShop) drawShop(ships[1], canvas.width / 2, 0, canvas.width / 2, canvas.height);
       // Divider
       ctx.strokeStyle = '#444'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(canvas.width / 2, 0); ctx.lineTo(canvas.width / 2, canvas.height); ctx.stroke();
     }
-    if (state === 'shop') drawShop();
     if (state === 'gameover') drawGameOver();
   }
 
