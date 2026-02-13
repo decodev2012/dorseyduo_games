@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grapple Run — Level Editor</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a1a;color:#ccc;font-family:'Segoe UI',Tahoma,sans-serif;display:flex;height:100vh;overflow:hidden}
+#toolbar{width:220px;min-width:220px;flex-shrink:0;background:#111;padding:12px;display:flex;flex-direction:column;gap:8px;border-right:1px solid #333;overflow-y:auto}
+#toolbar h2{color:#0df;font-size:16px;margin-bottom:4px}
+.tool-btn{padding:8px 12px;border:1px solid #333;border-radius:6px;background:#1a1a2e;color:#ccc;cursor:pointer;font-size:13px;text-align:left;transition:all .15s}
+.tool-btn:hover{border-color:#0df;background:#1a1a3e}
+.tool-btn.active{border-color:#0df;background:rgba(0,220,255,.15);color:#0df}
+.section{margin-top:12px;padding-top:8px;border-top:1px solid #222}
+.section label{font-size:12px;color:#888;display:block;margin-bottom:4px}
+.section input{width:100%;padding:4px 6px;background:#1a1a2e;border:1px solid #333;border-radius:4px;color:#ccc;font-size:12px;margin-bottom:6px}
+.export-btn{padding:10px;border:2px solid #0d8;border-radius:6px;background:rgba(0,220,80,.1);color:#0d8;cursor:pointer;font-size:14px;font-weight:bold;text-align:center;transition:all .15s}
+.export-btn:hover{background:rgba(0,220,80,.2)}
+.import-btn{padding:10px;border:2px solid #fa0;border-radius:6px;background:rgba(255,170,0,.1);color:#fa0;cursor:pointer;font-size:14px;font-weight:bold;text-align:center;transition:all .15s}
+.import-btn:hover{background:rgba(255,170,0,.2)}
+.clear-btn{padding:8px;border:1px solid #c44;border-radius:6px;background:rgba(200,60,60,.1);color:#c44;cursor:pointer;font-size:12px;text-align:center}
+.clear-btn:hover{background:rgba(200,60,60,.2)}
+#info{font-size:11px;color:#556;margin-top:auto;line-height:1.5}
+canvas{flex:1;cursor:crosshair}
+#output{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:10;align-items:center;justify-content:center}
+#output.show{display:flex}
+#output-inner{background:#111;border:2px solid #0d8;border-radius:12px;padding:24px;max-width:700px;width:90%;max-height:80vh;display:flex;flex-direction:column;gap:12px}
+#output-inner h3{color:#0d8;font-size:18px}
+#output-inner textarea{width:100%;height:300px;background:#0a0a1a;border:1px solid #333;border-radius:6px;color:#0df;font-family:monospace;font-size:12px;padding:8px;resize:vertical}
+#output-inner button{padding:8px 16px;border:1px solid #556;border-radius:6px;background:#1a1a2e;color:#ccc;cursor:pointer;align-self:flex-end}
+</style>
+</head>
+<body>
+<div id="toolbar">
+  <h2>Level Editor</h2>
+  <button class="tool-btn active" data-tool="platform">Platform</button>
+  <button class="tool-btn" data-tool="grapple">Grapple Point</button>
+  <button class="tool-btn" data-tool="spike-up">Spike (Up)</button>
+  <button class="tool-btn" data-tool="spike-down">Spike (Down)</button>
+  <button class="tool-btn" data-tool="coin">Coin</button>
+  <button class="tool-btn" data-tool="spawn">Spawn Point</button>
+  <button class="tool-btn" data-tool="finish">Finish Zone</button>
+  <button class="tool-btn" data-tool="eraser">Eraser</button>
+
+  <div class="section">
+    <label>Level Name</label>
+    <input id="levelName" value="My Level">
+    <label>Death Y (fall boundary)</label>
+    <input id="deathY" type="number" value="900">
+    <label>Grid Snap</label>
+    <input id="gridSnap" type="number" value="20">
+  </div>
+
+  <div class="section">
+    <button class="export-btn" onclick="exportLevel()">Export JSON</button>
+  </div>
+  <div class="section">
+    <button class="import-btn" onclick="showImport()">Import JSON</button>
+  </div>
+  <div class="section">
+    <button class="clear-btn" onclick="clearAll()">Clear All</button>
+  </div>
+
+  <div id="info">
+    <b>Controls:</b><br>
+    Click: place/draw<br>
+    Two-finger click: delete nearest<br>
+    Two-finger scroll: pan<br>
+    Pinch: zoom<br>
+    Space+drag: pan<br>
+    Arrow keys: pan<br>
+    Drag for platforms/spikes/finish
+  </div>
+</div>
+
+<canvas id="c"></canvas>
+
+<div id="output">
+  <div id="output-inner">
+    <h3>Level JSON</h3>
+    <textarea id="outputText" readonly></textarea>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="copyOutput()">Copy</button>
+      <button onclick="document.getElementById('output').classList.remove('show')">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const canvas=document.getElementById('c');
+const ctx=canvas.getContext('2d');
+let W,H;
+function resize(){W=canvas.width=canvas.clientWidth;H=canvas.height=canvas.clientHeight;}
+resize();window.addEventListener('resize',resize);
+
+// ─── STATE ───
+let tool='platform';
+let cam={x:-200,y:-100,zoom:1};
+let platforms=[],grapples=[],spikes=[],coins=[];
+let spawn={x:100,y:480},finish={x:800,y:460,w:120,h:80};
+let dragging=false,dragStart=null,dragCurrent=null;
+let panning=false,panStart=null,panCamStart=null;
+let keys={};
+
+// ─── TOOLS ───
+document.querySelectorAll('.tool-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    tool=btn.dataset.tool;
+  });
+});
+
+function snap(v){const g=parseInt(document.getElementById('gridSnap').value)||1;return Math.round(v/g)*g;}
+function worldX(sx){return (sx-W/2)/cam.zoom+cam.x;}
+function worldY(sy){return (sy-H/2)/cam.zoom+cam.y;}
+function screenX(wx){return (wx-cam.x)*cam.zoom+W/2;}
+function screenY(wy){return (wy-cam.y)*cam.zoom+H/2;}
+
+// ─── INPUT ───
+canvas.addEventListener('mousedown',e=>{
+  const mx=worldX(e.offsetX),my=worldY(e.offsetY);
+  if(e.button===1||(e.button===0&&e.altKey)||(e.button===0&&keys['Space'])){
+    panning=true;panStart={x:e.offsetX,y:e.offsetY};panCamStart={x:cam.x,y:cam.y};
+    e.preventDefault();return;
+  }
+  if(e.button===2){deleteNearest(mx,my);return;}
+  if(e.button!==0)return;
+
+  if(tool==='eraser'){deleteNearest(mx,my);return;}
+
+  const sx=snap(mx),sy=snap(my);
+  if(tool==='grapple'){grapples.push({x:sx,y:sy});}
+  else if(tool==='coin'){coins.push({x:sx,y:sy});}
+  else if(tool==='spawn'){spawn={x:sx,y:sy};}
+  else if(tool==='platform'||tool==='spike-up'||tool==='spike-down'||tool==='finish'){
+    dragging=true;dragStart={x:sx,y:sy};dragCurrent={x:sx,y:sy};
+  }
+});
+
+canvas.addEventListener('mousemove',e=>{
+  if(panning){
+    cam.x=panCamStart.x-(e.offsetX-panStart.x)/cam.zoom;
+    cam.y=panCamStart.y-(e.offsetY-panStart.y)/cam.zoom;
+    return;
+  }
+  if(dragging){
+    dragCurrent={x:snap(worldX(e.offsetX)),y:snap(worldY(e.offsetY))};
+  }
+});
+
+canvas.addEventListener('mouseup',e=>{
+  if(panning){panning=false;return;}
+  if(!dragging)return;
+  dragging=false;
+  const x=Math.min(dragStart.x,dragCurrent.x),y=Math.min(dragStart.y,dragCurrent.y);
+  const w=Math.abs(dragCurrent.x-dragStart.x),h=Math.abs(dragCurrent.y-dragStart.y);
+  if(tool==='platform'){if(w<5&&h<5)return;platforms.push({x,y,w,h:Math.max(h,20)});}
+  else if(tool==='spike-up'){
+    if(w<5&&h<5)spikes.push({x:dragStart.x-30,y:dragStart.y-20,w:60,h:20,dir:'up'});
+    else spikes.push({x,y,w,h:Math.max(h,20),dir:'up'});
+  }
+  else if(tool==='spike-down'){
+    if(w<5&&h<5)spikes.push({x:dragStart.x-30,y:dragStart.y,w:60,h:20,dir:'down'});
+    else spikes.push({x,y,w,h:Math.max(h,20),dir:'down'});
+  }
+  else if(tool==='finish'){if(w<5&&h<5)return;finish={x,y,w:Math.max(w,40),h:Math.max(h,40)};}
+});
+
+canvas.addEventListener('wheel',e=>{
+  e.preventDefault();
+  if(e.ctrlKey){
+    // Pinch-to-zoom on trackpad
+    const factor=e.deltaY>0?0.95:1.05;
+    cam.zoom=Math.max(0.2,Math.min(3,cam.zoom*factor));
+  }else{
+    // Two-finger scroll to pan
+    cam.x+=e.deltaX/cam.zoom;
+    cam.y+=e.deltaY/cam.zoom;
+  }
+},{passive:false});
+
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+
+document.addEventListener('keydown',e=>{
+  keys[e.code]=true;
+  if(e.code==='KeyZ'&&(e.ctrlKey||e.metaKey)){undo();e.preventDefault();}
+});
+document.addEventListener('keyup',e=>{keys[e.code]=false;});
+
+function deleteNearest(mx,my){
+  let bestD=30/cam.zoom,bestType=null,bestIdx=-1;
+  // Check grapples
+  grapples.forEach((g,i)=>{const d=Math.hypot(g.x-mx,g.y-my);if(d<bestD){bestD=d;bestType='grapple';bestIdx=i;}});
+  // Check coins
+  coins.forEach((c,i)=>{const d=Math.hypot(c.x-mx,c.y-my);if(d<bestD){bestD=d;bestType='coin';bestIdx=i;}});
+  // Check platforms (distance to center)
+  platforms.forEach((p,i)=>{const d=Math.hypot(p.x+p.w/2-mx,p.y+p.h/2-my);if(d<Math.max(p.w,p.h)/2+20/cam.zoom&&d<bestD+50/cam.zoom){bestD=0;bestType='platform';bestIdx=i;}});
+  // Check spikes
+  spikes.forEach((s,i)=>{const d=Math.hypot(s.x+s.w/2-mx,s.y+s.h/2-my);if(d<Math.max(s.w,s.h)/2+20/cam.zoom&&d<bestD+50/cam.zoom){bestD=0;bestType='spike';bestIdx=i;}});
+
+  if(bestType==='grapple')grapples.splice(bestIdx,1);
+  else if(bestType==='coin')coins.splice(bestIdx,1);
+  else if(bestType==='platform')platforms.splice(bestIdx,1);
+  else if(bestType==='spike')spikes.splice(bestIdx,1);
+}
+
+// ─── PAN WITH KEYS ───
+function updatePan(){
+  const spd=8/cam.zoom;
+  if(keys['ArrowLeft'])cam.x-=spd;
+  if(keys['ArrowRight'])cam.x+=spd;
+  if(keys['ArrowUp'])cam.y-=spd;
+  if(keys['ArrowDown'])cam.y+=spd;
+}
+
+// ─── RENDER ───
+function draw(){
+  updatePan();
+  ctx.fillStyle='#0a0a1a';ctx.fillRect(0,0,W,H);
+  ctx.save();
+  ctx.translate(W/2,H/2);ctx.scale(cam.zoom,cam.zoom);ctx.translate(-cam.x,-cam.y);
+
+  // Grid
+  ctx.strokeStyle='rgba(255,255,255,0.04)';ctx.lineWidth=1/cam.zoom;
+  const gs=60;
+  const vl=worldX(0),vr=worldX(W),vt=worldY(0),vb=worldY(H);
+  for(let x=Math.floor(vl/gs)*gs;x<vr;x+=gs){ctx.beginPath();ctx.moveTo(x,vt);ctx.lineTo(x,vb);ctx.stroke();}
+  for(let y=Math.floor(vt/gs)*gs;y<vb;y+=gs){ctx.beginPath();ctx.moveTo(vl,y);ctx.lineTo(vr,y);ctx.stroke();}
+
+  // Death Y line
+  const dy=parseInt(document.getElementById('deathY').value)||900;
+  ctx.strokeStyle='rgba(255,0,0,0.3)';ctx.lineWidth=2/cam.zoom;ctx.setLineDash([8/cam.zoom,8/cam.zoom]);
+  ctx.beginPath();ctx.moveTo(vl,dy);ctx.lineTo(vr,dy);ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='rgba(255,0,0,0.3)';ctx.font=`${12/cam.zoom}px sans-serif`;ctx.textAlign='left';
+  ctx.fillText('Death Y',vl+10/cam.zoom,dy-5/cam.zoom);
+
+  // Platforms
+  for(const p of platforms){
+    ctx.fillStyle='#2a2a3e';ctx.fillRect(p.x,p.y,p.w,p.h);
+    ctx.fillStyle='#4a4a6e';ctx.fillRect(p.x,p.y,p.w,3/cam.zoom);
+    ctx.strokeStyle='#4a4a6e';ctx.lineWidth=1/cam.zoom;ctx.strokeRect(p.x,p.y,p.w,p.h);
+  }
+
+  // Spikes
+  for(const sp of spikes){
+    ctx.fillStyle='#cc3333';
+    const count=Math.max(1,Math.floor(sp.w/20));
+    for(let i=0;i<count;i++){
+      const sx=sp.x+i*(sp.w/count),sw=sp.w/count;
+      ctx.beginPath();
+      if(sp.dir==='up'){ctx.moveTo(sx,sp.y+sp.h);ctx.lineTo(sx+sw/2,sp.y);ctx.lineTo(sx+sw,sp.y+sp.h);}
+      else{ctx.moveTo(sx,sp.y);ctx.lineTo(sx+sw/2,sp.y+sp.h);ctx.lineTo(sx+sw,sp.y);}
+      ctx.fill();
+    }
+    ctx.strokeStyle='rgba(255,50,50,0.4)';ctx.lineWidth=1/cam.zoom;ctx.strokeRect(sp.x,sp.y,sp.w,sp.h);
+  }
+
+  // Finish zone
+  ctx.fillStyle='rgba(0,220,80,0.15)';ctx.fillRect(finish.x,finish.y,finish.w,finish.h);
+  ctx.strokeStyle='#0d8';ctx.lineWidth=2/cam.zoom;ctx.setLineDash([6/cam.zoom,4/cam.zoom]);
+  ctx.strokeRect(finish.x,finish.y,finish.w,finish.h);ctx.setLineDash([]);
+  ctx.fillStyle='#0d8';ctx.font=`bold ${14/cam.zoom}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('FINISH',finish.x+finish.w/2,finish.y+finish.h/2);
+
+  // Grapple points
+  for(const g of grapples){
+    ctx.fillStyle='rgba(0,220,255,0.08)';ctx.beginPath();ctx.arc(g.x,g.y,22,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(0,220,255,0.6)';ctx.beginPath();ctx.arc(g.x,g.y,6,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#0df';ctx.lineWidth=2/cam.zoom;ctx.beginPath();ctx.arc(g.x,g.y,10,0,Math.PI*2);ctx.stroke();
+  }
+
+  // Coins
+  for(const c of coins){
+    ctx.fillStyle='#ffd700';ctx.beginPath();ctx.arc(c.x,c.y,8,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#ffaa00';ctx.lineWidth=1.5/cam.zoom;ctx.beginPath();ctx.arc(c.x,c.y,10,0,Math.PI*2);ctx.stroke();
+  }
+
+  // Spawn
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(spawn.x,spawn.y,8,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(100,200,255,0.3)';ctx.beginPath();ctx.arc(spawn.x,spawn.y,11,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,0.6)';ctx.font=`${11/cam.zoom}px sans-serif`;ctx.textAlign='center';
+  ctx.fillText('SPAWN',spawn.x,spawn.y-16/cam.zoom);
+
+  // Drag preview
+  if(dragging&&dragStart&&dragCurrent){
+    const x=Math.min(dragStart.x,dragCurrent.x),y=Math.min(dragStart.y,dragCurrent.y);
+    const w=Math.abs(dragCurrent.x-dragStart.x),h=Math.abs(dragCurrent.y-dragStart.y);
+    ctx.strokeStyle='rgba(255,255,255,0.5)';ctx.lineWidth=1/cam.zoom;ctx.setLineDash([4/cam.zoom,4/cam.zoom]);
+    ctx.strokeRect(x,y,w,h);ctx.setLineDash([]);
+    if(tool==='platform')ctx.fillStyle='rgba(42,42,62,0.5)';
+    else if(tool.startsWith('spike'))ctx.fillStyle='rgba(200,50,50,0.3)';
+    else ctx.fillStyle='rgba(0,220,80,0.2)';
+    ctx.fillRect(x,y,w,h);
+  }
+
+  // Grapple range preview (from spawn)
+  ctx.strokeStyle='rgba(0,220,255,0.06)';ctx.lineWidth=1/cam.zoom;
+  ctx.beginPath();ctx.arc(spawn.x,spawn.y,320,0,Math.PI*2);ctx.stroke();
+
+  ctx.restore();
+
+  // Cursor info
+  const mx=worldX(W/2),my=worldY(H/2);
+  ctx.fillStyle='rgba(255,255,255,0.3)';ctx.font='11px monospace';ctx.textAlign='right';ctx.textBaseline='bottom';
+  ctx.fillText(`${Math.round(worldX(W-10))}, ${Math.round(worldY(H-10))}`,W-10,H-8);
+  ctx.fillText(`zoom: ${cam.zoom.toFixed(2)}`,W-10,H-22);
+  ctx.fillText(`tool: ${tool}`,W-10,H-36);
+
+  requestAnimationFrame(draw);
+}
+draw();
+
+// ─── EXPORT ───
+function exportLevel(){
+  const name=document.getElementById('levelName').value||'Custom Level';
+  const dy=parseInt(document.getElementById('deathY').value)||900;
+  // Calculate bounds
+  let minX=spawn.x,maxX=spawn.x,minY=spawn.y,maxY=spawn.y;
+  for(const p of platforms){minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x+p.w);minY=Math.min(minY,p.y);maxY=Math.max(maxY,p.y+p.h);}
+  for(const g of grapples){minX=Math.min(minX,g.x);maxX=Math.max(maxX,g.x);minY=Math.min(minY,g.y);maxY=Math.max(maxY,g.y);}
+  minX=Math.min(minX,finish.x);maxX=Math.max(maxX,finish.x+finish.w);
+  minY=Math.min(minY,finish.y);maxY=Math.max(maxY,finish.y+finish.h);
+
+  const level={
+    name,
+    spawn:{x:spawn.x,y:spawn.y},
+    deathY:dy,
+    bounds:{x:Math.floor(minX-100),y:Math.floor(minY-200),w:Math.ceil(maxX-minX+300),h:Math.ceil(maxY-minY+400)},
+    finish:{x:finish.x,y:finish.y,w:finish.w,h:finish.h},
+    platforms:platforms.map(p=>({x:p.x,y:p.y,w:p.w,h:p.h})),
+    grapples:grapples.map(g=>({x:g.x,y:g.y})),
+    spikes:spikes.map(s=>({x:s.x,y:s.y,w:s.w,h:s.h,dir:s.dir})),
+    coins:coins.map(c=>({x:c.x,y:c.y})),
+  };
+
+  const json=JSON.stringify(level,null,2);
+  document.getElementById('outputText').value=json;
+  document.getElementById('output').classList.add('show');
+}
+
+function copyOutput(){
+  const ta=document.getElementById('outputText');
+  ta.select();document.execCommand('copy');
+}
+
+function showImport(){
+  const json=prompt('Paste level JSON:');
+  if(!json)return;
+  try{
+    const lv=JSON.parse(json);
+    platforms=lv.platforms||[];
+    grapples=lv.grapples||[];
+    spikes=lv.spikes||[];
+    coins=lv.coins||[];
+    if(lv.spawn)spawn=lv.spawn;
+    if(lv.finish)finish=lv.finish;
+    if(lv.name)document.getElementById('levelName').value=lv.name;
+    if(lv.deathY)document.getElementById('deathY').value=lv.deathY;
+    // Center camera on spawn
+    cam.x=spawn.x;cam.y=spawn.y;
+  }catch(e){alert('Invalid JSON: '+e.message);}
+}
+
+function clearAll(){
+  if(!confirm('Clear everything?'))return;
+  platforms=[];grapples=[];spikes=[];coins=[];
+  spawn={x:100,y:480};finish={x:800,y:460,w:120,h:80};
+}
+</script>
+</body>
+</html>
