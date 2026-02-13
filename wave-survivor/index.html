@@ -223,7 +223,9 @@ const skins = [
   { name: 'Necromancer', body: '#4a235a', hood: '#2c0735', eyes: '#e74c3c', staff: '#1c1c1c', orb: '#c0392b', orbGlow: 'rgba(192,57,43,0.3)',
     ability: 'Life Drain', abilityDesc: 'Steal 5 HP from each enemy', cooldown: 540, unlockWave: 15 },
   { name: 'Fire Mage', body: '#c0392b', hood: '#922b21', eyes: '#f9e79f', staff: '#7b241c', orb: '#e67e22', orbGlow: 'rgba(230,126,34,0.3)',
-    ability: 'Inferno', abilityDesc: 'Ring of fire damages all enemies', cooldown: 480, unlockWave: 20 }
+    ability: 'Inferno', abilityDesc: 'Ring of fire damages all enemies', cooldown: 480, unlockWave: 20 },
+  { name: 'Bugler', body: '#d4a017', hood: '#b8860b', eyes: '#fff8dc', staff: '#c8a415', orb: '#ffd700', orbGlow: 'rgba(255,215,0,0.3)',
+    ability: 'Rally Call', abilityDesc: 'Instantly restore 10 ammo', cooldown: 300, unlockWave: 0 }
 ];
 
 function isSkinUnlocked(i) {
@@ -273,13 +275,7 @@ const player = {
   lastStand: false,
   abilityCooldown: 0,
   shieldTimer: 0,
-  abilityUsed: false,
-  weapon: 'gun',
-  meleeCooldown: 0,
-  meleeRate: 25,
-  meleeDamage: 40,
-  meleeRange: 60,
-  swingTimer: 0
+  abilityUsed: false
 };
 
 // Input
@@ -297,7 +293,7 @@ document.addEventListener('keydown', e => {
   if (state === 'menu' && (menuTab === 'records' || menuTab === 'customize' || menuTab === 'levelselect' || menuTab === 'settings') && e.key === 'Escape') menuTab = 'main';
   if (state === 'gameover' && e.key === ' ') { state = 'menu'; menuTab = 'main'; startMusic('menu'); }
   if ((state === 'playing' || state === 'waveIntro') && e.key === ' ') activateAbility();
-  if ((state === 'playing' || state === 'waveIntro') && e.key === 'e') player.weapon = player.weapon === 'gun' ? 'sword' : 'gun';
+
   if (state === 'upgrade') {
     if (e.key === '1') pickUpgrade(0);
     if (e.key === '2') pickUpgrade(1);
@@ -423,9 +419,6 @@ function startGame(startWave) {
   player.abilityCooldown = 0;
   player.shieldTimer = 0;
   player.abilityUsed = false;
-  player.weapon = 'gun';
-  player.meleeCooldown = 0;
-  player.swingTimer = 0;
   projectiles = [];
   enemies = [];
   enemyProjectiles = [];
@@ -457,9 +450,10 @@ function spawnWave() {
     return;
   }
   const count = 4 + wave * 3;
-  enemiesRemaining = count + (wave >= 5 ? 1 : 0);
-  // Spawn one brain per wave (wave 5+)
-  if (wave >= 5) {
+  const spawnBrain = wave >= 3 && wave % 3 === 0;
+  enemiesRemaining = count + (spawnBrain ? 1 : 0);
+  // Spawn one brain every 3 waves (wave 3+)
+  if (spawnBrain) {
     setTimeout(() => {
       if (state === 'gameover') return;
       enemies.push(createBrain());
@@ -513,7 +507,7 @@ function createBrain() {
   const hpMult = 1 + (wave - 1) * 0.3;
   return {
     x, y, type: 'brain', isBrain: true,
-    hp: 80 * hpMult, maxHp: 80 * hpMult, speed: 0.5, size: 16,
+    hp: 200 * hpMult, maxHp: 200 * hpMult, speed: 0.7, size: 16,
     color: '#e91e9c', damage: 5, score: 40, hitFlash: 0
   };
 }
@@ -573,57 +567,6 @@ function shoot() {
       life,
       hitSet: new Set()
     });
-  }
-}
-
-function meleeSwing() {
-  if (player.meleeCooldown > 0) return;
-  player.meleeCooldown = player.meleeRate;
-  player.swingTimer = 12;
-  const swingAngle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
-  const arcHalf = Math.PI * 0.4;
-  playSound('ability');
-  spawnParticles(player.x + Math.cos(swingAngle) * 30, player.y + Math.sin(swingAngle) * 30, '#ccc', 6);
-  for (let i = enemies.length - 1; i >= 0; i--) {
-    const e = enemies[i];
-    const dist = Math.hypot(e.x - player.x, e.y - player.y);
-    if (dist > player.meleeRange + e.size) continue;
-    let angleToEnemy = Math.atan2(e.y - player.y, e.x - player.x);
-    let diff = angleToEnemy - swingAngle;
-    while (diff > Math.PI) diff -= Math.PI * 2;
-    while (diff < -Math.PI) diff += Math.PI * 2;
-    if (Math.abs(diff) > arcHalf) continue;
-    const dmg = player.lastStand && player.hp <= player.maxHp * 0.3 ? player.meleeDamage * 2 : player.meleeDamage;
-    e.hp -= dmg;
-    e.hitFlash = 6;
-    spawnParticles(e.x, e.y, e.color, 6);
-    spawnDamageNumber(e.x, e.y - e.size, dmg, '#fff');
-    const kbAngle = Math.atan2(e.y - player.y, e.x - player.x);
-    const kb = e.isBoss ? 2 : 8;
-    e.x += Math.cos(kbAngle) * kb;
-    e.y += Math.sin(kbAngle) * kb;
-    if (e.isBoss) {
-      e.x = Math.max(e.size, Math.min(canvas.width - e.size, e.x));
-      e.y = Math.max(e.size, Math.min(canvas.height - e.size, e.y));
-    }
-    if (e.hp <= 0) {
-      score += e.score;
-      if (e.isBoss) {
-        spawnParticles(e.x, e.y, '#ff4500', 30);
-        spawnParticles(e.x, e.y, '#ffcc00', 20);
-        shakeTime = 20;
-        playSound('boss');
-      } else {
-        spawnParticles(e.x, e.y, e.color, 12);
-        playSound('kill');
-      }
-      enemiesRemaining--;
-      if (player.lifeSteal > 0) {
-        player.hp = Math.min(player.maxHp, player.hp + player.lifeSteal);
-        spawnDamageNumber(player.x, player.y - 20, '+' + player.lifeSteal, '#50c878');
-      }
-      enemies.splice(i, 1);
-    }
   }
 }
 
@@ -997,6 +940,11 @@ function activateAbility() {
         e.y += Math.sin(angle) * 10;
       }
     }
+  } else if (skin.name === 'Bugler') {
+    // Rally Call - instantly restore 10 ammo
+    player.ammo = Math.min(player.maxAmmo, player.ammo + 10);
+    spawnParticles(player.x, player.y, '#ffd700', 15);
+    spawnDamageNumber(player.x, player.y - 20, '+10 AMMO', '#ffd700');
   }
   // Clean up dead enemies from abilities
   for (let i = enemies.length - 1; i >= 0; i--) {
@@ -1024,9 +972,10 @@ function explode(x, y, damage) {
     const e = enemies[i];
     const dist = Math.hypot(e.x - x, e.y - y);
     if (dist < radius) {
-      e.hp -= damage;
+      const explDmg = (!e.isBrain && !e.isBoss && enemies.some(en => en.isBrain && en.hp > 0)) ? Math.ceil(damage * 0.5) : damage;
+      e.hp -= explDmg;
       e.hitFlash = 6;
-      spawnDamageNumber(e.x, e.y - e.size, damage, '#e67e22');
+      spawnDamageNumber(e.x, e.y - e.size, explDmg, '#e67e22');
       // Push enemies away from explosion
       const pushAngle = Math.atan2(e.y - y, e.x - x);
       e.x += Math.cos(pushAngle) * 8;
@@ -1088,8 +1037,6 @@ function update() {
   player.y = Math.max(player.size, Math.min(canvas.height - player.size, player.y));
 
   if (player.shootCooldown > 0) player.shootCooldown--;
-  if (player.meleeCooldown > 0) player.meleeCooldown--;
-  if (player.swingTimer > 0) player.swingTimer--;
   if (player.invuln > 0) player.invuln--;
   if (player.abilityCooldown > 0) player.abilityCooldown--;
   if (player.shieldTimer > 0) player.shieldTimer--;
@@ -1099,8 +1046,7 @@ function update() {
     player.ammo++;
     player.ammoRegenTimer = 0;
   }
-  if (mouse.down && player.weapon === 'gun') shoot();
-  if (mouse.down && player.weapon === 'sword') meleeSwing();
+  if (mouse.down) shoot();
 
   // Projectiles
   for (let i = projectiles.length - 1; i >= 0; i--) {
@@ -1149,24 +1095,19 @@ function update() {
       const dist = Math.hypot(p.x - e.x, p.y - e.y);
       if (dist < e.size + 4) {
         p.hitSet.add(e);
-        const dmg = player.lastStand && player.hp <= player.maxHp * 0.3 ? p.damage * 2 : p.damage;
+        let dmg = player.lastStand && player.hp <= player.maxHp * 0.3 ? p.damage * 2 : p.damage;
+        if (!e.isBrain && !e.isBoss && enemies.some(en => en.isBrain && en.hp > 0)) dmg = Math.ceil(dmg * 0.5);
         e.hp -= dmg;
         e.hitFlash = 6;
         playSound('hit');
         spawnParticles(p.x, p.y, e.color, 4);
         spawnDamageNumber(e.x, e.y - e.size, dmg, player.lastStand && player.hp <= player.maxHp * 0.3 ? '#ff4444' : '#fff');
-        // Knockback
-        if (player.knockback > 0) {
-          const kb = e.isBoss ? player.knockback / 4 : player.knockback;
+        // Knockback (bosses immune)
+        if (player.knockback > 0 && !e.isBoss) {
           const kbAngle = Math.atan2(e.y - player.y, e.x - player.x);
-          e.x += Math.cos(kbAngle) * kb;
-          e.y += Math.sin(kbAngle) * kb;
-          if (e.isBoss) {
-            e.x = Math.max(e.size, Math.min(canvas.width - e.size, e.x));
-            e.y = Math.max(e.size, Math.min(canvas.height - e.size, e.y));
-          }
-          const stunFrames = e.isBoss ? Math.min(30, player.knockback * 5) : player.knockback * 5;
-          if (!e.isBoss || !e.stunned) e.stunned = Math.max(e.stunned || 0, stunFrames);
+          e.x += Math.cos(kbAngle) * player.knockback;
+          e.y += Math.sin(kbAngle) * player.knockback;
+          e.stunned = Math.max(e.stunned || 0, player.knockback * 5);
         }
         // Slow
         if (player.slow > 0 && !e.slowed && !e.isBoss) {
@@ -1573,68 +1514,24 @@ function drawPlayer() {
   ctx.arc(px + Math.cos(angle + 0.3) * eyeOff, py - 3 + Math.sin(angle + 0.3) * 2, 2.5, 0, Math.PI * 2);
   ctx.fill();
 
-  if (player.weapon === 'sword') {
-    // Sword blade
-    const bladeLen = s + 14;
-    const sx = px + Math.cos(angle) * bladeLen;
-    const sy = py + Math.sin(angle) * bladeLen;
-    // Handle
-    ctx.strokeStyle = '#8b6914';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(px + Math.cos(angle) * s * 0.4, py + Math.sin(angle) * s * 0.4);
-    ctx.lineTo(px + Math.cos(angle) * s * 0.8, py + Math.sin(angle) * s * 0.8);
-    ctx.stroke();
-    // Guard
-    const gx = px + Math.cos(angle) * s * 0.8;
-    const gy = py + Math.sin(angle) * s * 0.8;
-    ctx.strokeStyle = '#95a5a6';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(gx + Math.cos(angle + Math.PI/2) * 5, gy + Math.sin(angle + Math.PI/2) * 5);
-    ctx.lineTo(gx + Math.cos(angle - Math.PI/2) * 5, gy + Math.sin(angle - Math.PI/2) * 5);
-    ctx.stroke();
-    // Blade
-    ctx.strokeStyle = '#ecf0f1';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(gx, gy);
-    ctx.lineTo(sx, sy);
-    ctx.stroke();
-    // Blade tip
-    ctx.fillStyle = '#bdc3c7';
-    ctx.beginPath();
-    ctx.arc(sx, sy, 2, 0, Math.PI * 2);
-    ctx.fill();
-    // Swing arc effect
-    if (player.swingTimer > 0) {
-      const alpha = player.swingTimer / 12;
-      ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.5})`;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(px, py, player.meleeRange, angle - Math.PI * 0.4, angle + Math.PI * 0.4);
-      ctx.stroke();
-    }
-  } else {
-    // Staff
-    const sx = px + Math.cos(angle) * (s + 6);
-    const sy = py + Math.sin(angle) * (s + 6);
-    ctx.strokeStyle = sk.staff;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(px + Math.cos(angle) * s * 0.5, py + Math.sin(angle) * s * 0.5);
-    ctx.lineTo(sx, sy);
-    ctx.stroke();
-    // Staff orb
-    ctx.fillStyle = sk.orb;
-    ctx.beginPath();
-    ctx.arc(sx, sy, 4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = sk.orbGlow;
-    ctx.beginPath();
-    ctx.arc(sx, sy, 7, 0, Math.PI * 2);
-    ctx.fill();
-  }
+  // Staff
+  const sx = px + Math.cos(angle) * (s + 6);
+  const sy = py + Math.sin(angle) * (s + 6);
+  ctx.strokeStyle = sk.staff;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(px + Math.cos(angle) * s * 0.5, py + Math.sin(angle) * s * 0.5);
+  ctx.lineTo(sx, sy);
+  ctx.stroke();
+  // Staff orb
+  ctx.fillStyle = sk.orb;
+  ctx.beginPath();
+  ctx.arc(sx, sy, 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = sk.orbGlow;
+  ctx.beginPath();
+  ctx.arc(sx, sy, 7, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 function drawEnemy(e) {
@@ -1914,6 +1811,13 @@ function drawEnemy(e) {
     ctx.fillStyle = e.isBrain ? '#e91e9c' : '#e74c3c';
     ctx.fillRect(e.x - barW / 2, e.y - e.size - 10, barW * (e.hp / e.maxHp), 4);
   }
+  // Brain shield indicator on controlled enemies
+  if (!e.isBrain && !e.isBoss && enemies.some(en => en.isBrain && en.hp > 0)) {
+    ctx.fillStyle = 'rgba(233, 30, 156, 0.25)';
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, e.size + 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 function draw() {
@@ -2077,41 +1981,33 @@ function draw() {
   ctx.textAlign = 'center';
   ctx.fillText(`HP ${Math.ceil(player.hp)}/${player.maxHp}`, 120, 35);
 
-  // Weapon indicator
-  ctx.fillStyle = player.weapon === 'sword' ? '#ecf0f1' : '#5dade2';
+  // Ammo bar
+  ctx.fillStyle = '#333';
+  ctx.fillRect(20, 46, 200, 14);
+  ctx.fillStyle = player.ammo <= 5 ? '#e67e22' : '#5dade2';
+  ctx.fillRect(20, 46, 200 * (player.ammo / player.maxAmmo), 14);
+  ctx.strokeStyle = '#666';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(20, 46, 200, 14);
+  ctx.fillStyle = '#fff';
   ctx.font = 'bold 10px monospace';
-  ctx.textAlign = 'left';
-  ctx.fillText(`[E] ${player.weapon.toUpperCase()}`, 20, 46);
-
-  // Ammo bar (only show for gun)
-  if (player.weapon === 'gun') {
-    ctx.fillStyle = '#333';
-    ctx.fillRect(20, 52, 200, 14);
-    ctx.fillStyle = player.ammo <= 5 ? '#e67e22' : '#5dade2';
-    ctx.fillRect(20, 52, 200 * (player.ammo / player.maxAmmo), 14);
-    ctx.strokeStyle = '#666';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(20, 52, 200, 14);
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 10px monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText(`AMMO ${player.ammo}/${player.maxAmmo}`, 120, 62);
-  }
+  ctx.textAlign = 'center';
+  ctx.fillText(`AMMO ${player.ammo}/${player.maxAmmo}`, 120, 56);
 
   // Ability bar
   const sk = skins[selectedSkin];
   const abilityReady = !player.abilityUsed;
   ctx.fillStyle = '#333';
-  ctx.fillRect(20, 66, 200, 14);
+  ctx.fillRect(20, 62, 200, 14);
   ctx.fillStyle = abilityReady ? sk.orb : '#555';
-  ctx.fillRect(20, 66, abilityReady ? 200 : 0, 14);
+  ctx.fillRect(20, 62, abilityReady ? 200 : 0, 14);
   ctx.strokeStyle = '#666';
   ctx.lineWidth = 2;
-  ctx.strokeRect(20, 66, 200, 14);
+  ctx.strokeRect(20, 62, 200, 14);
   ctx.fillStyle = abilityReady ? '#fff' : 'rgba(255,255,255,0.5)';
   ctx.font = 'bold 10px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText(abilityReady ? `[SPACE] ${sk.ability}` : `${sk.ability} - USED`, 120, 76);
+  ctx.fillText(abilityReady ? `[SPACE] ${sk.ability}` : `${sk.ability} - USED`, 120, 72);
 
   // Score & Wave
   ctx.textAlign = 'right';
