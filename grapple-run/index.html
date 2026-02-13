@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grapple Run</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a1a;overflow:hidden;font-family:'Segoe UI',Tahoma,sans-serif}
+canvas{display:block;cursor:crosshair}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+const canvas=document.getElementById('game');
+const ctx=canvas.getContext('2d');
+let W,H;
+function resize(){W=canvas.width=innerWidth;H=canvas.height=innerHeight;}
+resize();window.addEventListener('resize',resize);
+
+// ─── CONSTANTS ───
+const GRAVITY=980,RUN_SPD=280,JUMP_VEL=-480,PLAYER_R=8;
+const GRAPPLE_RANGE=320,SWING_DAMP=0.9999,MAX_ROPE=220,CHAIN_BOOST=1.1,TRAIL_LEN=15;
+const SWING_BOOST=1.8,MAX_SWING_SPD=650;
+const SUB=4;
+
+// ─── LEVELS ───
+const LEVELS=[
+  // Level 1: Tutorial
+  {name:'Tutorial',
+    spawn:{x:100,y:480},deathY:900,
+    bounds:{x:-50,y:-100,w:2600,h:1000},
+    finish:{x:2200,y:460,w:120,h:80},
+    platforms:[
+      {x:0,y:540,w:600,h:40},
+      {x:850,y:540,w:400,h:40},
+      {x:1500,y:540,w:300,h:40},
+      {x:2050,y:540,w:500,h:40},
+    ],
+    grapples:[{x:720,y:280},{x:1050,y:260},{x:1380,y:280},{x:1800,y:260}],
+    spikes:[],
+    coins:[{x:720,y:400},{x:1100,y:370},{x:1800,y:380}],
+  },
+  // Level 2: The Gap
+  {name:'The Gap',
+    spawn:{x:100,y:480},deathY:900,
+    bounds:{x:-50,y:-100,w:4200,h:1000},
+    finish:{x:3800,y:460,w:120,h:80},
+    platforms:[
+      {x:0,y:540,w:400,h:40},
+      {x:800,y:530,w:250,h:40},
+      {x:1500,y:520,w:200,h:40},
+      {x:2200,y:530,w:180,h:40},
+      {x:3000,y:540,w:150,h:40},
+      {x:3600,y:540,w:500,h:40},
+    ],
+    grapples:[
+      {x:600,y:250},{x:900,y:220},{x:1200,y:240},{x:1600,y:200},
+      {x:1900,y:220},{x:2300,y:180},{x:2650,y:200},{x:3100,y:180},{x:3450,y:220},
+    ],
+    spikes:[],
+    coins:[{x:1200,y:320},{x:2650,y:280},{x:3450,y:350}],
+  },
+  // Level 3: Up and Over
+  {name:'Up and Over',
+    spawn:{x:150,y:1080},deathY:1400,
+    bounds:{x:-50,y:-150,w:2800,h:1500},
+    finish:{x:2300,y:80,w:120,h:80},
+    platforms:[
+      {x:0,y:1140,w:350,h:40},
+      {x:400,y:950,w:200,h:30},
+      {x:100,y:750,w:200,h:30},
+      {x:500,y:560,w:200,h:30},
+      {x:200,y:380,w:200,h:30},
+      {x:600,y:200,w:200,h:30},
+      {x:900,y:400,w:150,h:30},
+      {x:1200,y:250,w:200,h:30},
+      {x:1600,y:350,w:180,h:30},
+      {x:1900,y:200,w:200,h:30},
+      {x:2200,y:160,w:300,h:30},
+    ],
+    grapples:[
+      {x:350,y:800},{x:200,y:600},{x:500,y:420},{x:250,y:250},
+      {x:600,y:100},{x:800,y:280},{x:1100,y:150},{x:1400,y:200},
+      {x:1700,y:150},{x:2050,y:100},{x:2350,y:50},
+    ],
+    spikes:[],
+    coins:[{x:500,y:480},{x:1100,y:200},{x:2050,y:140}],
+  },
+  // Level 4: Spike Alley
+  {name:'Spike Alley',
+    spawn:{x:100,y:380},deathY:900,
+    bounds:{x:-50,y:-50,w:3800,h:900},
+    finish:{x:3400,y:340,w:120,h:80},
+    platforms:[
+      {x:0,y:460,w:300,h:40},
+      {x:3200,y:460,w:500,h:40},
+    ],
+    grapples:[
+      {x:400,y:250},{x:700,y:270},{x:1000,y:240},{x:1300,y:260},
+      {x:1600,y:230},{x:1900,y:250},{x:2200,y:240},{x:2500,y:260},{x:2800,y:250},{x:3100,y:240},
+    ],
+    spikes:[
+      // Ceiling spikes
+      {x:300,y:160,w:2900,h:30,dir:'down'},
+      // Floor spikes
+      {x:300,y:520,w:2900,h:30,dir:'up'},
+    ],
+    coins:[{x:1000,y:350},{x:1900,y:340},{x:2800,y:360}],
+  },
+  // Level 5: The Descent
+  {name:'The Descent',
+    spawn:{x:150,y:60},deathY:1500,
+    bounds:{x:-50,y:-100,w:3500,h:1600},
+    finish:{x:2800,y:1180,w:120,h:80},
+    platforms:[
+      {x:0,y:120,w:350,h:30},
+      {x:600,y:300,w:180,h:25},
+      {x:1100,y:550,w:160,h:25},
+      {x:500,y:780,w:180,h:25},
+      {x:1300,y:900,w:160,h:25},
+      {x:800,y:1060,w:180,h:25},
+      {x:2000,y:1100,w:200,h:25},
+      {x:2600,y:1260,w:400,h:30},
+    ],
+    grapples:[
+      {x:400,y:80},{x:650,y:180},{x:900,y:300},{x:600,y:420},{x:1100,y:400},
+      {x:850,y:560},{x:550,y:650},{x:1000,y:700},{x:700,y:830},{x:1200,y:800},
+      {x:900,y:950},{x:1400,y:1000},{x:1100,y:1100},{x:1700,y:1050},
+      {x:2100,y:1000},{x:2500,y:1100},{x:2800,y:1150},
+    ],
+    spikes:[
+      {x:1800,y:1230,w:200,h:30,dir:'up'},
+    ],
+    coins:[{x:900,y:420},{x:700,y:750},{x:2100,y:1060}],
+  },
+  // Level 6: The Gauntlet
+  {name:'The Gauntlet',
+    spawn:{x:100,y:480},deathY:1500,
+    bounds:{x:-50,y:-200,w:6200,h:1700},
+    finish:{x:5800,y:460,w:150,h:80},
+    platforms:[
+      {x:0,y:540,w:400,h:40},
+      // Gap section
+      {x:800,y:530,w:150,h:30},
+      {x:1350,y:520,w:150,h:30},
+      // Climb section
+      {x:1800,y:700,w:200,h:30},
+      {x:2000,y:450,w:180,h:30},
+      {x:1700,y:200,w:200,h:30},
+      {x:2200,y:60,w:200,h:30},
+      // Spike corridor entry
+      {x:2500,y:300,w:150,h:30},
+      // After spikes
+      {x:4000,y:300,w:200,h:30},
+      // Descent
+      {x:4400,y:500,w:150,h:25},
+      {x:4700,y:750,w:150,h:25},
+      {x:5000,y:950,w:150,h:25},
+      {x:5300,y:1100,w:200,h:30},
+      // Final platform
+      {x:5600,y:540,w:500,h:40},
+    ],
+    grapples:[
+      // Gap section
+      {x:600,y:280},{x:900,y:250},{x:1150,y:270},{x:1450,y:240},
+      // Climb
+      {x:1750,y:560},{x:2050,y:350},{x:1800,y:120},{x:2150,y:-30},
+      // Spike corridor
+      {x:2700,y:200},{x:3000,y:180},{x:3300,y:200},{x:3600,y:180},{x:3900,y:200},
+      // Descent
+      {x:4200,y:350},{x:4500,y:550},{x:4800,y:700},{x:5100,y:900},
+      {x:5350,y:1000},{x:5600,y:400},
+    ],
+    spikes:[
+      // Spike corridor ceiling and floor
+      {x:2600,y:100,w:1400,h:25,dir:'down'},
+      {x:2600,y:340,w:1400,h:25,dir:'up'},
+      // Descent hazards
+      {x:5200,y:1200,w:400,h:25,dir:'up'},
+    ],
+    coins:[{x:1150,y:350},{x:1800,y:80},{x:5100,y:850}],
+  },
+];
+
+// ─── STATE ───
+let state='menu',currentLevel=0,level=null;
+let player=null,camera={x:0,y:0},mouseWorld={x:0,y:0},mouseScreen={x:0,y:0};
+let mouseDown=false,keys={},timer=0,timerRunning=false;
+let bestTimes=[],coinsCollected=[],unlockedLevels=1;
+let deathFlash=0,levelCoins=[];
+let audioCtx=null;
+
+function loadSave(){
+  try{
+    const d=JSON.parse(localStorage.getItem('grapplerun'));
+    if(d){bestTimes=d.bt||[];coinsCollected=d.cc||[];unlockedLevels=d.ul||1;}
+  }catch(e){}
+}
+function save(){
+  try{localStorage.setItem('grapplerun',JSON.stringify({bt:bestTimes,cc:coinsCollected,ul:unlockedLevels}));}catch(e){}
+}
+loadSave();
+
+// ─── PLAYER ───
+function initPlayer(lv){
+  level=lv;
+  levelCoins=lv.coins.map(c=>({...c,collected:false}));
+  player={x:lv.spawn.x,y:lv.spawn.y,vx:0,vy:0,state:'airborne',
+    gx:0,gy:0,ropeLen:0,swAngle:0,swOmega:0,
+    trail:[],groundPlat:null};
+  camera.x=player.x-W/2;camera.y=player.y-H/2;
+  timer=0;timerRunning=false;deathFlash=0;
+}
+
+// ─── PHYSICS ───
+function updatePlayer(dt){
+  // Trail
+  player.trail.unshift({x:player.x,y:player.y});
+  if(player.trail.length>TRAIL_LEN)player.trail.pop();
+
+  const sdt=dt/SUB;
+  for(let s=0;s<SUB;s++){
+    if(player.state==='grounded'){
+      let ax=0;
+      if(keys['KeyA']||keys['ArrowLeft'])ax=-1;
+      if(keys['KeyD']||keys['ArrowRight'])ax=1;
+      player.vx=ax*RUN_SPD;player.vy=0;
+      player.x+=player.vx*sdt;
+      // Stay on platform
+      if(player.groundPlat){
+        const p=player.groundPlat;
+        if(player.x<p.x-PLAYER_R||player.x>p.x+p.w+PLAYER_R){
+          player.state='airborne';player.groundPlat=null;
+        }
+      }
+      // Jump
+      if(keys['KeyW']||keys['ArrowUp']){
+        player.vy=JUMP_VEL;player.state='airborne';player.groundPlat=null;
+        if(!timerRunning){timerRunning=true;}
+      }
+    }
+    else if(player.state==='airborne'){
+      // Air control
+      let ax=0;
+      if(keys['KeyA']||keys['ArrowLeft'])ax=-1;
+      if(keys['KeyD']||keys['ArrowRight'])ax=1;
+      player.vx+=ax*400*sdt;
+      // Air drag
+      player.vx*=0.997;
+      player.vy+=GRAVITY*sdt;
+      player.x+=player.vx*sdt;player.y+=player.vy*sdt;
+    }
+    else if(player.state==='swinging'){
+      // Pendulum physics
+      const ang=player.swAngle,L=player.ropeLen;
+      const alpha=-(GRAVITY/L)*Math.sin(ang);
+      player.swOmega+=alpha*sdt;
+      player.swOmega*=SWING_DAMP;
+      // A/D pump: press in swing direction to build momentum
+      const pump=(keys['KeyA']||keys['ArrowLeft']?-1:0)+(keys['KeyD']||keys['ArrowRight']?1:0);
+      if(pump!==0&&Math.abs(player.swOmega)>0.05){
+        const tangSpd=Math.abs(player.swOmega)*L;
+        if(Math.sign(pump)===Math.sign(player.swOmega)&&tangSpd<MAX_SWING_SPD){
+          player.swOmega+=Math.sign(player.swOmega)*SWING_BOOST*sdt;
+        }
+      }
+      // Cap angular velocity
+      const maxOm=MAX_SWING_SPD/L;
+      player.swOmega=Math.max(-maxOm,Math.min(maxOm,player.swOmega));
+      player.swAngle+=player.swOmega*sdt;
+      player.x=player.gx+L*Math.sin(player.swAngle);
+      player.y=player.gy+L*Math.cos(player.swAngle);
+      // Update velocity for release
+      player.vx=player.swOmega*L*Math.cos(player.swAngle);
+      player.vy=-player.swOmega*L*Math.sin(player.swAngle);
+    }
+
+    // Platform collision (all states)
+    for(const p of level.platforms){
+      // Check overlap
+      const overlapX=player.x+PLAYER_R>p.x&&player.x-PLAYER_R<p.x+p.w;
+      const overlapY=player.y+PLAYER_R>p.y&&player.y-PLAYER_R<p.y+p.h;
+      if(!overlapX||!overlapY)continue;
+      // Resolve: find smallest penetration axis
+      const fromTop=player.y+PLAYER_R-p.y;
+      const fromBot=(p.y+p.h)-(player.y-PLAYER_R);
+      const fromLeft=player.x+PLAYER_R-p.x;
+      const fromRight=(p.x+p.w)-(player.x-PLAYER_R);
+      const minPen=Math.min(fromTop,fromBot,fromLeft,fromRight);
+      if(minPen===fromTop&&player.vy>=0){
+        // Landing on top
+        player.y=p.y-PLAYER_R;player.vy=0;
+        if(player.state==='swinging'){player.vx*=0.8;player.state='grounded';player.groundPlat=p;sfx('land');}
+        else if(player.state==='airborne'){player.state='grounded';player.groundPlat=p;sfx('land');}
+      }else if(minPen===fromBot&&player.vy<=0){
+        // Hit bottom
+        player.y=p.y+p.h+PLAYER_R;player.vy=0;
+        if(player.state==='swinging'){releaseGrapple();}
+      }else if(minPen===fromLeft){
+        // Hit left side
+        player.x=p.x-PLAYER_R;player.vx=0;
+        if(player.state==='swinging'){releaseGrapple();}
+      }else if(minPen===fromRight){
+        // Hit right side
+        player.x=p.x+p.w+PLAYER_R;player.vx=0;
+        if(player.state==='swinging'){releaseGrapple();}
+      }
+    }
+  }
+
+  // Spike collision
+  for(const sp of level.spikes){
+    const margin=8;
+    if(player.x+PLAYER_R>sp.x+margin&&player.x-PLAYER_R<sp.x+sp.w-margin){
+      if(sp.dir==='up'&&player.y+PLAYER_R>sp.y+margin&&player.y-PLAYER_R<sp.y+sp.h){die();return;}
+      if(sp.dir==='down'&&player.y-PLAYER_R<sp.y+sp.h-margin&&player.y+PLAYER_R>sp.y){die();return;}
+    }
+  }
+
+  // Coin collection
+  for(const c of levelCoins){
+    if(c.collected)continue;
+    const dx=player.x-c.x,dy=player.y-c.y;
+    if(dx*dx+dy*dy<(PLAYER_R+12)*(PLAYER_R+12)){c.collected=true;sfx('coin');}
+  }
+
+  // Finish zone
+  const f=level.finish;
+  if(player.x>=f.x&&player.x<=f.x+f.w&&player.y>=f.y&&player.y<=f.y+f.h){
+    completeLevel();return;
+  }
+
+  // Death boundary
+  if(player.y>level.deathY){die();return;}
+
+  // Start timer on first movement
+  if(!timerRunning&&(player.vx!==0||player.vy!==0||player.state==='swinging'))timerRunning=true;
+}
+
+function die(){
+  deathFlash=15;sfx('death');
+  player.x=level.spawn.x;player.y=level.spawn.y;
+  player.vx=0;player.vy=0;player.state='airborne';
+  player.groundPlat=null;player.trail=[];
+  timer=0;timerRunning=false;
+  levelCoins.forEach(c=>c.collected=false);
+}
+
+function completeLevel(){
+  state='complete';sfx('complete');
+  const li=currentLevel;
+  const coinCount=levelCoins.filter(c=>c.collected).length;
+  if(!bestTimes[li]||timer<bestTimes[li]){bestTimes[li]=timer;sfx('best');}
+  if(!coinsCollected[li]||coinCount>coinsCollected[li])coinsCollected[li]=coinCount;
+  if(li+1>=unlockedLevels&&li+1<LEVELS.length)unlockedLevels=li+2;
+  save();
+}
+
+// ─── GRAPPLE ───
+function tryGrapple(){
+  if(!timerRunning)timerRunning=true;
+  let best=null,bd=Infinity;
+  for(const g of level.grapples){
+    const dpx=g.x-player.x,dpy=g.y-player.y;
+    const distP=Math.sqrt(dpx*dpx+dpy*dpy);
+    if(distP>GRAPPLE_RANGE)continue;
+    if(distP<bd){bd=distP;best=g;}
+  }
+  if(!best)return;
+  player.gx=best.x;player.gy=best.y;
+  const dx=player.x-best.x,dy=player.y-best.y;
+  player.ropeLen=Math.min(MAX_ROPE,Math.sqrt(dx*dx+dy*dy));
+  if(player.ropeLen<10)player.ropeLen=10;
+  player.swAngle=Math.atan2(dx,dy);
+  // Snap player to rope length (if capped)
+  player.x=player.gx+player.ropeLen*Math.sin(player.swAngle);
+  player.y=player.gy+player.ropeLen*Math.cos(player.swAngle);
+  // Convert current velocity to angular velocity with chain boost
+  const spd=Math.sqrt(player.vx*player.vx+player.vy*player.vy);
+  const cosA=Math.cos(player.swAngle),sinA=Math.sin(player.swAngle);
+  player.swOmega=(player.vx*cosA-player.vy*sinA)/player.ropeLen;
+  if(spd>100)player.swOmega*=CHAIN_BOOST;
+  player.state='swinging';player.groundPlat=null;
+  sfx('grapple');
+}
+
+function releaseGrapple(){
+  if(player.state!=='swinging')return;
+  // Velocity already tracked in player.vx/vy from swing update
+  player.state='airborne';
+  sfx('release');
+}
+
+// ─── CAMERA ───
+function updateCamera(dt){
+  const lookAhead=80;
+  const tx=player.x-W/2+player.vx*0.15;
+  const ty=player.y-H/2+player.vy*0.08-50;
+  const lr=1-Math.pow(0.005,dt);
+  camera.x+=(tx-camera.x)*lr;
+  camera.y+=(ty-camera.y)*lr;
+  const b=level.bounds;
+  camera.x=Math.max(b.x,Math.min(b.x+b.w-W,camera.x));
+  camera.y=Math.max(b.y,Math.min(b.y+b.h-H,camera.y));
+}
+
+// ─── RENDER ───
+function drawGame(){
+  ctx.fillStyle='#0a0a1a';ctx.fillRect(0,0,W,H);
+  ctx.save();ctx.translate(-camera.x,-camera.y);
+
+  // Grid background
+  ctx.strokeStyle='rgba(255,255,255,0.03)';ctx.lineWidth=1;
+  const gs=60;
+  const sx=Math.floor(camera.x/gs)*gs,sy=Math.floor(camera.y/gs)*gs;
+  for(let x=sx;x<camera.x+W+gs;x+=gs){ctx.beginPath();ctx.moveTo(x,camera.y);ctx.lineTo(x,camera.y+H);ctx.stroke();}
+  for(let y=sy;y<camera.y+H+gs;y+=gs){ctx.beginPath();ctx.moveTo(camera.x,y);ctx.lineTo(camera.x+W,y);ctx.stroke();}
+
+  // Platforms
+  for(const p of level.platforms){
+    ctx.fillStyle='#2a2a3e';ctx.fillRect(p.x,p.y,p.w,p.h);
+    ctx.fillStyle='#4a4a6e';ctx.fillRect(p.x,p.y,p.w,3);
+  }
+
+  // Spikes
+  for(const sp of level.spikes){
+    ctx.fillStyle='#cc3333';
+    const count=Math.floor(sp.w/20);
+    for(let i=0;i<count;i++){
+      const sx=sp.x+i*(sp.w/count),sw=sp.w/count;
+      ctx.beginPath();
+      if(sp.dir==='up'){
+        ctx.moveTo(sx,sp.y+sp.h);ctx.lineTo(sx+sw/2,sp.y);ctx.lineTo(sx+sw,sp.y+sp.h);
+      }else{
+        ctx.moveTo(sx,sp.y);ctx.lineTo(sx+sw/2,sp.y+sp.h);ctx.lineTo(sx+sw,sp.y);
+      }
+      ctx.fill();
+    }
+  }
+
+  // Finish zone
+  const f=level.finish;
+  ctx.fillStyle='rgba(0,220,80,0.15)';ctx.fillRect(f.x,f.y,f.w,f.h);
+  ctx.strokeStyle='#0d8';ctx.lineWidth=2;ctx.setLineDash([6,4]);
+  ctx.strokeRect(f.x,f.y,f.w,f.h);ctx.setLineDash([]);
+  ctx.fillStyle='#0d8';ctx.font='bold 14px sans-serif';ctx.textAlign='center';
+  ctx.fillText('FINISH',f.x+f.w/2,f.y+f.h/2+5);
+
+  // Grapple points
+  const time=performance.now()/1000;
+  for(const g of level.grapples){
+    const dx=g.x-player.x,dy=g.y-player.y;
+    const dist=Math.sqrt(dx*dx+dy*dy);
+    const inRange=dist<=GRAPPLE_RANGE;
+    const pulse=Math.sin(time*3)*0.3+0.7;
+    // Outer glow
+    if(inRange){
+      ctx.fillStyle=`rgba(0,220,255,${0.08*pulse})`;
+      ctx.beginPath();ctx.arc(g.x,g.y,22,0,Math.PI*2);ctx.fill();
+    }
+    // Point
+    ctx.fillStyle=inRange?`rgba(0,220,255,${0.6+0.3*pulse})`:'rgba(100,100,140,0.4)';
+    ctx.beginPath();ctx.arc(g.x,g.y,6,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle=inRange?'#0df':'#556';ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(g.x,g.y,10,0,Math.PI*2);ctx.stroke();
+  }
+
+  // Aim indicator - line from player toward nearest in-range grapple point
+  if(mouseDown&&player.state!=='swinging'){
+    let best=null,bd=Infinity;
+    for(const g of level.grapples){
+      const dp=Math.sqrt((g.x-player.x)**2+(g.y-player.y)**2);
+      if(dp>GRAPPLE_RANGE)continue;
+      if(dp<bd){bd=dp;best=g;}
+    }
+    if(best){
+      ctx.strokeStyle='rgba(0,220,255,0.3)';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+      ctx.beginPath();ctx.moveTo(player.x,player.y);ctx.lineTo(best.x,best.y);ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  // Rope
+  if(player.state==='swinging'){
+    ctx.strokeStyle='rgba(255,255,255,0.7)';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(player.x,player.y);ctx.lineTo(player.gx,player.gy);ctx.stroke();
+    // Glow on active grapple
+    ctx.fillStyle='rgba(0,220,255,0.5)';
+    ctx.beginPath();ctx.arc(player.gx,player.gy,8,0,Math.PI*2);ctx.fill();
+  }
+
+  // Coins
+  for(const c of levelCoins){
+    if(c.collected)continue;
+    const spin=Math.sin(time*4+c.x)*0.3+0.7;
+    ctx.fillStyle=`rgba(255,215,0,${0.15})`;
+    ctx.beginPath();ctx.arc(c.x,c.y,16,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#ffd700';
+    ctx.beginPath();ctx.arc(c.x,c.y,8*spin,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#ffaa00';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.arc(c.x,c.y,10,0,Math.PI*2);ctx.stroke();
+  }
+
+  // Player trail
+  for(let i=0;i<player.trail.length;i++){
+    const t=player.trail[i],a=1-i/player.trail.length;
+    ctx.fillStyle=`rgba(255,255,255,${a*0.25})`;
+    ctx.beginPath();ctx.arc(t.x,t.y,PLAYER_R*(1-i*0.04),0,Math.PI*2);ctx.fill();
+  }
+
+  // Player
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(player.x,player.y,PLAYER_R,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(100,200,255,0.3)';ctx.beginPath();ctx.arc(player.x,player.y,PLAYER_R+3,0,Math.PI*2);ctx.fill();
+
+  // Speed lines when fast
+  const spd=Math.sqrt(player.vx*player.vx+player.vy*player.vy);
+  if(spd>400){
+    ctx.strokeStyle=`rgba(255,255,255,${Math.min(0.3,(spd-400)/1000)})`;
+    ctx.lineWidth=1;
+    for(let i=0;i<5;i++){
+      const ox=(Math.random()-0.5)*20,oy=(Math.random()-0.5)*20;
+      const nx=-player.vx/spd,ny=-player.vy/spd;
+      ctx.beginPath();ctx.moveTo(player.x+ox,player.y+oy);
+      ctx.lineTo(player.x+ox+nx*30,player.y+oy+ny*30);ctx.stroke();
+    }
+  }
+
+  ctx.restore();
+
+  // Death flash
+  if(deathFlash>0){
+    ctx.fillStyle=`rgba(255,0,0,${deathFlash/30})`;ctx.fillRect(0,0,W,H);
+    deathFlash--;
+  }
+
+  // HUD
+  drawHUD();
+}
+
+function drawHUD(){
+  ctx.textBaseline='top';
+  // Level name
+  ctx.font='bold 16px "Segoe UI",sans-serif';ctx.textAlign='left';
+  ctx.fillStyle='rgba(255,255,255,0.6)';ctx.fillText(level.name,15,15);
+  // Coins
+  const cc=levelCoins.filter(c=>c.collected).length;
+  ctx.font='14px "Segoe UI",sans-serif';ctx.fillStyle='#ffd700';
+  ctx.fillText(`Coins: ${cc}/3`,15,38);
+  // Timer
+  ctx.font='bold 20px monospace';ctx.textAlign='right';
+  ctx.fillStyle='#fff';ctx.fillText(fmtTime(timer),W-15,15);
+  // Controls hint (first few seconds)
+  if(timer<3&&currentLevel===0){
+    ctx.font='13px "Segoe UI",sans-serif';ctx.textAlign='center';ctx.fillStyle='rgba(255,255,255,0.4)';
+    ctx.fillText('A/D to run + pump swings  |  W to jump  |  Space or Click to grapple  |  Release to fly  |  R to restart',W/2,H-30);
+  }
+}
+
+function fmtTime(t){
+  const m=Math.floor(t/60),s=(t%60).toFixed(2);
+  return `${m}:${s.padStart(5,'0')}`;
+}
+
+// ─── MENU ───
+function drawMenu(){
+  ctx.fillStyle='#0a0a1a';ctx.fillRect(0,0,W,H);
+  // Decorative grid
+  ctx.strokeStyle='rgba(255,255,255,0.03)';ctx.lineWidth=1;
+  for(let x=0;x<W;x+=60){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=0;y<H;y+=60){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  // Decorative rope
+  const t=performance.now()/1000;
+  ctx.strokeStyle='rgba(0,220,255,0.15)';ctx.lineWidth=2;
+  ctx.beginPath();
+  for(let i=0;i<10;i++){
+    const x=W*0.2+i*W*0.06,y=H*0.3+Math.sin(t*2+i*0.8)*30;
+    if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+  }
+  ctx.stroke();
+  // Title
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.font='bold 56px "Segoe UI",sans-serif';
+  ctx.fillStyle='#0df';ctx.fillText('GRAPPLE RUN',W/2,H*0.3);
+  ctx.font='18px "Segoe UI",sans-serif';
+  ctx.fillStyle='#667';ctx.fillText('Swing. Fly. Race.',W/2,H*0.3+45);
+  // Play button
+  const bw=180,bh=50,bx=W/2-bw/2,by=H*0.5;
+  ctx.fillStyle='rgba(0,220,255,0.1)';ctx.fillRect(bx,by,bw,bh);
+  ctx.strokeStyle='#0df';ctx.lineWidth=2;ctx.strokeRect(bx,by,bw,bh);
+  ctx.fillStyle='#0df';ctx.font='bold 20px sans-serif';
+  ctx.fillText('Play',W/2,by+bh/2);
+  canvas._menuBtn={x:bx,y:by,w:bw,h:bh};
+  // Controls
+  ctx.font='13px "Segoe UI",sans-serif';ctx.fillStyle='#556';
+  ctx.fillText('A/D to move  |  W to jump  |  Space or Click to grapple  |  Release to fly',W/2,H*0.7);
+}
+
+// ─── LEVEL SELECT ───
+function drawLevelSelect(){
+  ctx.fillStyle='#0a0a1a';ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='rgba(255,255,255,0.03)';ctx.lineWidth=1;
+  for(let x=0;x<W;x+=60){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=0;y<H;y+=60){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.font='bold 36px "Segoe UI",sans-serif';
+  ctx.fillStyle='#0df';ctx.fillText('SELECT LEVEL',W/2,60);
+  const cols=3,rows=2,bw=200,bh=120,gap=25;
+  const totalW=cols*bw+(cols-1)*gap,totalH=rows*bh+(rows-1)*gap;
+  const ox=W/2-totalW/2,oy=H/2-totalH/2;
+  canvas._lvlBtns=[];
+  for(let i=0;i<LEVELS.length;i++){
+    const r=Math.floor(i/cols),c=i%cols;
+    const x=ox+c*(bw+gap),y=oy+r*(bh+gap);
+    const unlocked=i<unlockedLevels;
+    ctx.fillStyle=unlocked?'rgba(0,220,255,0.06)':'rgba(50,50,60,0.3)';
+    ctx.fillRect(x,y,bw,bh);
+    ctx.strokeStyle=unlocked?'#0df':'#334';ctx.lineWidth=unlocked?2:1;
+    ctx.strokeRect(x,y,bw,bh);
+    ctx.font='bold 16px sans-serif';
+    ctx.fillStyle=unlocked?'#fff':'#445';ctx.fillText(LEVELS[i].name,x+bw/2,y+25);
+    ctx.font='13px sans-serif';
+    if(unlocked){
+      ctx.fillStyle='#aaa';
+      ctx.fillText(bestTimes[i]?`Best: ${fmtTime(bestTimes[i])}`:'No time yet',x+bw/2,y+55);
+      const cc=coinsCollected[i]||0;
+      ctx.fillStyle='#ffd700';ctx.fillText(`Coins: ${cc}/3`,x+bw/2,y+80);
+    }else{
+      ctx.fillStyle='#334';ctx.fillText('Locked',x+bw/2,y+55);
+    }
+    if(unlocked)canvas._lvlBtns.push({x,y,w:bw,h:bh,idx:i});
+  }
+  // Back button
+  const bbw=120,bbh=40,bbx=W/2-bbw/2,bby=oy+totalH+30;
+  ctx.fillStyle='rgba(255,255,255,0.05)';ctx.fillRect(bbx,bby,bbw,bbh);
+  ctx.strokeStyle='#556';ctx.lineWidth=1;ctx.strokeRect(bbx,bby,bbw,bbh);
+  ctx.fillStyle='#aaa';ctx.font='15px sans-serif';ctx.fillText('Back',W/2,bby+bbh/2);
+  canvas._backBtn={x:bbx,y:bby,w:bbw,h:bbh};
+}
+
+// ─── LEVEL COMPLETE ───
+function drawComplete(){
+  drawGame();
+  ctx.fillStyle='rgba(0,0,0,0.6)';ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.font='bold 40px "Segoe UI",sans-serif';
+  ctx.fillStyle='#0d8';ctx.fillText('Level Complete!',W/2,H*0.28);
+  ctx.font='24px monospace';ctx.fillStyle='#fff';
+  ctx.fillText(`Time: ${fmtTime(timer)}`,W/2,H*0.38);
+  if(bestTimes[currentLevel]!==undefined){
+    const isBest=timer<=bestTimes[currentLevel];
+    ctx.font='16px sans-serif';
+    ctx.fillStyle=isBest?'#ffd700':'#aaa';
+    ctx.fillText(isBest?'New Best Time!':'Best: '+fmtTime(bestTimes[currentLevel]),W/2,H*0.44);
+  }
+  const cc=levelCoins.filter(c=>c.collected).length;
+  ctx.font='18px sans-serif';ctx.fillStyle='#ffd700';
+  ctx.fillText(`Coins: ${cc}/3`,W/2,H*0.50);
+  // Buttons
+  const bw=160,bh=44,gap=20;
+  const hasNext=currentLevel+1<LEVELS.length;
+  if(hasNext){
+    const bx1=W/2-bw-gap/2,by=H*0.6;
+    ctx.fillStyle='rgba(0,220,80,0.15)';ctx.fillRect(bx1,by,bw,bh);
+    ctx.strokeStyle='#0d8';ctx.lineWidth=2;ctx.strokeRect(bx1,by,bw,bh);
+    ctx.fillStyle='#0d8';ctx.font='bold 16px sans-serif';ctx.fillText('Next Level',bx1+bw/2,by+bh/2);
+    canvas._nextBtn={x:bx1,y:by,w:bw,h:bh};
+    const bx2=W/2+gap/2;
+    ctx.fillStyle='rgba(255,255,255,0.05)';ctx.fillRect(bx2,by,bw,bh);
+    ctx.strokeStyle='#556';ctx.lineWidth=1;ctx.strokeRect(bx2,by,bw,bh);
+    ctx.fillStyle='#aaa';ctx.fillText('Retry',bx2+bw/2,by+bh/2);
+    canvas._retryBtn={x:bx2,y:by,w:bw,h:bh};
+  }else{
+    const bx=W/2-bw/2,by=H*0.6;
+    ctx.fillStyle='rgba(255,255,255,0.05)';ctx.fillRect(bx,by,bw,bh);
+    ctx.strokeStyle='#556';ctx.lineWidth=1;ctx.strokeRect(bx,by,bw,bh);
+    ctx.fillStyle='#aaa';ctx.font='bold 16px sans-serif';ctx.fillText('Level Select',bx+bw/2,by+bh/2);
+    canvas._retryBtn={x:bx,y:by,w:bw,h:bh};
+    canvas._nextBtn=null;
+  }
+}
+
+// ─── INPUT ───
+canvas.addEventListener('mousedown',e=>{
+  mouseDown=true;
+  const r=canvas.getBoundingClientRect();
+  mouseScreen.x=(e.clientX-r.left)*(W/r.width);
+  mouseScreen.y=(e.clientY-r.top)*(H/r.height);
+  mouseWorld.x=mouseScreen.x+camera.x;mouseWorld.y=mouseScreen.y+camera.y;
+  if(state==='playing')tryGrapple();
+});
+canvas.addEventListener('mouseup',e=>{
+  mouseDown=false;
+  if(state==='playing')releaseGrapple();
+});
+canvas.addEventListener('mousemove',e=>{
+  const r=canvas.getBoundingClientRect();
+  mouseScreen.x=(e.clientX-r.left)*(W/r.width);
+  mouseScreen.y=(e.clientY-r.top)*(H/r.height);
+  mouseWorld.x=mouseScreen.x+camera.x;mouseWorld.y=mouseScreen.y+camera.y;
+});
+
+canvas.addEventListener('click',e=>{
+  const r=canvas.getBoundingClientRect();
+  const mx=(e.clientX-r.left)*(W/r.width),my=(e.clientY-r.top)*(H/r.height);
+  function hit(b){return b&&mx>=b.x&&mx<=b.x+b.w&&my>=b.y&&my<=b.y+b.h;}
+
+  if(state==='menu'){
+    if(hit(canvas._menuBtn)){state='levelSelect';initAudio();}
+  }else if(state==='levelSelect'){
+    if(canvas._lvlBtns)for(const b of canvas._lvlBtns){
+      if(hit(b)){currentLevel=b.idx;initPlayer(LEVELS[b.idx]);state='playing';break;}
+    }
+    if(hit(canvas._backBtn))state='menu';
+  }else if(state==='complete'){
+    if(hit(canvas._nextBtn)){currentLevel++;initPlayer(LEVELS[currentLevel]);state='playing';}
+    if(hit(canvas._retryBtn)){
+      if(canvas._nextBtn)initPlayer(LEVELS[currentLevel]);
+      state=canvas._nextBtn?'playing':'levelSelect';
+      if(!canvas._nextBtn)return;
+      initPlayer(LEVELS[currentLevel]);state='playing';
+    }
+  }
+});
+
+document.addEventListener('keydown',e=>{
+  keys[e.code]=true;
+  if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();
+  if(e.code==='KeyR'&&state==='playing'){die();}
+  if(e.code==='Space'&&state==='playing'&&!e.repeat){tryGrapple();}
+});
+document.addEventListener('keyup',e=>{
+  keys[e.code]=false;
+  if(e.code==='Space'&&state==='playing'){releaseGrapple();}
+});
+
+// ─── SOUND ───
+function initAudio(){
+  if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended')audioCtx.resume();
+}
+function sfx(type){
+  if(!audioCtx)return;
+  try{
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.connect(g);g.connect(audioCtx.destination);const t=audioCtx.currentTime;
+    switch(type){
+      case'grapple':o.type='sine';o.frequency.setValueAtTime(1200,t);o.frequency.exponentialRampToValueAtTime(800,t+0.06);
+        g.gain.setValueAtTime(0.1,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.08);o.start(t);o.stop(t+0.08);break;
+      case'release':o.type='sine';o.frequency.setValueAtTime(400,t);o.frequency.exponentialRampToValueAtTime(200,t+0.1);
+        g.gain.setValueAtTime(0.06,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.12);o.start(t);o.stop(t+0.12);break;
+      case'land':o.type='triangle';o.frequency.setValueAtTime(120,t);o.frequency.exponentialRampToValueAtTime(60,t+0.08);
+        g.gain.setValueAtTime(0.05,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.1);o.start(t);o.stop(t+0.1);break;
+      case'death':o.type='sawtooth';o.frequency.setValueAtTime(300,t);o.frequency.exponentialRampToValueAtTime(50,t+0.3);
+        g.gain.setValueAtTime(0.1,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.35);o.start(t);o.stop(t+0.35);break;
+      case'coin':o.type='sine';o.frequency.setValueAtTime(880,t);o.frequency.setValueAtTime(1100,t+0.08);
+        g.gain.setValueAtTime(0.08,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.2);o.start(t);o.stop(t+0.2);break;
+      case'complete':o.type='sine';g.gain.setValueAtTime(0.1,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.6);
+        o.frequency.setValueAtTime(523,t);o.frequency.setValueAtTime(659,t+0.12);
+        o.frequency.setValueAtTime(784,t+0.24);o.frequency.setValueAtTime(1047,t+0.36);
+        o.start(t);o.stop(t+0.6);break;
+      case'best':o.type='sine';o.frequency.setValueAtTime(1047,t);o.frequency.setValueAtTime(1318,t+0.1);
+        g.gain.setValueAtTime(0.08,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.3);o.start(t);o.stop(t+0.3);break;
+    }
+  }catch(e){}
+}
+
+// ─── MAIN LOOP ───
+let lastTime=0;
+function loop(now){
+  const dt=Math.min((now-lastTime)/1000,1/30);
+  lastTime=now;
+
+  if(state==='playing'){
+    if(timerRunning)timer+=dt;
+    updatePlayer(dt);
+    updateCamera(dt);
+    drawGame();
+  }else if(state==='menu'){
+    drawMenu();
+  }else if(state==='levelSelect'){
+    drawLevelSelect();
+  }else if(state==='complete'){
+    drawComplete();
+  }
+
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
