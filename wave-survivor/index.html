@@ -272,7 +272,13 @@ const player = {
   lastStand: false,
   abilityCooldown: 0,
   shieldTimer: 0,
-  abilityUsed: false
+  abilityUsed: false,
+  weapon: 'gun',
+  meleeCooldown: 0,
+  meleeRate: 25,
+  meleeDamage: 40,
+  meleeRange: 60,
+  swingTimer: 0
 };
 
 // Input
@@ -290,6 +296,7 @@ document.addEventListener('keydown', e => {
   if (state === 'menu' && (menuTab === 'records' || menuTab === 'customize' || menuTab === 'levelselect' || menuTab === 'settings') && e.key === 'Escape') menuTab = 'main';
   if (state === 'gameover' && e.key === ' ') { state = 'menu'; menuTab = 'main'; startMusic('menu'); }
   if ((state === 'playing' || state === 'waveIntro') && e.key === ' ') activateAbility();
+  if ((state === 'playing' || state === 'waveIntro') && e.key === 'e') player.weapon = player.weapon === 'gun' ? 'sword' : 'gun';
   if (state === 'upgrade') {
     if (e.key === '1') pickUpgrade(0);
     if (e.key === '2') pickUpgrade(1);
@@ -412,6 +419,9 @@ function startGame(startWave) {
   player.abilityCooldown = 0;
   player.shieldTimer = 0;
   player.abilityUsed = false;
+  player.weapon = 'gun';
+  player.meleeCooldown = 0;
+  player.swingTimer = 0;
   projectiles = [];
   enemies = [];
   enemyProjectiles = [];
@@ -558,6 +568,57 @@ function shoot() {
       life,
       hitSet: new Set()
     });
+  }
+}
+
+function meleeSwing() {
+  if (player.meleeCooldown > 0) return;
+  player.meleeCooldown = player.meleeRate;
+  player.swingTimer = 12;
+  const swingAngle = Math.atan2(mouse.y - player.y, mouse.x - player.x);
+  const arcHalf = Math.PI * 0.4;
+  playSound('ability');
+  spawnParticles(player.x + Math.cos(swingAngle) * 30, player.y + Math.sin(swingAngle) * 30, '#ccc', 6);
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const e = enemies[i];
+    const dist = Math.hypot(e.x - player.x, e.y - player.y);
+    if (dist > player.meleeRange + e.size) continue;
+    let angleToEnemy = Math.atan2(e.y - player.y, e.x - player.x);
+    let diff = angleToEnemy - swingAngle;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    if (Math.abs(diff) > arcHalf) continue;
+    const dmg = player.lastStand && player.hp <= player.maxHp * 0.3 ? player.meleeDamage * 2 : player.meleeDamage;
+    e.hp -= dmg;
+    e.hitFlash = 6;
+    spawnParticles(e.x, e.y, e.color, 6);
+    spawnDamageNumber(e.x, e.y - e.size, dmg, '#fff');
+    const kbAngle = Math.atan2(e.y - player.y, e.x - player.x);
+    const kb = e.isBoss ? 2 : 8;
+    e.x += Math.cos(kbAngle) * kb;
+    e.y += Math.sin(kbAngle) * kb;
+    if (e.isBoss) {
+      e.x = Math.max(e.size, Math.min(canvas.width - e.size, e.x));
+      e.y = Math.max(e.size, Math.min(canvas.height - e.size, e.y));
+    }
+    if (e.hp <= 0) {
+      score += e.score;
+      if (e.isBoss) {
+        spawnParticles(e.x, e.y, '#ff4500', 30);
+        spawnParticles(e.x, e.y, '#ffcc00', 20);
+        shakeTime = 20;
+        playSound('boss');
+      } else {
+        spawnParticles(e.x, e.y, e.color, 12);
+        playSound('kill');
+      }
+      enemiesRemaining--;
+      if (player.lifeSteal > 0) {
+        player.hp = Math.min(player.maxHp, player.hp + player.lifeSteal);
+        spawnDamageNumber(player.x, player.y - 20, '+' + player.lifeSteal, '#50c878');
+      }
+      enemies.splice(i, 1);
+    }
   }
 }
 
@@ -892,7 +953,7 @@ function activateAbility() {
       projectiles.push({
         x: player.x, y: player.y,
         vx: Math.cos(a) * 7, vy: Math.sin(a) * 7,
-        damage: player.damage, pierce: 0, bounce: 0,
+        damage: player.damage * 3, pierce: 0, bounce: 0,
         explosive: false, life: 60, hitSet: new Set()
       });
     }
@@ -1020,6 +1081,8 @@ function update() {
   player.y = Math.max(player.size, Math.min(canvas.height - player.size, player.y));
 
   if (player.shootCooldown > 0) player.shootCooldown--;
+  if (player.meleeCooldown > 0) player.meleeCooldown--;
+  if (player.swingTimer > 0) player.swingTimer--;
   if (player.invuln > 0) player.invuln--;
   if (player.abilityCooldown > 0) player.abilityCooldown--;
   if (player.shieldTimer > 0) player.shieldTimer--;
@@ -1029,7 +1092,8 @@ function update() {
     player.ammo++;
     player.ammoRegenTimer = 0;
   }
-  if (mouse.down) shoot();
+  if (mouse.down && player.weapon === 'gun') shoot();
+  if (mouse.down && player.weapon === 'sword') meleeSwing();
 
   // Projectiles
   for (let i = projectiles.length - 1; i >= 0; i--) {
@@ -1502,24 +1566,68 @@ function drawPlayer() {
   ctx.arc(px + Math.cos(angle + 0.3) * eyeOff, py - 3 + Math.sin(angle + 0.3) * 2, 2.5, 0, Math.PI * 2);
   ctx.fill();
 
-  // Staff
-  const sx = px + Math.cos(angle) * (s + 6);
-  const sy = py + Math.sin(angle) * (s + 6);
-  ctx.strokeStyle = sk.staff;
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(px + Math.cos(angle) * s * 0.5, py + Math.sin(angle) * s * 0.5);
-  ctx.lineTo(sx, sy);
-  ctx.stroke();
-  // Staff orb
-  ctx.fillStyle = sk.orb;
-  ctx.beginPath();
-  ctx.arc(sx, sy, 4, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = sk.orbGlow;
-  ctx.beginPath();
-  ctx.arc(sx, sy, 7, 0, Math.PI * 2);
-  ctx.fill();
+  if (player.weapon === 'sword') {
+    // Sword blade
+    const bladeLen = s + 14;
+    const sx = px + Math.cos(angle) * bladeLen;
+    const sy = py + Math.sin(angle) * bladeLen;
+    // Handle
+    ctx.strokeStyle = '#8b6914';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(px + Math.cos(angle) * s * 0.4, py + Math.sin(angle) * s * 0.4);
+    ctx.lineTo(px + Math.cos(angle) * s * 0.8, py + Math.sin(angle) * s * 0.8);
+    ctx.stroke();
+    // Guard
+    const gx = px + Math.cos(angle) * s * 0.8;
+    const gy = py + Math.sin(angle) * s * 0.8;
+    ctx.strokeStyle = '#95a5a6';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(gx + Math.cos(angle + Math.PI/2) * 5, gy + Math.sin(angle + Math.PI/2) * 5);
+    ctx.lineTo(gx + Math.cos(angle - Math.PI/2) * 5, gy + Math.sin(angle - Math.PI/2) * 5);
+    ctx.stroke();
+    // Blade
+    ctx.strokeStyle = '#ecf0f1';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(gx, gy);
+    ctx.lineTo(sx, sy);
+    ctx.stroke();
+    // Blade tip
+    ctx.fillStyle = '#bdc3c7';
+    ctx.beginPath();
+    ctx.arc(sx, sy, 2, 0, Math.PI * 2);
+    ctx.fill();
+    // Swing arc effect
+    if (player.swingTimer > 0) {
+      const alpha = player.swingTimer / 12;
+      ctx.strokeStyle = `rgba(255, 255, 255, ${alpha * 0.5})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(px, py, player.meleeRange, angle - Math.PI * 0.4, angle + Math.PI * 0.4);
+      ctx.stroke();
+    }
+  } else {
+    // Staff
+    const sx = px + Math.cos(angle) * (s + 6);
+    const sy = py + Math.sin(angle) * (s + 6);
+    ctx.strokeStyle = sk.staff;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(px + Math.cos(angle) * s * 0.5, py + Math.sin(angle) * s * 0.5);
+    ctx.lineTo(sx, sy);
+    ctx.stroke();
+    // Staff orb
+    ctx.fillStyle = sk.orb;
+    ctx.beginPath();
+    ctx.arc(sx, sy, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = sk.orbGlow;
+    ctx.beginPath();
+    ctx.arc(sx, sy, 7, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 function drawEnemy(e) {
@@ -1962,18 +2070,26 @@ function draw() {
   ctx.textAlign = 'center';
   ctx.fillText(`HP ${Math.ceil(player.hp)}/${player.maxHp}`, 120, 35);
 
-  // Ammo bar
-  ctx.fillStyle = '#333';
-  ctx.fillRect(20, 46, 200, 14);
-  ctx.fillStyle = player.ammo <= 5 ? '#e67e22' : '#5dade2';
-  ctx.fillRect(20, 46, 200 * (player.ammo / player.maxAmmo), 14);
-  ctx.strokeStyle = '#666';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(20, 46, 200, 14);
-  ctx.fillStyle = '#fff';
+  // Weapon indicator
+  ctx.fillStyle = player.weapon === 'sword' ? '#ecf0f1' : '#5dade2';
   ctx.font = 'bold 10px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText(`AMMO ${player.ammo}/${player.maxAmmo}`, 120, 56);
+  ctx.textAlign = 'left';
+  ctx.fillText(`[E] ${player.weapon.toUpperCase()}`, 20, 46);
+
+  // Ammo bar (only show for gun)
+  if (player.weapon === 'gun') {
+    ctx.fillStyle = '#333';
+    ctx.fillRect(20, 52, 200, 14);
+    ctx.fillStyle = player.ammo <= 5 ? '#e67e22' : '#5dade2';
+    ctx.fillRect(20, 52, 200 * (player.ammo / player.maxAmmo), 14);
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(20, 52, 200, 14);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(`AMMO ${player.ammo}/${player.maxAmmo}`, 120, 62);
+  }
 
   // Ability bar
   const sk = skins[selectedSkin];
