@@ -809,32 +809,10 @@ function update() {
     }
   }
 
-  // Alien bases: shoot at nearby ships
+  // Alien bases: rotate
   for (const b of alienBases) {
     b.angle += 0.01;
     if (b.flashTimer > 0) b.flashTimer--;
-    b.shootTimer--;
-    if (b.shootTimer > 0) continue;
-    // Find nearest alive ship in range
-    let target = null, bestD = b.range;
-    for (const s of ships) {
-      if (!s.alive) continue;
-      const d = Math.hypot(s.x - b.x, s.y - b.y);
-      if (d < bestD) { bestD = d; target = s; }
-    }
-    if (target) {
-      b.shootTimer = b.shootCd;
-      const ang = Math.atan2(target.y - b.y, target.x - b.x);
-      // Lead the target slightly
-      const spd = 3.5;
-      alienProjectiles.push({
-        x: b.x, y: b.y,
-        vx: Math.cos(ang) * spd + (Math.random() - 0.5) * 0.5,
-        vy: Math.sin(ang) * spd + (Math.random() - 0.5) * 0.5,
-        life: 180
-      });
-      sfxAlienShoot();
-    }
   }
 
   // Alien projectiles: move + hit ships
@@ -997,26 +975,37 @@ function destroyAsteroid(a, idx, ownerNum) {
 }
 
 // ── Shop ──
+const REPAIR_COST = 20;
 function updateShop() {
   const s = shopShip;
   const k = getShipKeys(s.num);
   const upKeys = Object.keys(UPGRADES);
+  const totalItems = upKeys.length + 1; // upgrades + repair
 
   if (keyPressed(k.up) || (s.num === 1 && keyPressed('KeyW')) || (s.num === 2 && keyPressed('ArrowUp'))) {
-    shopSelection = (shopSelection - 1 + upKeys.length) % upKeys.length;
+    shopSelection = (shopSelection - 1 + totalItems) % totalItems;
   }
   if (keyPressed(k.down) || (s.num === 1 && keyPressed('KeyS')) || (s.num === 2 && keyPressed('ArrowDown'))) {
-    shopSelection = (shopSelection + 1) % upKeys.length;
+    shopSelection = (shopSelection + 1) % totalItems;
   }
   if (keyPressed(k.shoot) || keyPressed('Space') || keyPressed('Enter')) {
-    const key = upKeys[shopSelection];
-    const level = s.upgrades[key];
-    if (level < 3) {
-      const cost = UPGRADES[key].costs[level];
-      if (s.ore >= cost) {
-        s.ore -= cost;
-        s.upgrades[key]++;
-        applyUpgrade(s, key);
+    if (shopSelection < upKeys.length) {
+      const key = upKeys[shopSelection];
+      const level = s.upgrades[key];
+      if (level < 3) {
+        const cost = UPGRADES[key].costs[level];
+        if (s.ore >= cost) {
+          s.ore -= cost;
+          s.upgrades[key]++;
+          applyUpgrade(s, key);
+          sfxUpgrade();
+        }
+      }
+    } else {
+      // Repair
+      if (s.hp < s.maxHp && s.ore >= REPAIR_COST) {
+        s.ore -= REPAIR_COST;
+        s.hp = s.maxHp;
         sfxUpgrade();
       }
     }
@@ -1163,12 +1152,13 @@ function drawAlienBases() {
       // Scale range to screen (approximate)
       ctx.beginPath(); ctx.arc(sp.x, sp.y, b.range * (viewW / 800), 0, Math.PI * 2); ctx.stroke();
     }
+    const botColor = b.botShip ? b.botShip.color : '#0f0';
     // Base glow
-    ctx.fillStyle = b.flashTimer > 0 ? 'rgba(255,255,100,0.15)' : 'rgba(0,255,0,0.06)';
+    ctx.fillStyle = b.flashTimer > 0 ? 'rgba(255,255,100,0.15)' : (botColor + '18');
     ctx.beginPath(); ctx.arc(sp.x, sp.y, 28, 0, Math.PI * 2); ctx.fill();
     // Base body: hexagon
-    ctx.fillStyle = b.flashTimer > 0 ? '#4a4' : '#1a3a1a';
-    ctx.strokeStyle = '#0f0'; ctx.lineWidth = 1.5;
+    ctx.fillStyle = b.flashTimer > 0 ? '#4a4' : '#1a1a2a';
+    ctx.strokeStyle = botColor; ctx.lineWidth = 1.5;
     ctx.beginPath();
     for (let i = 0; i < 6; i++) {
       const a = b.angle + i * Math.PI / 3;
@@ -1176,14 +1166,14 @@ function drawAlienBases() {
       if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
     }
     ctx.closePath(); ctx.fill(); ctx.stroke();
-    // Inner eye — shows bot color if it has a bot
-    ctx.fillStyle = nearShip ? '#f00' : (b.botShip ? b.botShip.color : '#0f0');
+    // Inner eye
+    ctx.fillStyle = nearShip ? '#f00' : botColor;
     ctx.beginPath(); ctx.arc(sp.x, sp.y, 5, 0, Math.PI * 2); ctx.fill();
     // HP bar
     if (b.hp < b.maxHp) {
       const bw = 30, bh = 3;
       ctx.fillStyle = '#300'; ctx.fillRect(sp.x - bw/2, sp.y - b.radius - 8, bw, bh);
-      ctx.fillStyle = '#0f0'; ctx.fillRect(sp.x - bw/2, sp.y - b.radius - 8, bw * (b.hp / b.maxHp), bh);
+      ctx.fillStyle = botColor; ctx.fillRect(sp.x - bw/2, sp.y - b.radius - 8, bw * (b.hp / b.maxHp), bh);
     }
   }
 }
@@ -1345,7 +1335,7 @@ function drawHUDFor(s) {
   for (const b of alienBases) {
     const bx = mmCx + (b.x - s.x) * mmScale, by = mmCy + (b.y - s.y) * mmScale;
     if (bx >= mmX && bx <= mmX + mmW && by >= mmY && by <= mmY + mmH) {
-      ctx.fillStyle = '#0f0'; ctx.globalAlpha = 0.8; ctx.fillRect(bx - 2, by - 2, 4, 4); ctx.globalAlpha = 1;
+      ctx.fillStyle = b.botShip ? b.botShip.color : '#0f0'; ctx.globalAlpha = 0.8; ctx.fillRect(bx - 2, by - 2, 4, 4); ctx.globalAlpha = 1;
     }
   }
 
@@ -1439,7 +1429,7 @@ function drawViewport(s, vx, vy, vw, vh) {
 function drawShop() {
   const s = shopShip;
   ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-  const pw = 380, ph = 420;
+  const pw = 380, ph = 470;
   const px = (canvas.width - pw) / 2, py = (canvas.height - ph) / 2;
   ctx.fillStyle = '#0a0a2a'; ctx.strokeStyle = '#8af'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 12); ctx.fill(); ctx.stroke();
@@ -1468,6 +1458,24 @@ function drawShop() {
     if (level >= 3) { ctx.fillStyle = '#4f8'; ctx.fillText('MAX', px + pw - 20, iy + 16); }
     else { const cost = up.costs[level]; ctx.fillStyle = s.ore >= cost ? '#fe4' : '#844'; ctx.fillText(`${cost} ore`, px + pw - 20, iy + 16); }
   }
+
+  // Repair option
+  const repairIdx = upKeys.length;
+  const ry = py + 65 + repairIdx * 52;
+  const rSel = shopSelection === repairIdx;
+  if (rSel) { ctx.fillStyle = 'rgba(100,150,255,0.12)'; ctx.fillRect(px + 12, ry - 2, pw - 24, 48); }
+  ctx.textAlign = 'left'; ctx.font = 'bold 15px sans-serif'; ctx.fillStyle = rSel ? '#fff' : '#aaa';
+  ctx.fillText('Repair', px + 20, ry + 16);
+  ctx.font = '11px sans-serif'; ctx.fillStyle = '#888';
+  ctx.fillText('Restore HP to full', px + 20, ry + 30);
+  // HP bar preview
+  const hpFrac = s.hp / s.maxHp;
+  ctx.fillStyle = '#400'; ctx.fillRect(px + 20, ry + 35, 54, 5);
+  ctx.fillStyle = hpFrac > 0.5 ? '#4a4' : hpFrac > 0.25 ? '#da4' : '#d44';
+  ctx.fillRect(px + 20, ry + 35, 54 * hpFrac, 5);
+  ctx.textAlign = 'right'; ctx.font = '13px sans-serif';
+  if (s.hp >= s.maxHp) { ctx.fillStyle = '#4f8'; ctx.fillText('FULL', px + pw - 20, ry + 16); }
+  else { ctx.fillStyle = s.ore >= REPAIR_COST ? '#fe4' : '#844'; ctx.fillText(`${REPAIR_COST} ore`, px + pw - 20, ry + 16); }
 
   ctx.textAlign = 'center'; ctx.font = '11px sans-serif'; ctx.fillStyle = '#555';
   const dockKey = s.num === 1 ? 'E' : 'RShift';
