@@ -201,7 +201,6 @@ let ships = [];
 let lasers, asteroids, oreDrops, particles, populatedChunks;
 let alienBases, alienProjectiles, botShips;
 let stations; // array of { x, y, hp, maxHp, destroyed, owner (ship num) }
-let totalOreMined = 0;
 let botColorIdx = 0;
 let stationAngle = 0;
 let screenShake = 0;
@@ -221,7 +220,7 @@ for (let i = 0; i < 200; i++) {
 function createShip(x, y, color, cockpitColor, num) {
   return {
     x, y, angle: -Math.PI / 2, vx: 0, vy: 0,
-    hp: 5, maxHp: 5, ore: 0, totalOre: 0,
+    hp: 5, maxHp: 5, ore: 0, money: 0,
     shield: 0, maxShield: 0, shieldTimer: 0,
     thrustPower: 0.12, laserDamage: 1, laserCooldown: 0,
     invuln: 0, alive: true,
@@ -248,7 +247,7 @@ function createBotShip(base) {
   const ci = botColorIdx++ % BOT_COLORS.length;
   const bot = {
     x: base.x, y: base.y, angle: Math.random() * Math.PI * 2,
-    vx: 0, vy: 0, hp: 5, maxHp: 5, ore: 0, totalOre: 0,
+    vx: 0, vy: 0, hp: 5, maxHp: 5, ore: 0, money: 0,
     shield: 0, maxShield: 0, shieldTimer: 0,
     thrustPower: 0.12, laserDamage: 1, laserCooldown: 0,
     invuln: 60, alive: true,
@@ -306,8 +305,8 @@ function botAutoUpgrade(bot) {
     const level = bot.upgrades[key];
     if (level < 3) {
       const cost = UPGRADES[key].costs[level];
-      if (bot.ore >= cost) {
-        bot.ore -= cost;
+      if (bot.money >= cost) {
+        bot.money -= cost;
         bot.upgrades[key]++;
         if (key === 'hull') { bot.maxHp = 5 + bot.upgrades.hull * 2; bot.hp = bot.maxHp; }
         if (key === 'engine') bot.thrustPower = 0.12 + bot.upgrades.engine * 0.02;
@@ -427,7 +426,7 @@ function updateBotShip(bot) {
     const upKeys = Object.keys(UPGRADES);
     for (const key of upKeys) {
       const level = bot.upgrades[key];
-      if (level < 3 && bot.ore >= UPGRADES[key].costs[level]) {
+      if (level < 3 && (bot.ore + bot.money) >= UPGRADES[key].costs[level]) {
         bot.state = 'returning'; bot.targetEnemy = null; break;
       }
     }
@@ -456,10 +455,13 @@ function updateBotShip(bot) {
   } else if (bot.state === 'returning') {
     if (hasBase) {
       const d = Math.hypot(bot.homeBase.x - bot.x, bot.homeBase.y - bot.y);
-      botSteer(bot, bot.homeBase.x, bot.homeBase.y, d > 30);
+      botSteer(bot, bot.homeBase.x, bot.homeBase.y, d > 60);
+      // Brake when close so bot doesn't orbit
+      if (d < 80) { bot.vx *= 0.92; bot.vy *= 0.92; }
       if (d < 50) {
         bot.hp = Math.min(bot.maxHp, bot.hp + 0.15);
         bot.shield = Math.min(bot.maxShield, bot.shield + 0.05);
+        if (bot.ore > 0) { bot.money += bot.ore; bot.ore = 0; }
         if (bot.hp >= bot.maxHp) { botAutoUpgrade(bot); bot.state = 'mining'; bot.targetAst = null; }
       }
     } else { bot.state = 'mining'; }
@@ -524,7 +526,6 @@ function initGame() {
   alienBases = []; alienProjectiles = []; botShips = [];
   botColorIdx = 0;
   populatedChunks = new Set();
-  totalOreMined = 0;
   state = 'playing';
   spawnChunksFor(ships[0]);
   startMusic();
@@ -691,6 +692,7 @@ function updateShip(s) {
 
   // Dock
   if (!s.station.destroyed && keyPressed(k.dock) && Math.hypot(s.x - s.station.x, s.y - s.station.y) < STATION_RADIUS + 40) {
+    if (s.ore > 0) { s.money += s.ore; s.ore = 0; }
     s.inShop = true;
     s.shopSelection = 0;
     s.shopOpenCd = 2;
@@ -805,8 +807,6 @@ function update() {
 
       if (dist < range) {
         s.ore += o.value;
-        s.totalOre += o.value;
-        totalOreMined += o.value;
         oreDrops.splice(i, 1);
         sfxOre();
         collected = true;
@@ -823,7 +823,7 @@ function update() {
           o.vx += ((b.x - o.x) / dist) * pull;
           o.vy += ((b.y - o.y) / dist) * pull;
         }
-        if (dist < range) { b.ore += o.value; b.totalOre += o.value; oreDrops.splice(i, 1); collected = true; break; }
+        if (dist < range) { b.ore += o.value; oreDrops.splice(i, 1); collected = true; break; }
       }
     }
   }
@@ -968,12 +968,12 @@ function update() {
     }
   }
 
-  // Bot lasers + alien projectiles damage stations
+  // Lasers damage stations (bots hit any station, players hit enemy stations)
   for (const st of stations) {
     if (st.destroyed) continue;
     for (let i = lasers.length - 1; i >= 0; i--) {
       const l = lasers[i];
-      if (!l.isBot) continue;
+      if (!l.isBot && l.owner === st.owner) continue; // don't hit own station
       if (Math.hypot(l.x - st.x, l.y - st.y) < STATION_RADIUS) {
         st.hp--; lasers.splice(i, 1);
         spawnParticles(l.x, l.y, '#fa0', 4, 1.5);
@@ -1038,8 +1038,8 @@ function updateShopFor(s) {
       const level = s.upgrades[key];
       if (level < 3) {
         const cost = UPGRADES[key].costs[level];
-        if (s.ore >= cost) {
-          s.ore -= cost;
+        if (s.money >= cost) {
+          s.money -= cost;
           s.upgrades[key]++;
           applyUpgrade(s, key);
           sfxUpgrade();
@@ -1047,8 +1047,8 @@ function updateShopFor(s) {
       }
     } else {
       // Repair
-      if (s.hp < s.maxHp && s.ore >= REPAIR_COST) {
-        s.ore -= REPAIR_COST;
+      if (s.hp < s.maxHp && s.money >= REPAIR_COST) {
+        s.money -= REPAIR_COST;
         s.hp = s.maxHp;
         sfxUpgrade();
       }
@@ -1303,9 +1303,9 @@ function drawParticlesWorld() {
 
 function getStandings() {
   const list = [];
-  for (const s of ships) list.push({ color: s.color, totalOre: s.totalOre, isPlayer: true, num: s.num, alive: s.alive });
-  for (const b of botShips) list.push({ color: b.color, totalOre: b.totalOre, isPlayer: false, alive: b.alive, name: b.name });
-  list.sort((a, b) => b.totalOre - a.totalOre);
+  for (const s of ships) list.push({ color: s.color, money: s.money, isPlayer: true, num: s.num, alive: s.alive });
+  for (const b of botShips) list.push({ color: b.color, money: b.money, isPlayer: false, alive: b.alive, name: b.name });
+  list.sort((a, b) => b.money - a.money);
   return list;
 }
 
@@ -1333,9 +1333,10 @@ function drawHUDFor(s) {
   // Ore + distance
   const topRight = viewX + viewW - 8;
   ctx.textAlign = 'right'; ctx.font = 'bold 13px sans-serif';
-  ctx.fillStyle = '#fe4'; ctx.fillText(`Ore: ${s.ore}`, topRight, hy + 13);
+  ctx.fillStyle = '#4f8'; ctx.fillText(`$${s.money}`, topRight, hy + 13);
+  ctx.fillStyle = '#fe4'; ctx.fillText(`Ore: ${s.ore}`, topRight, hy + 26);
   ctx.font = '10px sans-serif'; ctx.fillStyle = '#8af';
-  ctx.fillText(`Stn: ${Math.round(Math.hypot(s.x - s.station.x, s.y - s.station.y))}m`, topRight, hy + 26);
+  ctx.fillText(`Stn: ${Math.round(Math.hypot(s.x - s.station.x, s.y - s.station.y))}m`, topRight, hy + 39);
 
   // Player label in 2P
   if (mode === '2P') {
@@ -1408,31 +1409,56 @@ function drawHUDFor(s) {
   // Self on minimap
   ctx.fillStyle = s.color; ctx.beginPath(); ctx.arc(mmCx, mmCy, 2, 0, Math.PI * 2); ctx.fill();
 
-  // Compass arrows pointing to each bot
+  // Compass arrows pointing to each bot — spread overlapping arrows
+  const compassArrows = [];
   for (const b of botShips) {
     if (!b.alive) continue;
     const bp = w2s(b.x, b.y);
-    // Only show arrow if bot is off-screen
     if (bp.x >= viewX + 20 && bp.x <= viewX + viewW - 20 && bp.y >= viewY + 20 && bp.y <= viewY + viewH - 20) continue;
     const ang = Math.atan2(b.y - s.y, b.x - s.x);
     const margin = 18;
-    // Clamp to screen edge
-    const cx = viewX + viewW / 2, cy = viewY + viewH / 2;
+    const ccx = viewX + viewW / 2, ccy = viewY + viewH / 2;
     const hw = viewW / 2 - margin, hh = viewH / 2 - margin;
-    let ax = cx + Math.cos(ang) * hw, ay = cy + Math.sin(ang) * hh;
-    // Clamp properly to rectangle edge
     const scale = Math.min(hw / Math.abs(Math.cos(ang) || 0.001), hh / Math.abs(Math.sin(ang) || 0.001));
-    ax = cx + Math.cos(ang) * scale;
-    ay = cy + Math.sin(ang) * scale;
-    // Draw arrow (red if angry)
+    let ax = ccx + Math.cos(ang) * scale, ay = ccy + Math.sin(ang) * scale;
+    // Push apart from existing arrows
+    for (const prev of compassArrows) {
+      if (Math.hypot(ax - prev.x, ay - prev.y) < 14) {
+        const perp = ang + Math.PI / 2;
+        ax += Math.cos(perp) * 14; ay += Math.sin(perp) * 14;
+      }
+    }
+    compassArrows.push({ x: ax, y: ay });
     const angry = b.state === 'revenge';
     ctx.save(); ctx.translate(ax, ay); ctx.rotate(ang);
     ctx.fillStyle = angry ? '#f44' : b.color; ctx.globalAlpha = 0.85;
     ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-5, -5); ctx.lineTo(-2, 0); ctx.lineTo(-5, 5); ctx.closePath(); ctx.fill();
-    ctx.globalAlpha = 0.5; ctx.font = '8px sans-serif'; ctx.textAlign = 'center';
+    ctx.globalAlpha = 0.6; ctx.font = '8px sans-serif'; ctx.textAlign = 'center';
     ctx.fillText((angry ? '! ' : '') + b.name + ' ' + Math.round(Math.hypot(b.x - s.x, b.y - s.y)) + 'm', 0, -9);
     ctx.globalAlpha = 1;
     ctx.restore();
+  }
+
+  // Compass arrows pointing to other players
+  if (mode === '2P') {
+    for (const other of ships) {
+      if (other === s || !other.alive) continue;
+      const op = w2s(other.x, other.y);
+      if (op.x >= viewX + 20 && op.x <= viewX + viewW - 20 && op.y >= viewY + 20 && op.y <= viewY + viewH - 20) continue;
+      const ang = Math.atan2(other.y - s.y, other.x - s.x);
+      const margin = 18;
+      const cx = viewX + viewW / 2, cy = viewY + viewH / 2;
+      const hw = viewW / 2 - margin, hh = viewH / 2 - margin;
+      const scale = Math.min(hw / Math.abs(Math.cos(ang) || 0.001), hh / Math.abs(Math.sin(ang) || 0.001));
+      const ax = cx + Math.cos(ang) * scale, ay = cy + Math.sin(ang) * scale;
+      ctx.save(); ctx.translate(ax, ay); ctx.rotate(ang);
+      ctx.fillStyle = other.color; ctx.globalAlpha = 0.9;
+      ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-5, -5); ctx.lineTo(-2, 0); ctx.lineTo(-5, 5); ctx.closePath(); ctx.fill();
+      ctx.globalAlpha = 0.6; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('P' + other.num + ' ' + Math.round(Math.hypot(other.x - s.x, other.y - s.y)) + 'm', 0, -9);
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
   }
 
   // Leaderboard
@@ -1451,7 +1477,7 @@ function drawHUDFor(s) {
       const label = e.isPlayer ? (mode === '2P' ? `P${e.num}` : 'YOU') : e.name;
       ctx.fillText(`${i + 1}. ${label}`, lbX + 4, lbY + 10 + i * 14);
       ctx.fillStyle = isMe ? '#fe4' : '#aaa';
-      ctx.fillText(`${e.totalOre}`, lbX + 56, lbY + 10 + i * 14);
+      ctx.fillText(`$${e.money}`, lbX + 56, lbY + 10 + i * 14);
     }
   }
 
@@ -1494,7 +1520,7 @@ function drawShop(s, vx, vy, vw, vh) {
   ctx.textAlign = 'center'; ctx.font = 'bold 22px sans-serif'; ctx.fillStyle = '#8af';
   ctx.fillText(mode === '2P' ? `P${s.num} SHOP` : 'STATION SHOP', cx, py + 32);
   ctx.font = '13px sans-serif'; ctx.fillStyle = '#fe4';
-  ctx.fillText(`Ore: ${s.ore}`, cx, py + 52);
+  ctx.fillText(`$${s.money}`, cx, py + 52);
 
   const upKeys = Object.keys(UPGRADES);
   for (let i = 0; i < upKeys.length; i++) {
@@ -1513,7 +1539,7 @@ function drawShop(s, vx, vy, vw, vh) {
 
     ctx.textAlign = 'right'; ctx.font = '13px sans-serif';
     if (level >= 3) { ctx.fillStyle = '#4f8'; ctx.fillText('MAX', px + pw - 20, iy + 16); }
-    else { const cost = up.costs[level]; ctx.fillStyle = s.ore >= cost ? '#fe4' : '#844'; ctx.fillText(`${cost} ore`, px + pw - 20, iy + 16); }
+    else { const cost = up.costs[level]; ctx.fillStyle = s.money >= cost ? '#fe4' : '#844'; ctx.fillText(`$${cost}`, px + pw - 20, iy + 16); }
   }
 
   // Repair option
@@ -1532,7 +1558,7 @@ function drawShop(s, vx, vy, vw, vh) {
   ctx.fillRect(px + 20, ry + 35, 54 * hpFrac, 5);
   ctx.textAlign = 'right'; ctx.font = '13px sans-serif';
   if (s.hp >= s.maxHp) { ctx.fillStyle = '#4f8'; ctx.fillText('FULL', px + pw - 20, ry + 16); }
-  else { ctx.fillStyle = s.ore >= REPAIR_COST ? '#fe4' : '#844'; ctx.fillText(`${REPAIR_COST} ore`, px + pw - 20, ry + 16); }
+  else { ctx.fillStyle = s.money >= REPAIR_COST ? '#fe4' : '#844'; ctx.fillText(`$${REPAIR_COST}`, px + pw - 20, ry + 16); }
 
   ctx.textAlign = 'center'; ctx.font = '11px sans-serif'; ctx.fillStyle = '#555';
   const dockKey = s.num === 1 ? 'E' : 'RShift';
@@ -1609,7 +1635,7 @@ function drawGameOver() {
     const e = standings[i];
     ctx.fillStyle = e.isPlayer ? '#4f8' : e.color;
     const label = e.isPlayer ? (mode === '2P' ? `P${e.num}` : 'YOU') : e.name;
-    ctx.fillText(`#${i + 1}  ${label} — ${e.totalOre} ore`, canvas.width / 2, startY + 18 + i * 15);
+    ctx.fillText(`#${i + 1}  ${label} — $${e.money}`, canvas.width / 2, startY + 18 + i * 15);
   }
   ctx.font = '16px sans-serif'; ctx.fillStyle = '#8af';
   ctx.fillText('Press Space to return to menu', canvas.width / 2, startY + 30 + Math.min(standings.length, 8) * 15);
