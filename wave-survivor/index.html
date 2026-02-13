@@ -1304,11 +1304,11 @@ function update() {
           if (distToPlayer > 60) {
             const blend = Math.min(1, distToPlayer / 200);
             const moveAngle = directAngle * (1 - blend * 0.3) + attackAngle * (blend * 0.3);
-            e.x += Math.cos(moveAngle) * e.speed * 2;
-            e.y += Math.sin(moveAngle) * e.speed * 2;
+            e.x += Math.cos(moveAngle) * e.speed * 1.5;
+            e.y += Math.sin(moveAngle) * e.speed * 1.5;
           } else {
-            e.x += Math.cos(directAngle) * e.speed * 2;
-            e.y += Math.sin(directAngle) * e.speed * 2;
+            e.x += Math.cos(directAngle) * e.speed * 1.5;
+            e.y += Math.sin(directAngle) * e.speed * 1.5;
           }
         } else if (brain) {
           // Guard: stay between brain and player, forming a shield
@@ -1328,7 +1328,7 @@ function update() {
             const targetY = brain.y + Math.sin(guardAngle) * guardDist;
             const toTargetAngle = Math.atan2(targetY - e.y, targetX - e.x);
             const tDist = Math.hypot(targetX - e.x, targetY - e.y);
-            const moveSpeed = Math.min(e.speed * 2, tDist * 0.06);
+            const moveSpeed = Math.min(e.speed * 1.5, tDist * 0.06);
             e.x += Math.cos(toTargetAngle) * moveSpeed;
             e.y += Math.sin(toTargetAngle) * moveSpeed;
           }
