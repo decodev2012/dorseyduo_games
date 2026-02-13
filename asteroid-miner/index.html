@@ -157,6 +157,13 @@ function stopMusic() {
   musicPlaying = false;
 }
 
+// Check if a world position is visible to any player (within their viewport)
+const HEAR_DIST = 500;
+function canHear(wx, wy) {
+  for (const s of ships) { if (s.alive && Math.hypot(wx - s.x, wy - s.y) < HEAR_DIST) return true; }
+  return false;
+}
+
 // ── Input ──
 const keys = {};
 const prevKeys = {};
@@ -259,6 +266,29 @@ function createBotShip(base) {
     targetAst: null, targetEnemy: null, respawnTimer: 0,
     num: -(ci + 1), isBot: true, grudge: 0,
   };
+  // Catch up to average progression so late-spawning bots aren't underpowered
+  if (botShips.length > 0) {
+    let totalMoney = 0, totalUpg = 0;
+    for (const b of botShips) {
+      totalMoney += b.money;
+      totalUpg += Object.values(b.upgrades).reduce((a, v) => a + v, 0);
+    }
+    const avgMoney = Math.floor(totalMoney / botShips.length);
+    const avgUpg = Math.floor(totalUpg / botShips.length);
+    bot.money = avgMoney;
+    // Apply random upgrades to match average level
+    const upKeys = Object.keys(bot.upgrades);
+    for (let u = 0; u < avgUpg; u++) {
+      const candidates = upKeys.filter(k => bot.upgrades[k] < 3);
+      if (candidates.length === 0) break;
+      const key = candidates[Math.floor(Math.random() * candidates.length)];
+      bot.upgrades[key]++;
+    }
+    bot.maxHp = 5 + bot.upgrades.hull * 2; bot.hp = bot.maxHp;
+    bot.thrustPower = 0.12 + bot.upgrades.engine * 0.02;
+    bot.laserDamage = 1 + Math.floor(bot.upgrades.laser * 0.5);
+    bot.maxShield = bot.upgrades.shield; bot.shield = bot.maxShield;
+  }
   base.botShip = bot;
   return bot;
 }
@@ -336,7 +366,7 @@ function damageBotShip(bot, dmg, fromX, fromY, fromPlayer) {
   if (bot.hp <= 0) {
     spawnParticles(bot.x, bot.y, '#f80', 20, 4);
     spawnParticles(bot.x, bot.y, bot.color, 15, 3);
-    sfxDeath();
+    if (canHear(bot.x, bot.y)) sfxDeath();
     bot.alive = false;
     // Drop some ore on death
     const dropCount = Math.min(5, Math.floor(bot.ore / 2));
@@ -348,7 +378,7 @@ function damageBotShip(bot, dmg, fromX, fromY, fromPlayer) {
       });
     }
     bot.ore = 0;
-    bot.respawnTimer = 300;
+    bot.respawnTimer = 1;
     // Killed by player — respawn angry
     if (fromPlayer) bot.grudge = 10;
   }
@@ -406,6 +436,13 @@ function updateBotShip(bot) {
   if (bot.grudge > 0) bot.grudge -= 0.002;
 
   // State transitions
+  // Defend home base if under attack
+  if (hasBase && bot.homeBase.underAttack > 0 && bot.state !== 'returning') {
+    bot.state = 'defending'; bot.targetEnemy = null;
+  }
+  if (bot.state === 'defending' && (!hasBase || bot.homeBase.underAttack <= 0)) {
+    bot.state = 'mining'; bot.targetEnemy = null;
+  }
   if (hpPct < 0.35 && hasBase && bot.state !== 'revenge') {
     bot.state = 'returning'; bot.targetEnemy = null;
   } else if (bot.grudge >= 5 && bot.state !== 'returning' && stations.some(st => !st.destroyed)) {
@@ -489,6 +526,27 @@ function updateBotShip(bot) {
       botSteer(bot, nearestEnemy.x, nearestEnemy.y, true);
       botTryShoot(bot);
     }
+  } else if (bot.state === 'defending') {
+    // Rush back to base and fight enemies near it
+    const d = Math.hypot(bot.homeBase.x - bot.x, bot.homeBase.y - bot.y);
+    botSteer(bot, bot.homeBase.x, bot.homeBase.y, d > 60);
+    if (d < 80) { bot.vx *= 0.92; bot.vy *= 0.92; }
+    // Attack any enemy near the base
+    let baseEnemy = null, beDist = 250;
+    for (const s of ships) {
+      if (!s.alive) continue;
+      const dd = Math.hypot(s.x - bot.homeBase.x, s.y - bot.homeBase.y);
+      if (dd < beDist) { beDist = dd; baseEnemy = s; }
+    }
+    for (const other of botShips) {
+      if (!other.alive || other === bot) continue;
+      const dd = Math.hypot(other.x - bot.homeBase.x, other.y - bot.homeBase.y);
+      if (dd < beDist) { beDist = dd; baseEnemy = other; }
+    }
+    if (baseEnemy) {
+      botSteer(bot, baseEnemy.x, baseEnemy.y, Math.hypot(baseEnemy.x - bot.x, baseEnemy.y - bot.y) > 80);
+      botTryShoot(bot);
+    }
   }
 
   // Apply velocity
@@ -506,14 +564,14 @@ function initGame() {
   ships = [];
   stations = [];
   if (mode === '1P') {
-    const st = { x: 0, y: 0, hp: 30, maxHp: 30, destroyed: false, owner: 1, color: '#8af' };
+    const st = { x: 0, y: 0, hp: 30, maxHp: 30, destroyed: false, owner: 1, color: '#8af', underAttack: 0 };
     stations.push(st);
     const s1 = createShip(-30, -80, '#4f8', '#aff', 1);
     s1.station = st;
     ships.push(s1);
   } else {
-    const st1 = { x: -400, y: 0, hp: 30, maxHp: 30, destroyed: false, owner: 1, color: '#4f8' };
-    const st2 = { x: 400, y: 0, hp: 30, maxHp: 30, destroyed: false, owner: 2, color: '#f84' };
+    const st1 = { x: -400, y: 0, hp: 30, maxHp: 30, destroyed: false, owner: 1, color: '#4f8', underAttack: 0 };
+    const st2 = { x: 400, y: 0, hp: 30, maxHp: 30, destroyed: false, owner: 2, color: '#f84', underAttack: 0 };
     stations.push(st1, st2);
     const s1 = createShip(st1.x - 30, st1.y - 80, '#4f8', '#aff', 1);
     s1.station = st1;
@@ -578,10 +636,10 @@ function spawnChunksFor(s) {
         const bx = cx * CHUNK_SIZE + Math.random() * CHUNK_SIZE;
         const by = cy * CHUNK_SIZE + Math.random() * CHUNK_SIZE;
         const base = {
-          x: bx, y: by, hp: 8 + Math.floor(dist), maxHp: 8 + Math.floor(dist),
+          x: bx, y: by, hp: 30, maxHp: 30,
           shootTimer: 0, shootCd: 80 + Math.floor(Math.random() * 40),
-          range: 300 + dist * 20, radius: 20, angle: Math.random() * Math.PI * 2,
-          flashTimer: 0
+          range: 300 + dist * 20, radius: STATION_RADIUS, angle: Math.random() * Math.PI * 2,
+          flashTimer: 0, underAttack: 0
         };
         alienBases.push(base);
         botShips.push(createBotShip(base));
@@ -598,13 +656,7 @@ function cleanupFar() {
     for (const s of ships) { if (s.alive && Math.hypot(a.x - s.x, a.y - s.y) < DESPAWN_DIST) { near = true; break; } }
     if (!near) asteroids.splice(i, 1);
   }
-  // Cleanup far alien bases and projectiles
-  for (let i = alienBases.length - 1; i >= 0; i--) {
-    const b = alienBases[i];
-    let near = false;
-    for (const s of ships) { if (s.alive && Math.hypot(b.x - s.x, b.y - s.y) < DESPAWN_DIST) { near = true; break; } }
-    if (!near) alienBases.splice(i, 1);
-  }
+  // Cleanup far alien projectiles
   for (let i = alienProjectiles.length - 1; i >= 0; i--) {
     const p = alienProjectiles[i];
     p.life--;
@@ -613,18 +665,7 @@ function cleanupFar() {
     for (const s of ships) { if (s.alive && Math.hypot(p.x - s.x, p.y - s.y) < DESPAWN_DIST) { near = true; break; } }
     if (!near) alienProjectiles.splice(i, 1);
   }
-  // Cleanup bot ships: remove if home base was cleaned up
-  for (let i = botShips.length - 1; i >= 0; i--) {
-    const b = botShips[i];
-    if (b.homeBase && !alienBases.includes(b.homeBase)) {
-      botShips.splice(i, 1); continue;
-    }
-    if (!b.alive && !b.homeBase) { botShips.splice(i, 1); continue; }
-    let near = false;
-    for (const s of ships) { if (s.alive && Math.hypot(b.x - s.x, b.y - s.y) < DESPAWN_DIST) { near = true; break; } }
-    if (b.homeBase && Math.hypot(b.x - b.homeBase.x, b.y - b.homeBase.y) < DESPAWN_DIST) near = true;
-    if (!near && b.alive) { botShips.splice(i, 1); }
-  }
+  // Bot bases and bot ships are persistent (max 10) — never despawned
 }
 
 // ── Particles ──
@@ -766,7 +807,7 @@ function update() {
         lasers.splice(i, 1);
         spawnParticles(l.x, l.y, ORE_TYPES[a.type].color, 4, 1.5);
         if (a.hp <= 0) destroyAsteroid(a, j, l.owner);
-        else sfxHit();
+        else if (canHear(l.x, l.y)) sfxHit();
         break;
       }
     }
@@ -832,7 +873,9 @@ function update() {
   for (const b of alienBases) {
     b.angle += 0.01;
     if (b.flashTimer > 0) b.flashTimer--;
+    if (b.underAttack > 0) b.underAttack--;
   }
+  for (const st of stations) { if (st.underAttack > 0) st.underAttack--; }
 
   // Alien projectiles: move + hit ships
   for (let i = alienProjectiles.length - 1; i >= 0; i--) {
@@ -858,6 +901,7 @@ function update() {
       if (Math.hypot(l.x - b.x, l.y - b.y) < b.radius) {
         b.hp -= l.damage;
         b.flashTimer = 6;
+        b.underAttack = 180;
         lasers.splice(i, 1);
         spawnParticles(l.x, l.y, '#0f0', 5, 1.5);
         if (b.hp <= 0) {
@@ -913,7 +957,7 @@ function update() {
       if (!b.alive || b.invuln > 0 || b === l.botRef) continue;
       if (Math.hypot(l.x - b.x, l.y - b.y) < SHIP_RADIUS) {
         damageBotShip(b, l.damage, l.x, l.y);
-        lasers.splice(i, 1); sfxHit(); break;
+        lasers.splice(i, 1); if (canHear(b.x, b.y)) sfxHit(); break;
       }
     }
   }
@@ -975,7 +1019,7 @@ function update() {
       const l = lasers[i];
       if (!l.isBot && l.owner === st.owner) continue; // don't hit own station
       if (Math.hypot(l.x - st.x, l.y - st.y) < STATION_RADIUS) {
-        st.hp--; lasers.splice(i, 1);
+        st.hp--; st.underAttack = 180; lasers.splice(i, 1);
         spawnParticles(l.x, l.y, '#fa0', 4, 1.5);
         screenShake = Math.max(screenShake, 3);
       }
@@ -983,7 +1027,7 @@ function update() {
     for (let i = alienProjectiles.length - 1; i >= 0; i--) {
       const p = alienProjectiles[i];
       if (Math.hypot(p.x - st.x, p.y - st.y) < STATION_RADIUS) {
-        st.hp--; alienProjectiles.splice(i, 1);
+        st.hp--; st.underAttack = 180; alienProjectiles.splice(i, 1);
         spawnParticles(p.x, p.y, '#fa0', 4, 1.5);
         screenShake = Math.max(screenShake, 3);
       }
@@ -1006,7 +1050,7 @@ function update() {
 }
 
 function destroyAsteroid(a, idx, ownerNum) {
-  sfxBreak();
+  if (canHear(a.x, a.y)) sfxBreak();
   spawnParticles(a.x, a.y, ORE_TYPES[a.type].color, 10, 2);
   const dc = a.size === 'large' ? 3 : a.size === 'medium' ? 2 : 1;
   for (let k = 0; k < dc; k++) {
@@ -1194,36 +1238,48 @@ function drawLasers() {
 function drawAlienBases() {
   for (const b of alienBases) {
     const sp = w2s(b.x, b.y);
-    if (sp.x < viewX - 40 || sp.x > viewX + viewW + 40 || sp.y < viewY - 40 || sp.y > viewY + viewH + 40) continue;
-    // Detection range ring
-    const nearShip = ships.some(s => s.alive && Math.hypot(s.x - b.x, s.y - b.y) < b.range);
-    if (nearShip) {
-      ctx.strokeStyle = 'rgba(255,0,0,0.08)'; ctx.lineWidth = 1;
-      // Scale range to screen (approximate)
-      ctx.beginPath(); ctx.arc(sp.x, sp.y, b.range * (viewW / 800), 0, Math.PI * 2); ctx.stroke();
-    }
+    if (sp.x < viewX - 50 || sp.x > viewX + viewW + 50 || sp.y < viewY - 50 || sp.y > viewY + viewH + 50) continue;
     const botColor = b.botShip ? b.botShip.color : '#0f0';
-    // Base glow
-    ctx.fillStyle = b.flashTimer > 0 ? 'rgba(255,255,100,0.15)' : (botColor + '18');
-    ctx.beginPath(); ctx.arc(sp.x, sp.y, 28, 0, Math.PI * 2); ctx.fill();
-    // Base body: hexagon
-    ctx.fillStyle = b.flashTimer > 0 ? '#4a4' : '#1a1a2a';
-    ctx.strokeStyle = botColor; ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    for (let i = 0; i < 6; i++) {
-      const a = b.angle + i * Math.PI / 3;
-      const px = sp.x + Math.cos(a) * b.radius, py = sp.y + Math.sin(a) * b.radius;
-      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    const destroyed = b.hp <= 0;
+
+    ctx.save();
+    ctx.translate(sp.x, sp.y);
+    ctx.rotate(b.angle);
+    if (destroyed) {
+      ctx.strokeStyle = '#555'; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; const r = STATION_RADIUS * (0.6 + Math.sin(i * 3) * 0.3); if (i === 0) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r); else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+      ctx.closePath(); ctx.stroke();
+      ctx.fillStyle = 'rgba(80,80,80,0.1)'; ctx.fill();
+      ctx.fillStyle = '#333'; ctx.fillRect(-45, -3, 12, 6); ctx.fillRect(30, -2, 10, 4);
+      ctx.fillStyle = '#555'; ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); ctx.fill();
+    } else {
+      ctx.strokeStyle = botColor; ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; if (i === 0) ctx.moveTo(Math.cos(a) * STATION_RADIUS, Math.sin(a) * STATION_RADIUS); else ctx.lineTo(Math.cos(a) * STATION_RADIUS, Math.sin(a) * STATION_RADIUS); }
+      ctx.closePath(); ctx.stroke();
+      ctx.globalAlpha = 0.1; ctx.fillStyle = botColor; ctx.fill(); ctx.globalAlpha = 1;
+      ctx.fillStyle = botColor; ctx.globalAlpha = 0.4; ctx.fillRect(-45, -4, 16, 8); ctx.fillRect(29, -4, 16, 8); ctx.globalAlpha = 1;
+      ctx.fillStyle = botColor; ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill();
     }
-    ctx.closePath(); ctx.fill(); ctx.stroke();
-    // Inner eye
-    ctx.fillStyle = nearShip ? '#f00' : botColor;
-    ctx.beginPath(); ctx.arc(sp.x, sp.y, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
     // HP bar
-    if (b.hp < b.maxHp) {
-      const bw = 30, bh = 3;
-      ctx.fillStyle = '#300'; ctx.fillRect(sp.x - bw/2, sp.y - b.radius - 8, bw, bh);
-      ctx.fillStyle = botColor; ctx.fillRect(sp.x - bw/2, sp.y - b.radius - 8, bw * (b.hp / b.maxHp), bh);
+    if (!destroyed && b.hp < b.maxHp) {
+      const bw = 50, bh = 4;
+      const hpFrac = b.hp / b.maxHp;
+      ctx.fillStyle = '#300'; ctx.fillRect(sp.x - bw/2, sp.y + STATION_RADIUS + 8, bw, bh);
+      ctx.fillStyle = hpFrac > 0.5 ? botColor : hpFrac > 0.25 ? '#fa0' : '#f44';
+      ctx.fillRect(sp.x - bw/2, sp.y + STATION_RADIUS + 8, bw * hpFrac, bh);
+    }
+    if (destroyed) {
+      ctx.fillStyle = '#f44'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('DESTROYED', sp.x, sp.y + STATION_RADIUS + 14);
+    }
+    // Bot name label
+    if (!destroyed && b.botShip) {
+      ctx.fillStyle = botColor; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(b.botShip.name, sp.x, sp.y - STATION_RADIUS - 8);
     }
   }
 }
@@ -1459,6 +1515,18 @@ function drawHUDFor(s) {
       ctx.globalAlpha = 1;
       ctx.restore();
     }
+  }
+
+  // Base under attack warning
+  if (s.station && s.station.underAttack > 0 && !s.station.destroyed) {
+    const pulse = 0.7 + Math.sin(Date.now() * 0.01) * 0.3;
+    const wx = viewX + viewW / 2, wy = viewY + 50;
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = '#200'; ctx.strokeStyle = '#f44'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(wx - 90, wy - 12, 180, 28, 8); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#f44'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('BASE UNDER ATTACK!', wx, wy + 5);
+    ctx.globalAlpha = 1;
   }
 
   // Leaderboard
