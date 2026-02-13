@@ -233,6 +233,7 @@ function createShip(x, y, color, cockpitColor, num) {
   };
 }
 
+const BOT_NAMES = ['Cipher','Atlas','Echo','Zenith','Orion','Lynx','Helix','Sable','Flux','Kestrel','Sigma','Nyx','Ion','Frost','Halo','Nova','Viper','Raptor','Blaze','Ghost','Razor','Comet','Jinx','Havoc','Talon','Scorch','Drift','Vector','Pulse','Onyx','Flint','Striker','Phantom','Zero','Riot'];
 const BOT_COLORS = [
   { color: '#f80', cockpit: '#fda' },
   { color: '#c4f', cockpit: '#eaf' },
@@ -255,6 +256,7 @@ function createBotShip(base) {
     upgrades: { hull: 0, engine: 0, laser: 0, rate: 0, shield: 0, magnet: 0 },
     thrusting: false,
     color: BOT_COLORS[ci].color, cockpitColor: BOT_COLORS[ci].cockpit,
+    name: BOT_NAMES[ci % BOT_NAMES.length],
     homeBase: base, state: 'mining',
     targetAst: null, targetEnemy: null, respawnTimer: 0,
     num: -(ci + 1), isBot: true, grudge: 0,
@@ -925,6 +927,30 @@ function update() {
     }
   }
 
+  // Player vs player (2P mode)
+  if (mode === '2P') {
+    // Player lasers vs other player
+    for (let i = lasers.length - 1; i >= 0; i--) {
+      const l = lasers[i];
+      if (l.isBot) continue;
+      for (const s of ships) {
+        if (!s.alive || s.invuln > 0 || s.num === l.owner) continue;
+        if (Math.hypot(l.x - s.x, l.y - s.y) < SHIP_RADIUS) {
+          damageShip(s, l.damage, l.x, l.y);
+          lasers.splice(i, 1); sfxHit(); break;
+        }
+      }
+    }
+    // Player ship collision
+    const s1 = ships[0], s2 = ships[1];
+    if (s1.alive && s2.alive && s1.invuln <= 0 && s2.invuln <= 0) {
+      if (Math.hypot(s1.x - s2.x, s1.y - s2.y) < SHIP_RADIUS * 2) {
+        damageShip(s1, 1, s2.x, s2.y);
+        damageShip(s2, 1, s1.x, s1.y);
+      }
+    }
+  }
+
   // Bot lasers + alien projectiles damage station
   if (!stationDestroyed) {
     for (let i = lasers.length - 1; i >= 0; i--) {
@@ -1198,21 +1224,23 @@ function drawBotShips() {
   for (const b of botShips) {
     if (!b.alive) continue;
     drawShipAt(b);
+    const sp0 = w2s(b.x, b.y);
+    // Name tag above bot
+    ctx.fillStyle = b.color; ctx.font = '8px sans-serif'; ctx.textAlign = 'center'; ctx.globalAlpha = 0.7;
+    ctx.fillText(b.name, sp0.x, sp0.y - (b.hp < b.maxHp ? 24 : 20));
+    ctx.globalAlpha = 1;
     // Angry indicator when seeking revenge
     if (b.state === 'revenge') {
-      const sp2 = w2s(b.x, b.y);
       ctx.fillStyle = '#f44'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText('!', sp2.x, sp2.y - 20);
-      // Red glow around ship
+      ctx.fillText('!', sp0.x + ctx.measureText(b.name).width / 2 + 6, sp0.y - (b.hp < b.maxHp ? 24 : 20));
       ctx.strokeStyle = 'rgba(255,50,50,0.4)'; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(sp2.x, sp2.y, SHIP_RADIUS + 4, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(sp0.x, sp0.y, SHIP_RADIUS + 4, 0, Math.PI * 2); ctx.stroke();
     }
     // HP bar above bot
     if (b.hp < b.maxHp) {
-      const sp = w2s(b.x, b.y);
       const bw = 22, bh = 3;
-      ctx.fillStyle = '#300'; ctx.fillRect(sp.x - bw/2, sp.y - 18, bw, bh);
-      ctx.fillStyle = b.color; ctx.fillRect(sp.x - bw/2, sp.y - 18, bw * (b.hp / b.maxHp), bh);
+      ctx.fillStyle = '#300'; ctx.fillRect(sp0.x - bw/2, sp0.y - 18, bw, bh);
+      ctx.fillStyle = b.color; ctx.fillRect(sp0.x - bw/2, sp0.y - 18, bw * (b.hp / b.maxHp), bh);
     }
     // Upgrade level indicators (small dots below ship)
     const sp = w2s(b.x, b.y);
@@ -1252,7 +1280,7 @@ function drawParticlesWorld() {
 function getStandings() {
   const list = [];
   for (const s of ships) list.push({ color: s.color, totalOre: s.totalOre, isPlayer: true, num: s.num, alive: s.alive });
-  for (const b of botShips) list.push({ color: b.color, totalOre: b.totalOre, isPlayer: false, alive: b.alive });
+  for (const b of botShips) list.push({ color: b.color, totalOre: b.totalOre, isPlayer: false, alive: b.alive, name: b.name });
   list.sort((a, b) => b.totalOre - a.totalOre);
   return list;
 }
@@ -1375,7 +1403,7 @@ function drawHUDFor(s) {
     ctx.fillStyle = angry ? '#f44' : b.color; ctx.globalAlpha = 0.85;
     ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-5, -5); ctx.lineTo(-2, 0); ctx.lineTo(-5, 5); ctx.closePath(); ctx.fill();
     ctx.globalAlpha = 0.5; ctx.font = '8px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText((angry ? '! ' : '') + Math.round(Math.hypot(b.x - s.x, b.y - s.y)) + 'm', 0, -9);
+    ctx.fillText((angry ? '! ' : '') + b.name + ' ' + Math.round(Math.hypot(b.x - s.x, b.y - s.y)) + 'm', 0, -9);
     ctx.globalAlpha = 1;
     ctx.restore();
   }
@@ -1385,7 +1413,7 @@ function drawHUDFor(s) {
   if (standings.length > 1) {
     const lbX = viewX + 6, lbY = viewY + viewH - mmH - 16 - Math.min(standings.length, 6) * 14;
     ctx.fillStyle = 'rgba(0,0,0,0.45)';
-    ctx.fillRect(lbX, lbY - 14, 90, Math.min(standings.length, 6) * 14 + 16);
+    ctx.fillRect(lbX, lbY - 14, 100, Math.min(standings.length, 6) * 14 + 16);
     ctx.textAlign = 'left'; ctx.font = 'bold 9px sans-serif'; ctx.fillStyle = '#8af';
     ctx.fillText('LEADERBOARD', lbX + 4, lbY - 3);
     ctx.font = '10px sans-serif';
@@ -1393,10 +1421,10 @@ function drawHUDFor(s) {
       const e = standings[i];
       const isMe = e.isPlayer && e.num === s.num;
       ctx.fillStyle = isMe ? '#fff' : (e.alive ? e.color : '#555');
-      const label = e.isPlayer ? (mode === '2P' ? `P${e.num}` : 'YOU') : 'Bot';
+      const label = e.isPlayer ? (mode === '2P' ? `P${e.num}` : 'YOU') : e.name;
       ctx.fillText(`${i + 1}. ${label}`, lbX + 4, lbY + 10 + i * 14);
       ctx.fillStyle = isMe ? '#fe4' : '#aaa';
-      ctx.fillText(`${e.totalOre}`, lbX + 52, lbY + 10 + i * 14);
+      ctx.fillText(`${e.totalOre}`, lbX + 56, lbY + 10 + i * 14);
     }
   }
 
@@ -1550,7 +1578,7 @@ function drawGameOver() {
   for (let i = 0; i < Math.min(standings.length, 8); i++) {
     const e = standings[i];
     ctx.fillStyle = e.isPlayer ? '#4f8' : e.color;
-    const label = e.isPlayer ? (mode === '2P' ? `P${e.num}` : 'YOU') : `Bot`;
+    const label = e.isPlayer ? (mode === '2P' ? `P${e.num}` : 'YOU') : e.name;
     ctx.fillText(`#${i + 1}  ${label} — ${e.totalOre} ore`, canvas.width / 2, startY + 18 + i * 15);
   }
   ctx.font = '16px sans-serif'; ctx.fillStyle = '#8af';
