@@ -301,8 +301,8 @@ function updateField(f,fi,dt){
   // Level clear (1P)
   if(mode==='1p'&&f.bricks.every(b=>!b.alive)){state='levelComplete';snd('win')}
 
-  // All cleared (2P) - regenerate
-  if(mode==='2p'&&f.bricks.every(b=>!b.alive))gen2P(f);
+  // All cleared (2P) - that player wins
+  if(mode==='2p'&&f.bricks.every(b=>!b.alive)){winner=fi;state='gameOver';snd('win')}
 }
 
 // ── Drawing ──
