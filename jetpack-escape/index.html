@@ -57,6 +57,18 @@ document.addEventListener('keydown', e => {
   }
 });
 document.addEventListener('keyup', e => { keys[e.code] = false; });
+// Infinite boost toggle button on menu
+let boostBtnRect = { x: 0, y: 0, w: 0, h: 0 };
+canvas.addEventListener('click', e => {
+  if (state !== 'menu') return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * (W / rect.width);
+  const my = (e.clientY - rect.top) * (H / rect.height);
+  const b = boostBtnRect;
+  if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) {
+    infiniteBoost = !infiniteBoost;
+  }
+});
 
 // ── Audio ──
 let audioCtx = null;
@@ -152,6 +164,7 @@ function saveBest() { try { localStorage.setItem('jetpack_escape', JSON.stringif
 loadBest();
 
 // ── State ──
+let infiniteBoost = false;
 let state = 'menu';
 let player = null;
 let camera = { y: 0 };
@@ -176,7 +189,7 @@ function createPlayer() {
     fuel: MAX_FUEL, thrusting: false,
     lean: 0, armAngle: 0, legAngle: 0,
     hasShield: false, boosting: false, boostTimer: 0,
-    alive: true, height: 0, facingDir: 0, packDir: 1,
+    alive: true, height: 0, facingDir: 0,
   };
 }
 
@@ -261,7 +274,7 @@ function updatePlayer(dt) {
   p.thrusting = false;
   if ((keys['KeyW'] || keys['ArrowUp']) && p.fuel > 0) {
     p.vy -= THRUST_POWER * dt;
-    p.fuel = Math.max(0, p.fuel - FUEL_BURN_RATE * dt);
+    if (!infiniteBoost) p.fuel = Math.max(0, p.fuel - FUEL_BURN_RATE * dt);
     p.thrusting = true;
   }
   let hInput = 0;
@@ -289,93 +302,101 @@ function updatePlayer(dt) {
   const ta = p.vy > 0 ? -0.4 : (p.thrusting ? 0.3 : 0);
   p.armAngle += (ta - p.armAngle) * 3 * dt;
   p.legAngle = Math.sin(gameTime * 2) * 0.08 + (p.vy > 200 ? 0.15 : 0);
-  if (hInput !== 0) { p.facingDir = hInput; p.packDir = hInput; }
+  if (hInput !== 0) p.facingDir = hInput;
   else if (Math.abs(p.vx) < 20) p.facingDir = 0;
   p.height = Math.max(p.height, -p.y);
   setThrusterOn(p.thrusting && p.fuel > 0);
 }
 
-// ── Drawing Character (derpy cute astronaut, 3/4 side view) ──
-// Backpack visible on the trailing side, body shifted opposite, flames come from pack
-const BPX = 12; // backpack x offset in local space (always right, mirrored by scale)
+// ── Drawing Character (derpy cute astronaut, dual side boosters) ──
+const BOOSTER_X = 13; // booster pod x offset from center (symmetric)
 
 function drawPlayer() {
   const p = player;
   if (!p.alive && deathTimer > 15) return;
   const sx = p.x, sy = p.y - camera.y;
-  const dir = p.packDir; // 1 = facing right (pack on right), -1 = facing left (pack on left)
   ctx.save();
   ctx.translate(sx, sy);
-  ctx.scale(dir, 1); // mirror entire character when facing left
-  ctx.rotate(p.lean * dir); // counteract scale flip for lean direction
+  ctx.rotate(p.lean);
 
-  // ── Backpack / Jetpack (visible on right side) ──
-  // Pack body
-  const bpg = ctx.createLinearGradient(BPX - 8, 0, BPX + 8, 0);
-  bpg.addColorStop(0, '#778'); bpg.addColorStop(0.5, '#99a'); bpg.addColorStop(1, '#556');
-  ctx.fillStyle = bpg;
-  ctx.beginPath(); ctx.roundRect(BPX - 8, -10, 16, 24, 4); ctx.fill();
-  ctx.strokeStyle = '#445'; ctx.lineWidth = 1.5; ctx.stroke();
-  // Pack details — rivets
-  ctx.fillStyle = '#aab';
-  ctx.beginPath(); ctx.arc(BPX - 4, -6, 1.5, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(BPX + 4, -6, 1.5, 0, Math.PI * 2); ctx.fill();
-  // Fuel gauge on pack face
-  const ff = p.fuel / MAX_FUEL;
-  ctx.fillStyle = '#222'; ctx.beginPath(); ctx.roundRect(BPX - 5, -1, 10, 4, 1); ctx.fill();
-  ctx.fillStyle = ff > 0.3 ? '#0f0' : ff > 0.1 ? '#fa0' : '#f00';
-  ctx.fillRect(BPX - 4, 0, 8 * ff, 2);
-  // Strap connecting pack to body
-  ctx.strokeStyle = '#667'; ctx.lineWidth = 3; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(BPX - 8, -8); ctx.lineTo(3, -10); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(BPX - 8, 8); ctx.lineTo(3, 6); ctx.stroke();
-  // Nozzle at bottom of pack
-  ctx.fillStyle = '#444';
-  ctx.beginPath(); ctx.roundRect(BPX - 5, 14, 10, 5, 2); ctx.fill();
-  ctx.strokeStyle = '#333'; ctx.lineWidth = 1; ctx.stroke();
+  // ── Dual Booster Pods (one on each side) ──
+  for (const side of [-1, 1]) {
+    const bx = side * BOOSTER_X;
+    // Pod body
+    const bpg = ctx.createLinearGradient(bx - 5, 0, bx + 5, 0);
+    bpg.addColorStop(0, side < 0 ? '#556' : '#778');
+    bpg.addColorStop(0.5, '#99a');
+    bpg.addColorStop(1, side < 0 ? '#778' : '#556');
+    ctx.fillStyle = bpg;
+    ctx.beginPath(); ctx.roundRect(bx - 5, -6, 10, 18, 3); ctx.fill();
+    ctx.strokeStyle = '#445'; ctx.lineWidth = 1.2; ctx.stroke();
+    // Rivet
+    ctx.fillStyle = '#aab';
+    ctx.beginPath(); ctx.arc(bx, -3, 1.2, 0, Math.PI * 2); ctx.fill();
+    // Fuel gauge on pod
+    const ff = p.fuel / MAX_FUEL;
+    ctx.fillStyle = '#222'; ctx.beginPath(); ctx.roundRect(bx - 3, 2, 6, 3, 1); ctx.fill();
+    ctx.fillStyle = ff > 0.3 ? '#0f0' : ff > 0.1 ? '#fa0' : '#f00';
+    ctx.fillRect(bx - 2, 2.5, 4 * ff, 2);
+    // Strap connecting pod to body
+    ctx.strokeStyle = '#667'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(bx - side * 5, -4); ctx.lineTo(side * 3, -8); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(bx - side * 5, 8); ctx.lineTo(side * 3, 5); ctx.stroke();
+    // Nozzle at bottom of pod
+    ctx.fillStyle = '#444';
+    ctx.beginPath(); ctx.roundRect(bx - 4, 12, 8, 4, 2); ctx.fill();
+    ctx.strokeStyle = '#333'; ctx.lineWidth = 0.8; ctx.stroke();
+  }
 
-  // ── Flames (from the backpack nozzle) ──
+  // ── Flames (from both nozzles) ──
   if (p.thrusting && p.fuel > 0) {
-    const fx = BPX; // flames come from pack center
-    const fy = 19;
-    const fl = 18 + Math.random() * 12;
-    const wb = Math.sin(gameTime * 12) * 3;
-    // Outer orange flame
-    const og = ctx.createLinearGradient(fx, fy, fx, fy + fl);
-    og.addColorStop(0, 'rgba(255,200,50,0.9)'); og.addColorStop(0.4, 'rgba(255,120,20,0.7)'); og.addColorStop(1, 'rgba(255,50,10,0)');
-    ctx.fillStyle = og;
-    ctx.beginPath();
-    ctx.moveTo(fx - 6, fy); ctx.quadraticCurveTo(fx - 4 + wb, fy + fl * 0.6, fx + wb * 0.5, fy + fl);
-    ctx.quadraticCurveTo(fx + 4 + wb, fy + fl * 0.6, fx + 6, fy); ctx.fill();
-    // Inner blue core
-    const cl = 11 + Math.random() * 5;
-    const cg = ctx.createLinearGradient(fx, fy, fx, fy + cl);
-    cg.addColorStop(0, 'rgba(200,220,255,0.9)'); cg.addColorStop(0.5, 'rgba(100,150,255,0.6)'); cg.addColorStop(1, 'rgba(50,80,255,0)');
-    ctx.fillStyle = cg;
-    ctx.beginPath();
-    ctx.moveTo(fx - 3, fy); ctx.quadraticCurveTo(fx - 1, fy + cl * 0.7, fx, fy + cl);
-    ctx.quadraticCurveTo(fx + 1, fy + cl * 0.7, fx + 3, fy); ctx.fill();
-    // Flame particles (from pack position in world space)
-    for (let i = 0; i < 3; i++) {
-      // Account for lean rotation when computing world position of pack
-      const cosL = Math.cos(p.lean), sinL = Math.sin(p.lean);
-      const wpx = p.x + dir * BPX * cosL;
-      const wpy = p.y + dir * BPX * sinL + 22;
-      particles.push({
-        x: wpx + (Math.random() - 0.5) * 10,
-        y: wpy + Math.random() * 5,
-        vx: (Math.random() - 0.5) * 30 + p.vx * 0.3,
-        vy: 80 + Math.random() * 60,
-        life: 0.3 + Math.random() * 0.3, maxLife: 0.6,
-        color: Math.random() < 0.3 ? '#4af' : Math.random() < 0.5 ? '#fa0' : '#f80',
-        size: 2 + Math.random() * 3,
-      });
+    for (const side of [-1, 1]) {
+      const fx = side * BOOSTER_X;
+      const fy = 16;
+      const fl = 16 + Math.random() * 10;
+      const wb = Math.sin(gameTime * 12 + side) * 2.5;
+      // Outer orange flame
+      const og = ctx.createLinearGradient(fx, fy, fx, fy + fl);
+      og.addColorStop(0, 'rgba(255,200,50,0.9)'); og.addColorStop(0.4, 'rgba(255,120,20,0.7)'); og.addColorStop(1, 'rgba(255,50,10,0)');
+      ctx.fillStyle = og;
+      ctx.beginPath();
+      ctx.moveTo(fx - 5, fy); ctx.quadraticCurveTo(fx - 3 + wb, fy + fl * 0.6, fx + wb * 0.5, fy + fl);
+      ctx.quadraticCurveTo(fx + 3 + wb, fy + fl * 0.6, fx + 5, fy); ctx.fill();
+      // Inner blue core
+      const cl = 9 + Math.random() * 4;
+      const cg = ctx.createLinearGradient(fx, fy, fx, fy + cl);
+      cg.addColorStop(0, 'rgba(200,220,255,0.9)'); cg.addColorStop(0.5, 'rgba(100,150,255,0.6)'); cg.addColorStop(1, 'rgba(50,80,255,0)');
+      ctx.fillStyle = cg;
+      ctx.beginPath();
+      ctx.moveTo(fx - 2.5, fy); ctx.quadraticCurveTo(fx - 1, fy + cl * 0.7, fx, fy + cl);
+      ctx.quadraticCurveTo(fx + 1, fy + cl * 0.7, fx + 2.5, fy); ctx.fill();
     }
-    if (Math.random() < 0.5) {
+    // Flame particles (from both pods in world space)
+    for (const side of [-1, 1]) {
       const cosL = Math.cos(p.lean), sinL = Math.sin(p.lean);
+      const bx = side * BOOSTER_X;
+      const wpx = p.x + bx * cosL;
+      const wpy = p.y + bx * sinL + 20;
+      if (Math.random() < 0.7) {
+        particles.push({
+          x: wpx + (Math.random() - 0.5) * 8,
+          y: wpy + Math.random() * 4,
+          vx: (Math.random() - 0.5) * 25 + p.vx * 0.3,
+          vy: 80 + Math.random() * 60,
+          life: 0.3 + Math.random() * 0.3, maxLife: 0.6,
+          color: Math.random() < 0.3 ? '#4af' : Math.random() < 0.5 ? '#fa0' : '#f80',
+          size: 2 + Math.random() * 2.5,
+        });
+      }
+    }
+    // Occasional smoke from a random side
+    if (Math.random() < 0.4) {
+      const side = Math.random() < 0.5 ? -1 : 1;
+      const cosL = Math.cos(p.lean), sinL = Math.sin(p.lean);
+      const bx = side * BOOSTER_X;
       particles.push({
-        x: p.x + dir * BPX * cosL + (Math.random() - 0.5) * 6,
-        y: p.y + dir * BPX * sinL + 24,
+        x: p.x + bx * cosL + (Math.random() - 0.5) * 5,
+        y: p.y + bx * sinL + 22,
         vx: (Math.random() - 0.5) * 15, vy: 20 + Math.random() * 30,
         life: 0.5 + Math.random() * 0.5, maxLife: 1,
         color: '#666', size: 3 + Math.random() * 3,
@@ -386,9 +407,8 @@ function drawPlayer() {
   // ── Stubby Legs (dangling, wiggling) ──
   const legWiggle = Math.sin(gameTime * 5) * 0.15;
   const fallSpread = Math.max(0, p.vy * 0.001);
-  // Front leg (left, closer to viewer)
   for (const side of [-1, 1]) {
-    const lx = side * 4 - 2; // body shifted slightly left of center
+    const lx = side * 4; // centered body
     const la = legWiggle * side + fallSpread * side;
     ctx.fillStyle = '#eee';
     ctx.save();
@@ -401,75 +421,70 @@ function drawPlayer() {
     ctx.restore();
   }
 
-  // ── Round Body (white spacesuit, shifted slightly left for 3/4 view) ──
-  const bodyX = -2;
-  const bg = ctx.createRadialGradient(bodyX - 2, -4, 2, bodyX, -2, 14);
+  // ── Round Body (white spacesuit, centered) ──
+  const bg = ctx.createRadialGradient(-2, -4, 2, 0, -2, 14);
   bg.addColorStop(0, '#fff'); bg.addColorStop(0.6, '#e8e8ee'); bg.addColorStop(1, '#c0c0cc');
   ctx.fillStyle = bg;
-  ctx.beginPath(); ctx.ellipse(bodyX, -2, 12, 11, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0, -2, 11, 11, 0, 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = '#aaa'; ctx.lineWidth = 1; ctx.stroke();
-  // Suit seam line (shows the side angle)
-  ctx.strokeStyle = '#ccc'; ctx.lineWidth = 0.8;
-  ctx.beginPath(); ctx.moveTo(bodyX + 4, -12); ctx.quadraticCurveTo(bodyX + 5, -2, bodyX + 4, 8); ctx.stroke();
-  // Belly detail
+  // Belly button
   ctx.fillStyle = '#ccc';
-  ctx.beginPath(); ctx.arc(bodyX - 1, 1, 2, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(0, 1, 2, 0, Math.PI * 2); ctx.fill();
 
-  // ── Big Round Helmet (oversized, derpy, shifted with body) ──
+  // ── Big Round Helmet (oversized, derpy) ──
   const hy = -18;
-  const hx = bodyX;
   // Helmet dome
-  const hg = ctx.createRadialGradient(hx - 3, hy - 3, 2, hx, hy, 16);
+  const hg = ctx.createRadialGradient(-3, hy - 3, 2, 0, hy, 16);
   hg.addColorStop(0, '#f0f0f5'); hg.addColorStop(0.5, '#d8d8e0'); hg.addColorStop(1, '#a0a0b0');
   ctx.fillStyle = hg;
-  ctx.beginPath(); ctx.arc(hx, hy, 15, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(0, hy, 15, 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = '#888'; ctx.lineWidth = 1.5; ctx.stroke();
   // Helmet rim
   ctx.strokeStyle = '#999'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.arc(hx, hy, 15, 0.15, Math.PI - 0.15); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, hy, 15, 0.15, Math.PI - 0.15); ctx.stroke();
 
   // Visor (big dark bubble)
-  const vg = ctx.createRadialGradient(hx - 2, hy - 2, 1, hx, hy, 11);
+  const vg = ctx.createRadialGradient(-2, hy - 2, 1, 0, hy, 11);
   vg.addColorStop(0, '#3a6a9a'); vg.addColorStop(0.5, '#1a3a5a'); vg.addColorStop(1, '#0a1a2a');
   ctx.fillStyle = vg;
-  ctx.beginPath(); ctx.arc(hx, hy + 1, 11, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(0, hy + 1, 11, 0, Math.PI * 2); ctx.fill();
   // Visor shine
   ctx.fillStyle = 'rgba(255,255,255,0.25)';
-  ctx.beginPath(); ctx.ellipse(hx - 4, hy - 3, 4, 3, -0.3, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-4, hy - 3, 4, 3, -0.3, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = 'rgba(255,255,255,0.4)';
-  ctx.beginPath(); ctx.arc(hx - 5, hy - 4, 1.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(-5, hy - 4, 1.5, 0, Math.PI * 2); ctx.fill();
 
   // ── Derpy Face ──
-  const ex = p.facingDir * dir * 2.5; // compensate for scale mirror
+  const ex = p.facingDir * 2.5;
   const blink = Math.sin(gameTime * 0.8) > 0.97;
   // Big round eyes
   ctx.fillStyle = '#fff';
-  ctx.beginPath(); ctx.arc(hx - 4 + ex, hy, 4, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(hx + 4 + ex, hy, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(-4 + ex, hy, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(4 + ex, hy, 4, 0, Math.PI * 2); ctx.fill();
   if (blink) {
     ctx.strokeStyle = '#222'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(hx - 7 + ex, hy); ctx.lineTo(hx - 1 + ex, hy); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(hx + 1 + ex, hy); ctx.lineTo(hx + 7 + ex, hy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-7 + ex, hy); ctx.lineTo(-1 + ex, hy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(1 + ex, hy); ctx.lineTo(7 + ex, hy); ctx.stroke();
   } else {
     ctx.fillStyle = '#222';
-    ctx.beginPath(); ctx.arc(hx - 3.5 + ex + p.facingDir * dir, hy + 0.5, 2.2, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(hx + 4.5 + ex + p.facingDir * dir, hy + 0.5, 2.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-3.5 + ex + p.facingDir, hy + 0.5, 2.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(4.5 + ex + p.facingDir, hy + 0.5, 2.2, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(hx - 4.5 + ex, hy - 1, 0.8, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(hx + 3.5 + ex, hy - 1, 0.8, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-4.5 + ex, hy - 1, 0.8, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(3.5 + ex, hy - 1, 0.8, 0, Math.PI * 2); ctx.fill();
   }
   // Derpy mouth
   ctx.fillStyle = '#1a1a2a';
-  ctx.beginPath(); ctx.ellipse(hx + 0.5 + ex * 0.5, hy + 5.5, 2, 1.8, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(0.5 + ex * 0.5, hy + 5.5, 2, 1.8, 0, 0, Math.PI * 2); ctx.fill();
   // Blush cheeks
   ctx.fillStyle = 'rgba(255,130,130,0.25)';
-  ctx.beginPath(); ctx.ellipse(hx - 7 + ex, hy + 3, 2.5, 1.5, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(hx + 7 + ex, hy + 3, 2.5, 1.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(-7 + ex, hy + 3, 2.5, 1.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(7 + ex, hy + 3, 2.5, 1.5, 0, 0, Math.PI * 2); ctx.fill();
 
   // ── Shield glow ──
   if (p.hasShield) {
     ctx.strokeStyle = 'rgba(80,150,255,0.4)'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(hx + 2, -5, 28, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, -5, 28, 0, Math.PI * 2); ctx.stroke();
   }
 
   ctx.restore();
@@ -1073,6 +1088,17 @@ function drawMenu() {
   // Controls
   ctx.font = '14px sans-serif'; ctx.fillStyle = '#556';
   ctx.fillText('W / Up = Thrust    A D / Left Right = Move    Manage fuel, dodge rocks, escape the lava', W / 2, H * 0.58);
+  // Infinite Boost toggle button
+  const btnW = 180, btnH = 36;
+  const btnX = W / 2 - btnW / 2, btnY = H * 0.66;
+  boostBtnRect = { x: btnX, y: btnY, w: btnW, h: btnH };
+  ctx.fillStyle = infiniteBoost ? '#2a5a2a' : '#2a2a3a';
+  ctx.strokeStyle = infiniteBoost ? '#4f4' : '#555';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.roundRect(btnX, btnY, btnW, btnH, 8); ctx.fill(); ctx.stroke();
+  ctx.font = 'bold 15px sans-serif';
+  ctx.fillStyle = infiniteBoost ? '#4f4' : '#888';
+  ctx.fillText(infiniteBoost ? 'Infinite Boost: ON' : 'Infinite Boost: OFF', W / 2, btnY + btnH / 2);
 }
 
 // ── Dead Screen ──
