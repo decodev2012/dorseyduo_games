@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jetpack Escape - Dorsey Duo Games</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a1a;overflow:hidden;font-family:'Segoe UI',Tahoma,sans-serif}
+canvas{display:block}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+// ── Canvas ──
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let W, H;
+function resize() { W = canvas.width = innerWidth; H = canvas.height = innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+
+// ── Constants ──
+const GRAVITY = 600;
+const THRUST_POWER = 1100;
+const HORIZ_ACCEL = 800;
+const AIR_FRICTION_X = 0.97;
+const TERMINAL_VEL_DOWN = 500;
+const TERMINAL_VEL_X = 300;
+const MAX_LEAN = 0.3;
+const LEAN_SPEED = 4;
+const MAX_FUEL = 100;
+const FUEL_BURN_RATE = 18;
+const FUEL_REFILL = 50;
+const PLAYER_W = 40;
+const PLAYER_H = 50;
+const HIT_W = 24;
+const HIT_H = 40;
+const CAVE_SEG_H = 80;
+const MIN_CAVE_W = 140;
+const INITIAL_CAVE_W = 450;
+const LAVA_BASE_SPEED = 40;
+const LAVA_ACCEL = 0.4;
+const ROCK_INTERVAL_START = 1.4;
+const ROCK_INTERVAL_MIN = 0.25;
+const WIND_START_H = 3000;
+
+// ── Input ──
+const keys = {};
+document.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+  if (e.code === 'Space') {
+    if (state === 'menu') { initAudio(); startGame(); }
+    else if (state === 'dead' && deathTimer > 40) { startGame(); }
+  }
+});
+document.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// ── Audio ──
+let audioCtx = null;
+let thrusterNode = null, thrusterGain = null, thrusterIsOn = false;
+let lavaNode = null, lavaGain = null;
+function initAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+function setThrusterOn(on) {
+  if (on === thrusterIsOn) return;
+  thrusterIsOn = on;
+  if (!audioCtx) return;
+  if (on) {
+    thrusterNode = audioCtx.createOscillator();
+    thrusterGain = audioCtx.createGain();
+    thrusterNode.type = 'sawtooth';
+    thrusterNode.frequency.value = 55;
+    thrusterGain.gain.value = 0.025;
+    const lfo = audioCtx.createOscillator();
+    const lfoG = audioCtx.createGain();
+    lfo.frequency.value = 11;
+    lfoG.gain.value = 8;
+    lfo.connect(lfoG); lfoG.connect(thrusterNode.frequency);
+    lfo.start();
+    thrusterNode.connect(thrusterGain); thrusterGain.connect(audioCtx.destination);
+    thrusterNode.start();
+    thrusterNode._lfo = lfo;
+  } else if (thrusterNode) {
+    try { thrusterNode.stop(); thrusterNode._lfo.stop(); } catch(e) {}
+    thrusterNode.disconnect(); thrusterGain.disconnect();
+    thrusterNode = null; thrusterGain = null;
+  }
+}
+function updateLavaSound() {
+  if (!audioCtx || state !== 'playing') return;
+  const dist = player.y - lava.y;
+  const vol = Math.max(0, Math.min(0.05, (1 - dist / 500) * 0.05));
+  if (!lavaNode && vol > 0.001) {
+    lavaNode = audioCtx.createOscillator();
+    lavaGain = audioCtx.createGain();
+    lavaNode.type = 'sine'; lavaNode.frequency.value = 35;
+    lavaGain.gain.value = 0;
+    lavaNode.connect(lavaGain); lavaGain.connect(audioCtx.destination);
+    lavaNode.start();
+  }
+  if (lavaGain) lavaGain.gain.value = vol;
+}
+function stopLavaSound() {
+  if (lavaNode) { try { lavaNode.stop(); } catch(e) {} lavaNode.disconnect(); lavaGain.disconnect(); lavaNode = null; lavaGain = null; }
+}
+function sfx(type) {
+  if (!audioCtx) return;
+  try {
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    const t = audioCtx.currentTime;
+    switch (type) {
+      case 'fuel':
+        o.type='sine'; o.frequency.setValueAtTime(600,t); o.frequency.linearRampToValueAtTime(1000,t+0.12);
+        g.gain.setValueAtTime(0.08,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.2);
+        o.start(t); o.stop(t+0.2); break;
+      case 'shield':
+        o.type='sine'; o.frequency.setValueAtTime(400,t); o.frequency.exponentialRampToValueAtTime(900,t+0.15);
+        g.gain.setValueAtTime(0.07,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.2);
+        o.start(t); o.stop(t+0.2); break;
+      case 'boost':
+        o.type='sine'; o.frequency.setValueAtTime(500,t); o.frequency.exponentialRampToValueAtTime(1200,t+0.12);
+        g.gain.setValueAtTime(0.08,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.15);
+        o.start(t); o.stop(t+0.15); break;
+      case 'death':
+        o.type='sawtooth'; o.frequency.setValueAtTime(300,t); o.frequency.exponentialRampToValueAtTime(40,t+0.5);
+        g.gain.setValueAtTime(0.12,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.6);
+        o.start(t); o.stop(t+0.6); break;
+      case 'shieldBreak':
+        o.type='sine'; o.frequency.setValueAtTime(800,t); o.frequency.exponentialRampToValueAtTime(200,t+0.2);
+        g.gain.setValueAtTime(0.1,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.25);
+        o.start(t); o.stop(t+0.25); break;
+      case 'highScore':
+        o.type='sine'; g.gain.setValueAtTime(0.1,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.6);
+        o.frequency.setValueAtTime(523,t); o.frequency.setValueAtTime(659,t+0.12);
+        o.frequency.setValueAtTime(784,t+0.24); o.frequency.setValueAtTime(1047,t+0.36);
+        o.start(t); o.stop(t+0.6); break;
+    }
+  } catch(e) {}
+}
+
+// ── High Score ──
+let bestScore = 0;
+function loadBest() { try { const d = JSON.parse(localStorage.getItem('jetpack_escape')); if (d) bestScore = d.best || 0; } catch(e) {} }
+function saveBest() { try { localStorage.setItem('jetpack_escape', JSON.stringify({ best: bestScore })); } catch(e) {} }
+loadBest();
+
+// ── State ──
+let state = 'menu';
+let player = null;
+let camera = { y: 0 };
+let lava = { y: 0, speed: 0 };
+let caveSegs = [];
+let obstacles = [];
+let pickups = [];
+let particles = [];
+let crystals = [];
+let screenShake = 0;
+let gameTime = 0;
+let deathTimer = 0;
+let rockTimer = 0;
+let lastSegY = 0;
+let windGust = { x: 0, timer: 0 };
+let nextFuelY = -400;
+const FUEL_INTERVAL = 500; // guaranteed fuel can every 500 vertical pixels
+
+function createPlayer() {
+  return {
+    x: W / 2, y: 0, vx: 0, vy: 0,
+    fuel: MAX_FUEL, thrusting: false,
+    lean: 0, armAngle: 0, legAngle: 0,
+    hasShield: false, boosting: false, boostTimer: 0,
+    alive: true, height: 0, facingDir: 0, packDir: 1,
+  };
+}
+
+function startGame() {
+  state = 'playing';
+  player = createPlayer();
+  camera.y = -H * 0.6;
+  lava = { y: 300, speed: LAVA_BASE_SPEED };
+  caveSegs = [];
+  obstacles = [];
+  pickups = [];
+  particles = [];
+  crystals = [];
+  screenShake = 0;
+  gameTime = 0;
+  deathTimer = 0;
+  rockTimer = 2;
+  lastSegY = CAVE_SEG_H * 2;
+  nextFuelY = -400; // first guaranteed fuel can at 400px up
+  windGust = { x: 0, timer: 0 };
+  // Pre-generate cave segments
+  while (lastSegY > camera.y - H * 2) {
+    lastSegY -= CAVE_SEG_H;
+    caveSegs.push(genSeg(lastSegY));
+  }
+}
+
+// ── Cave Generation ──
+function genSeg(y) {
+  const t = y * 0.003;
+  const centerX = W / 2 + Math.sin(t * 1.7) * (W * 0.12) + Math.sin(t * 0.7 + 2) * (W * 0.08);
+  const heightFactor = Math.min(1, Math.max(0, (-y) / 25000));
+  const baseW = INITIAL_CAVE_W - (INITIAL_CAVE_W - MIN_CAVE_W) * heightFactor * 0.7;
+  const width = baseW + Math.sin(t * 2.3) * 40 + Math.sin(t * 0.5 + 5) * 30;
+  const halfW = Math.max(MIN_CAVE_W / 2, width / 2);
+  const lx = centerX - halfW;
+  const rx = centerX + halfW;
+  // Rocky vertices — 8 points per side for jagged look
+  const lv = [], rv = [];
+  const PTS = 8;
+  for (let i = 0; i <= PTS; i++) {
+    const f = i / PTS;
+    const ny = y - f * CAVE_SEG_H;
+    // Multiple sine octaves for organic rock shape
+    const nl = Math.sin(ny * 0.018 + 10) * 16 + Math.sin(ny * 0.047 + 3) * 10 + Math.sin(ny * 0.11 + 1) * 6;
+    const nr = Math.sin(ny * 0.018 + 20) * 16 + Math.sin(ny * 0.047 + 7) * 10 + Math.sin(ny * 0.11 + 4) * 6;
+    lv.push({ x: lx + nl, y: ny });
+    rv.push({ x: rx + nr, y: ny });
+  }
+  // Maybe crystal
+  if (Math.random() < 0.25) {
+    const side = Math.random() < 0.5 ? 'left' : 'right';
+    crystals.push({
+      x: side === 'left' ? lx + 8 + Math.random() * 12 : rx - 8 - Math.random() * 12,
+      y: y - Math.random() * CAVE_SEG_H,
+      size: 3 + Math.random() * 5,
+      color: ['#4af','#a4f','#4fa','#fa4'][Math.floor(Math.random() * 4)],
+      phase: Math.random() * Math.PI * 2,
+    });
+  }
+  return { y, lx, rx, lv, rv, w: halfW * 2 };
+}
+
+function getSegAt(wy) {
+  for (const s of caveSegs) {
+    if (wy <= s.y && wy > s.y - CAVE_SEG_H) return s;
+  }
+  return null;
+}
+
+function getCaveAt(wy) {
+  const s = getSegAt(wy);
+  if (s) return { lx: s.lx, rx: s.rx };
+  // Interpolate from nearest
+  return { lx: W * 0.1, rx: W * 0.9 };
+}
+
+// ── Physics ──
+function updatePlayer(dt) {
+  const p = player;
+  if (!p.alive) return;
+  p.thrusting = false;
+  if ((keys['KeyW'] || keys['ArrowUp']) && p.fuel > 0) {
+    p.vy -= THRUST_POWER * dt;
+    p.fuel = Math.max(0, p.fuel - FUEL_BURN_RATE * dt);
+    p.thrusting = true;
+  }
+  let hInput = 0;
+  if (keys['KeyA'] || keys['ArrowLeft']) hInput = -1;
+  if (keys['KeyD'] || keys['ArrowRight']) hInput = 1;
+  p.vx += hInput * HORIZ_ACCEL * dt;
+  p.vy += GRAVITY * dt;
+  const fp = Math.pow(AIR_FRICTION_X, dt * 60);
+  p.vx *= fp;
+  p.vx = Math.max(-TERMINAL_VEL_X, Math.min(TERMINAL_VEL_X, p.vx));
+  p.vy = Math.min(TERMINAL_VEL_DOWN, p.vy);
+  if (p.boosting) {
+    p.vy -= 400 * dt;
+    p.boostTimer -= dt;
+    if (p.boostTimer <= 0) p.boosting = false;
+  }
+  if (p.height > WIND_START_H && windGust.timer > 0) {
+    p.vx += windGust.x * dt;
+    windGust.timer -= dt;
+  }
+  p.x += p.vx * dt;
+  p.y += p.vy * dt;
+  const tl = (p.vx / TERMINAL_VEL_X) * MAX_LEAN;
+  p.lean += (tl - p.lean) * LEAN_SPEED * dt;
+  const ta = p.vy > 0 ? -0.4 : (p.thrusting ? 0.3 : 0);
+  p.armAngle += (ta - p.armAngle) * 3 * dt;
+  p.legAngle = Math.sin(gameTime * 2) * 0.08 + (p.vy > 200 ? 0.15 : 0);
+  if (hInput !== 0) { p.facingDir = hInput; p.packDir = hInput; }
+  else if (Math.abs(p.vx) < 20) p.facingDir = 0;
+  p.height = Math.max(p.height, -p.y);
+  setThrusterOn(p.thrusting && p.fuel > 0);
+}
+
+// ── Drawing Character (derpy cute astronaut, 3/4 side view) ──
+// Backpack visible on the trailing side, body shifted opposite, flames come from pack
+const BPX = 12; // backpack x offset in local space (always right, mirrored by scale)
+
+function drawPlayer() {
+  const p = player;
+  if (!p.alive && deathTimer > 15) return;
+  const sx = p.x, sy = p.y - camera.y;
+  const dir = p.packDir; // 1 = facing right (pack on right), -1 = facing left (pack on left)
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.scale(dir, 1); // mirror entire character when facing left
+  ctx.rotate(p.lean * dir); // counteract scale flip for lean direction
+
+  // ── Backpack / Jetpack (visible on right side) ──
+  // Pack body
+  const bpg = ctx.createLinearGradient(BPX - 8, 0, BPX + 8, 0);
+  bpg.addColorStop(0, '#778'); bpg.addColorStop(0.5, '#99a'); bpg.addColorStop(1, '#556');
+  ctx.fillStyle = bpg;
+  ctx.beginPath(); ctx.roundRect(BPX - 8, -10, 16, 24, 4); ctx.fill();
+  ctx.strokeStyle = '#445'; ctx.lineWidth = 1.5; ctx.stroke();
+  // Pack details — rivets
+  ctx.fillStyle = '#aab';
+  ctx.beginPath(); ctx.arc(BPX - 4, -6, 1.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(BPX + 4, -6, 1.5, 0, Math.PI * 2); ctx.fill();
+  // Fuel gauge on pack face
+  const ff = p.fuel / MAX_FUEL;
+  ctx.fillStyle = '#222'; ctx.beginPath(); ctx.roundRect(BPX - 5, -1, 10, 4, 1); ctx.fill();
+  ctx.fillStyle = ff > 0.3 ? '#0f0' : ff > 0.1 ? '#fa0' : '#f00';
+  ctx.fillRect(BPX - 4, 0, 8 * ff, 2);
+  // Strap connecting pack to body
+  ctx.strokeStyle = '#667'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(BPX - 8, -8); ctx.lineTo(3, -10); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(BPX - 8, 8); ctx.lineTo(3, 6); ctx.stroke();
+  // Nozzle at bottom of pack
+  ctx.fillStyle = '#444';
+  ctx.beginPath(); ctx.roundRect(BPX - 5, 14, 10, 5, 2); ctx.fill();
+  ctx.strokeStyle = '#333'; ctx.lineWidth = 1; ctx.stroke();
+
+  // ── Flames (from the backpack nozzle) ──
+  if (p.thrusting && p.fuel > 0) {
+    const fx = BPX; // flames come from pack center
+    const fy = 19;
+    const fl = 18 + Math.random() * 12;
+    const wb = Math.sin(gameTime * 12) * 3;
+    // Outer orange flame
+    const og = ctx.createLinearGradient(fx, fy, fx, fy + fl);
+    og.addColorStop(0, 'rgba(255,200,50,0.9)'); og.addColorStop(0.4, 'rgba(255,120,20,0.7)'); og.addColorStop(1, 'rgba(255,50,10,0)');
+    ctx.fillStyle = og;
+    ctx.beginPath();
+    ctx.moveTo(fx - 6, fy); ctx.quadraticCurveTo(fx - 4 + wb, fy + fl * 0.6, fx + wb * 0.5, fy + fl);
+    ctx.quadraticCurveTo(fx + 4 + wb, fy + fl * 0.6, fx + 6, fy); ctx.fill();
+    // Inner blue core
+    const cl = 11 + Math.random() * 5;
+    const cg = ctx.createLinearGradient(fx, fy, fx, fy + cl);
+    cg.addColorStop(0, 'rgba(200,220,255,0.9)'); cg.addColorStop(0.5, 'rgba(100,150,255,0.6)'); cg.addColorStop(1, 'rgba(50,80,255,0)');
+    ctx.fillStyle = cg;
+    ctx.beginPath();
+    ctx.moveTo(fx - 3, fy); ctx.quadraticCurveTo(fx - 1, fy + cl * 0.7, fx, fy + cl);
+    ctx.quadraticCurveTo(fx + 1, fy + cl * 0.7, fx + 3, fy); ctx.fill();
+    // Flame particles (from pack position in world space)
+    for (let i = 0; i < 3; i++) {
+      // Account for lean rotation when computing world position of pack
+      const cosL = Math.cos(p.lean), sinL = Math.sin(p.lean);
+      const wpx = p.x + dir * BPX * cosL;
+      const wpy = p.y + dir * BPX * sinL + 22;
+      particles.push({
+        x: wpx + (Math.random() - 0.5) * 10,
+        y: wpy + Math.random() * 5,
+        vx: (Math.random() - 0.5) * 30 + p.vx * 0.3,
+        vy: 80 + Math.random() * 60,
+        life: 0.3 + Math.random() * 0.3, maxLife: 0.6,
+        color: Math.random() < 0.3 ? '#4af' : Math.random() < 0.5 ? '#fa0' : '#f80',
+        size: 2 + Math.random() * 3,
+      });
+    }
+    if (Math.random() < 0.5) {
+      const cosL = Math.cos(p.lean), sinL = Math.sin(p.lean);
+      particles.push({
+        x: p.x + dir * BPX * cosL + (Math.random() - 0.5) * 6,
+        y: p.y + dir * BPX * sinL + 24,
+        vx: (Math.random() - 0.5) * 15, vy: 20 + Math.random() * 30,
+        life: 0.5 + Math.random() * 0.5, maxLife: 1,
+        color: '#666', size: 3 + Math.random() * 3,
+      });
+    }
+  }
+
+  // ── Stubby Legs (dangling, wiggling) ──
+  const legWiggle = Math.sin(gameTime * 5) * 0.15;
+  const fallSpread = Math.max(0, p.vy * 0.001);
+  // Front leg (left, closer to viewer)
+  for (const side of [-1, 1]) {
+    const lx = side * 4 - 2; // body shifted slightly left of center
+    const la = legWiggle * side + fallSpread * side;
+    ctx.fillStyle = '#eee';
+    ctx.save();
+    ctx.translate(lx, 7);
+    ctx.rotate(la);
+    ctx.beginPath(); ctx.roundRect(-3.5, 0, 7, 10, 3); ctx.fill();
+    ctx.strokeStyle = '#bbb'; ctx.lineWidth = 0.8; ctx.stroke();
+    ctx.fillStyle = '#666';
+    ctx.beginPath(); ctx.roundRect(-4, 8, 8, 5, 2); ctx.fill();
+    ctx.restore();
+  }
+
+  // ── Round Body (white spacesuit, shifted slightly left for 3/4 view) ──
+  const bodyX = -2;
+  const bg = ctx.createRadialGradient(bodyX - 2, -4, 2, bodyX, -2, 14);
+  bg.addColorStop(0, '#fff'); bg.addColorStop(0.6, '#e8e8ee'); bg.addColorStop(1, '#c0c0cc');
+  ctx.fillStyle = bg;
+  ctx.beginPath(); ctx.ellipse(bodyX, -2, 12, 11, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#aaa'; ctx.lineWidth = 1; ctx.stroke();
+  // Suit seam line (shows the side angle)
+  ctx.strokeStyle = '#ccc'; ctx.lineWidth = 0.8;
+  ctx.beginPath(); ctx.moveTo(bodyX + 4, -12); ctx.quadraticCurveTo(bodyX + 5, -2, bodyX + 4, 8); ctx.stroke();
+  // Belly detail
+  ctx.fillStyle = '#ccc';
+  ctx.beginPath(); ctx.arc(bodyX - 1, 1, 2, 0, Math.PI * 2); ctx.fill();
+
+  // ── Big Round Helmet (oversized, derpy, shifted with body) ──
+  const hy = -18;
+  const hx = bodyX;
+  // Helmet dome
+  const hg = ctx.createRadialGradient(hx - 3, hy - 3, 2, hx, hy, 16);
+  hg.addColorStop(0, '#f0f0f5'); hg.addColorStop(0.5, '#d8d8e0'); hg.addColorStop(1, '#a0a0b0');
+  ctx.fillStyle = hg;
+  ctx.beginPath(); ctx.arc(hx, hy, 15, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = '#888'; ctx.lineWidth = 1.5; ctx.stroke();
+  // Helmet rim
+  ctx.strokeStyle = '#999'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(hx, hy, 15, 0.15, Math.PI - 0.15); ctx.stroke();
+
+  // Visor (big dark bubble)
+  const vg = ctx.createRadialGradient(hx - 2, hy - 2, 1, hx, hy, 11);
+  vg.addColorStop(0, '#3a6a9a'); vg.addColorStop(0.5, '#1a3a5a'); vg.addColorStop(1, '#0a1a2a');
+  ctx.fillStyle = vg;
+  ctx.beginPath(); ctx.arc(hx, hy + 1, 11, 0, Math.PI * 2); ctx.fill();
+  // Visor shine
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.beginPath(); ctx.ellipse(hx - 4, hy - 3, 4, 3, -0.3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.beginPath(); ctx.arc(hx - 5, hy - 4, 1.5, 0, Math.PI * 2); ctx.fill();
+
+  // ── Derpy Face ──
+  const ex = p.facingDir * dir * 2.5; // compensate for scale mirror
+  const blink = Math.sin(gameTime * 0.8) > 0.97;
+  // Big round eyes
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(hx - 4 + ex, hy, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(hx + 4 + ex, hy, 4, 0, Math.PI * 2); ctx.fill();
+  if (blink) {
+    ctx.strokeStyle = '#222'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(hx - 7 + ex, hy); ctx.lineTo(hx - 1 + ex, hy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(hx + 1 + ex, hy); ctx.lineTo(hx + 7 + ex, hy); ctx.stroke();
+  } else {
+    ctx.fillStyle = '#222';
+    ctx.beginPath(); ctx.arc(hx - 3.5 + ex + p.facingDir * dir, hy + 0.5, 2.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(hx + 4.5 + ex + p.facingDir * dir, hy + 0.5, 2.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(hx - 4.5 + ex, hy - 1, 0.8, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(hx + 3.5 + ex, hy - 1, 0.8, 0, Math.PI * 2); ctx.fill();
+  }
+  // Derpy mouth
+  ctx.fillStyle = '#1a1a2a';
+  ctx.beginPath(); ctx.ellipse(hx + 0.5 + ex * 0.5, hy + 5.5, 2, 1.8, 0, 0, Math.PI * 2); ctx.fill();
+  // Blush cheeks
+  ctx.fillStyle = 'rgba(255,130,130,0.25)';
+  ctx.beginPath(); ctx.ellipse(hx - 7 + ex, hy + 3, 2.5, 1.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(hx + 7 + ex, hy + 3, 2.5, 1.5, 0, 0, Math.PI * 2); ctx.fill();
+
+  // ── Shield glow ──
+  if (p.hasShield) {
+    ctx.strokeStyle = 'rgba(80,150,255,0.4)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(hx + 2, -5, 28, 0, Math.PI * 2); ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+// ── Cave Drawing ──
+function drawCave() {
+  for (const s of caveSegs) {
+    const sy = s.y - camera.y;
+    if (sy < -CAVE_SEG_H * 2 || sy > H + CAVE_SEG_H * 2) continue;
+    // Left wall — solid rock from left edge to cave edge
+    const leftEdge = Math.max(...s.lv.map(v => v.x)) + 5;
+    const lg = ctx.createLinearGradient(0, 0, leftEdge, 0);
+    lg.addColorStop(0, '#161622'); lg.addColorStop(0.4, '#1e1e30'); lg.addColorStop(0.75, '#2a2a3e'); lg.addColorStop(1, '#3a3a50');
+    ctx.fillStyle = lg;
+    ctx.beginPath();
+    ctx.moveTo(-5, sy + 2);
+    for (const v of s.lv) ctx.lineTo(v.x, v.y - camera.y);
+    ctx.lineTo(-5, sy - CAVE_SEG_H - 2);
+    ctx.closePath(); ctx.fill();
+    // Left wall inner shadow edge (darker line along cave face)
+    ctx.strokeStyle = '#4a4a60'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < s.lv.length; i++) {
+      const v = s.lv[i];
+      if (i === 0) ctx.moveTo(v.x, v.y - camera.y);
+      else ctx.lineTo(v.x, v.y - camera.y);
+    }
+    ctx.stroke();
+    // Left highlight (lighter edge for 3D depth)
+    ctx.strokeStyle = '#50506a'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i < s.lv.length; i++) {
+      const v = s.lv[i];
+      if (i === 0) ctx.moveTo(v.x - 3, v.y - camera.y);
+      else ctx.lineTo(v.x - 3, v.y - camera.y);
+    }
+    ctx.stroke();
+    // Rock texture lines on left wall
+    ctx.strokeStyle = '#252538'; ctx.lineWidth = 0.5;
+    for (let i = 0; i < s.lv.length - 2; i += 2) {
+      const v1 = s.lv[i], v2 = s.lv[i+1];
+      ctx.beginPath();
+      ctx.moveTo(v1.x - 15, v1.y - camera.y);
+      ctx.lineTo(v2.x - 8, v2.y - camera.y);
+      ctx.stroke();
+    }
+
+    // Right wall — solid rock from right edge to cave edge
+    const rightEdge = Math.min(...s.rv.map(v => v.x)) - 5;
+    const rg = ctx.createLinearGradient(W, 0, rightEdge, 0);
+    rg.addColorStop(0, '#161622'); rg.addColorStop(0.4, '#1e1e30'); rg.addColorStop(0.75, '#2a2a3e'); rg.addColorStop(1, '#3a3a50');
+    ctx.fillStyle = rg;
+    ctx.beginPath();
+    ctx.moveTo(W + 5, sy + 2);
+    for (const v of s.rv) ctx.lineTo(v.x, v.y - camera.y);
+    ctx.lineTo(W + 5, sy - CAVE_SEG_H - 2);
+    ctx.closePath(); ctx.fill();
+    // Right wall edge
+    ctx.strokeStyle = '#4a4a60'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < s.rv.length; i++) {
+      const v = s.rv[i];
+      if (i === 0) ctx.moveTo(v.x, v.y - camera.y);
+      else ctx.lineTo(v.x, v.y - camera.y);
+    }
+    ctx.stroke();
+    // Right highlight
+    ctx.strokeStyle = '#50506a'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = 0; i < s.rv.length; i++) {
+      const v = s.rv[i];
+      if (i === 0) ctx.moveTo(v.x + 3, v.y - camera.y);
+      else ctx.lineTo(v.x + 3, v.y - camera.y);
+    }
+    ctx.stroke();
+    // Rock texture lines on right wall
+    ctx.strokeStyle = '#252538'; ctx.lineWidth = 0.5;
+    for (let i = 0; i < s.rv.length - 2; i += 2) {
+      const v1 = s.rv[i], v2 = s.rv[i+1];
+      ctx.beginPath();
+      ctx.moveTo(v1.x + 15, v1.y - camera.y);
+      ctx.lineTo(v2.x + 8, v2.y - camera.y);
+      ctx.stroke();
+    }
+  }
+}
+
+function drawCrystals() {
+  for (const c of crystals) {
+    const sy = c.y - camera.y;
+    if (sy < -20 || sy > H + 20) continue;
+    const pulse = 0.5 + Math.sin(gameTime * 2 + c.phase) * 0.3;
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = c.color;
+    ctx.beginPath();
+    ctx.moveTo(c.x, sy - c.size);
+    ctx.lineTo(c.x + c.size * 0.5, sy);
+    ctx.lineTo(c.x, sy + c.size * 0.7);
+    ctx.lineTo(c.x - c.size * 0.5, sy);
+    ctx.closePath(); ctx.fill();
+    // Glow
+    ctx.shadowColor = c.color; ctx.shadowBlur = c.size * 2;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ── Lava ──
+function updateLava(dt) {
+  lava.speed = LAVA_BASE_SPEED + gameTime * LAVA_ACCEL;
+  lava.y -= lava.speed * dt;
+}
+
+function drawLava() {
+  const sy = lava.y - camera.y;
+  if (sy > H + 60) return;
+  const t = gameTime * 3;
+  ctx.beginPath();
+  ctx.moveTo(0, sy);
+  for (let x = 0; x <= W; x += 8) {
+    const wave = Math.sin(x * 0.02 + t) * 8 + Math.sin(x * 0.05 + t * 1.3) * 4;
+    ctx.lineTo(x, sy + wave);
+  }
+  ctx.lineTo(W, H + 10); ctx.lineTo(0, H + 10); ctx.closePath();
+  const lg = ctx.createLinearGradient(0, sy, 0, Math.max(sy + 200, H));
+  lg.addColorStop(0, '#ff4400'); lg.addColorStop(0.2, '#ff2200'); lg.addColorStop(0.5, '#cc1100'); lg.addColorStop(1, '#880000');
+  ctx.fillStyle = lg; ctx.fill();
+  // Bright edge
+  ctx.strokeStyle = '#ffaa00'; ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let x = 0; x <= W; x += 8) {
+    const wave = Math.sin(x * 0.02 + t) * 8 + Math.sin(x * 0.05 + t * 1.3) * 4;
+    if (x === 0) ctx.moveTo(x, sy + wave); else ctx.lineTo(x, sy + wave);
+  }
+  ctx.stroke();
+  // Glow above
+  const gg = ctx.createLinearGradient(0, sy - 120, 0, sy);
+  gg.addColorStop(0, 'rgba(255,100,0,0)'); gg.addColorStop(1, 'rgba(255,100,0,0.12)');
+  ctx.fillStyle = gg;
+  ctx.fillRect(0, Math.max(0, sy - 120), W, 120);
+}
+
+// ── Obstacles ──
+function genRockVerts(r) {
+  const n = 6 + Math.floor(Math.random() * 4);
+  const v = [];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    const rr = r * (0.7 + Math.random() * 0.3);
+    v.push({ x: Math.cos(a) * rr, y: Math.sin(a) * rr });
+  }
+  return v;
+}
+
+function spawnRock() {
+  const cave = getCaveAt(camera.y - 30);
+  const x = cave.lx + 30 + Math.random() * (cave.rx - cave.lx - 60);
+  const r = 8 + Math.random() * 16;
+  obstacles.push({
+    type: 'rock', x, y: camera.y - 40,
+    vx: (Math.random() - 0.5) * 40, vy: 60 + Math.random() * 80,
+    r, rot: Math.random() * Math.PI * 2, rotSpd: (Math.random() - 0.5) * 3,
+    verts: genRockVerts(r),
+    hue: 20 + Math.random() * 20,
+  });
+}
+
+function spawnStalactite(seg) {
+  const side = Math.random() < 0.5 ? 'left' : 'right';
+  const bx = side === 'left' ? seg.lx + 5 : seg.rx - 5;
+  obstacles.push({
+    type: 'stal', x: bx, y: seg.y - Math.random() * CAVE_SEG_H,
+    len: 20 + Math.random() * 40, w: 5 + Math.random() * 8, side,
+  });
+}
+
+function updateObstacles(dt) {
+  for (let i = obstacles.length - 1; i >= 0; i--) {
+    const o = obstacles[i];
+    if (o.type === 'rock') {
+      o.x += o.vx * dt;
+      o.y += o.vy * dt;
+      o.rot += o.rotSpd * dt;
+      // Bounce off cave walls
+      const cave = getCaveAt(o.y);
+      if (o.x - o.r < cave.lx) { o.x = cave.lx + o.r; o.vx = Math.abs(o.vx) * 0.6; }
+      if (o.x + o.r > cave.rx) { o.x = cave.rx - o.r; o.vx = -Math.abs(o.vx) * 0.6; }
+    }
+    if (o.type === 'lavaDrip') {
+      o.y += o.vy * dt;
+    }
+    // Cleanup
+    if (o.y > lava.y + 100 || o.y - camera.y > H + 200) obstacles.splice(i, 1);
+  }
+}
+
+function drawObstacles() {
+  for (const o of obstacles) {
+    const sy = o.y - camera.y;
+    if (sy < -60 || sy > H + 60) continue;
+    if (o.type === 'rock') {
+      ctx.save();
+      ctx.translate(o.x, sy);
+      ctx.rotate(o.rot);
+      ctx.fillStyle = `hsl(${o.hue}, 30%, 32%)`;
+      ctx.strokeStyle = `hsl(${o.hue}, 25%, 22%)`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let i = 0; i < o.verts.length; i++) {
+        const v = o.verts[i];
+        if (i === 0) ctx.moveTo(v.x, v.y); else ctx.lineTo(v.x, v.y);
+      }
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      // Highlight
+      ctx.strokeStyle = `hsl(${o.hue}, 20%, 45%)`;
+      ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.arc(-o.r * 0.2, -o.r * 0.2, o.r * 0.4, 0, Math.PI); ctx.stroke();
+      ctx.restore();
+    }
+    if (o.type === 'stal') {
+      ctx.fillStyle = '#454555';
+      ctx.beginPath();
+      ctx.moveTo(o.x - o.w / 2, sy);
+      ctx.lineTo(o.x, sy + (o.side === 'left' ? o.len : o.len));
+      ctx.lineTo(o.x + o.w / 2, sy);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#555565'; ctx.lineWidth = 0.5; ctx.stroke();
+    }
+    if (o.type === 'lavaDrip') {
+      ctx.fillStyle = '#f80';
+      ctx.beginPath(); ctx.arc(o.x, sy, o.r || 3, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fa0';
+      ctx.beginPath(); ctx.arc(o.x, sy - 1, 1.5, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+}
+
+// ── Pickups ──
+function spawnPickup(type, y) {
+  const cave = getCaveAt(y);
+  const x = cave.lx + 40 + Math.random() * (cave.rx - cave.lx - 80);
+  pickups.push({ type, x, y, r: 10, bob: Math.random() * Math.PI * 2, collected: false });
+}
+
+function updatePickups(dt) {
+  for (let i = pickups.length - 1; i >= 0; i--) {
+    const pk = pickups[i];
+    if (pk.collected || pk.y > lava.y + 50 || pk.y - camera.y > H + 200) { pickups.splice(i, 1); continue; }
+    pk.bob += dt * 3;
+  }
+}
+
+function drawPickups() {
+  for (const pk of pickups) {
+    if (pk.collected) continue;
+    const sy = pk.y - camera.y + Math.sin(pk.bob) * 4;
+    if (sy < -20 || sy > H + 20) continue;
+    if (pk.type === 'fuel') {
+      // Green canister
+      ctx.fillStyle = '#1a3a1a'; ctx.fillRect(pk.x - 7, sy - 9, 14, 18);
+      ctx.fillStyle = '#2a6a2a'; ctx.fillRect(pk.x - 6, sy - 8, 12, 16);
+      ctx.fillStyle = '#4f4'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('F', pk.x, sy + 4);
+      // Glow
+      ctx.shadowColor = '#4f4'; ctx.shadowBlur = 8;
+      ctx.fillRect(pk.x - 6, sy - 8, 12, 16);
+      ctx.shadowBlur = 0;
+    } else if (pk.type === 'shield') {
+      // Blue orb
+      const sg = ctx.createRadialGradient(pk.x, sy, 2, pk.x, sy, 10);
+      sg.addColorStop(0, '#8bf'); sg.addColorStop(0.6, '#46a'); sg.addColorStop(1, 'rgba(50,80,180,0)');
+      ctx.fillStyle = sg;
+      ctx.beginPath(); ctx.arc(pk.x, sy, 10, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#4af'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(pk.x, sy, 8, gameTime * 2, gameTime * 2 + Math.PI); ctx.stroke();
+    } else if (pk.type === 'boost') {
+      // Yellow arrow
+      ctx.fillStyle = '#fa0';
+      ctx.beginPath();
+      ctx.moveTo(pk.x, sy - 10);
+      ctx.lineTo(pk.x + 7, sy);
+      ctx.lineTo(pk.x + 3, sy);
+      ctx.lineTo(pk.x + 3, sy + 8);
+      ctx.lineTo(pk.x - 3, sy + 8);
+      ctx.lineTo(pk.x - 3, sy);
+      ctx.lineTo(pk.x - 7, sy);
+      ctx.closePath(); ctx.fill();
+      ctx.shadowColor = '#fa0'; ctx.shadowBlur = 6; ctx.fill(); ctx.shadowBlur = 0;
+    }
+  }
+}
+
+// ── Collisions ──
+function checkCollisions() {
+  const p = player;
+  if (!p.alive) return;
+  const hw = HIT_W / 2, hh = HIT_H / 2;
+  // Cave walls
+  const cave = getCaveAt(p.y);
+  if (p.x - hw < cave.lx || p.x + hw > cave.rx) {
+    if (p.hasShield) {
+      p.hasShield = false; screenShake = 10; sfx('shieldBreak');
+      spawnDebris(p.x, p.y, '#88a');
+      // Push away from wall
+      if (p.x - hw < cave.lx) { p.x = cave.lx + hw + 2; p.vx = Math.abs(p.vx) * 0.5; }
+      else { p.x = cave.rx - hw - 2; p.vx = -Math.abs(p.vx) * 0.5; }
+    } else { killPlayer(); return; }
+  }
+  // Lava
+  if (p.y + hh > lava.y) { killPlayer(); return; }
+  // Obstacles
+  for (let i = obstacles.length - 1; i >= 0; i--) {
+    const o = obstacles[i];
+    if (o.type === 'rock') {
+      const dx = p.x - o.x, dy = p.y - o.y;
+      if (Math.sqrt(dx * dx + dy * dy) < o.r + Math.min(hw, hh)) {
+        if (p.hasShield) {
+          p.hasShield = false; screenShake = 10; sfx('shieldBreak');
+          spawnDebris(o.x, o.y, '#a86');
+          obstacles.splice(i, 1);
+        } else { killPlayer(); return; }
+      }
+    }
+    if (o.type === 'stal') {
+      // Simple AABB against the triangle's bounding box
+      const tipY = o.y + o.len;
+      const minX = o.x - o.w / 2, maxX = o.x + o.w / 2;
+      if (p.x + hw > minX && p.x - hw < maxX && p.y + hh > o.y && p.y - hh < tipY) {
+        if (p.hasShield) {
+          p.hasShield = false; screenShake = 10; sfx('shieldBreak');
+          spawnDebris(o.x, o.y + o.len / 2, '#556');
+          obstacles.splice(i, 1);
+        } else { killPlayer(); return; }
+      }
+    }
+    if (o.type === 'lavaDrip') {
+      const dx = p.x - o.x, dy = p.y - o.y;
+      if (Math.sqrt(dx * dx + dy * dy) < (o.r || 3) + Math.min(hw, hh)) {
+        if (p.hasShield) {
+          p.hasShield = false; sfx('shieldBreak');
+          obstacles.splice(i, 1);
+        } else { killPlayer(); return; }
+      }
+    }
+  }
+  // Pickups
+  for (const pk of pickups) {
+    if (pk.collected) continue;
+    const dx = p.x - pk.x, dy = p.y - pk.y;
+    if (dx * dx + dy * dy < (pk.r + hw) * (pk.r + hw)) {
+      pk.collected = true;
+      if (pk.type === 'fuel') { p.fuel = Math.min(MAX_FUEL, p.fuel + FUEL_REFILL); sfx('fuel'); }
+      else if (pk.type === 'shield') { p.hasShield = true; sfx('shield'); }
+      else if (pk.type === 'boost') { p.boosting = true; p.boostTimer = 1.5; sfx('boost'); }
+      spawnPickupParticles(pk.x, pk.y, pk.type);
+    }
+  }
+}
+
+function killPlayer() {
+  player.alive = false;
+  state = 'dead';
+  deathTimer = 0;
+  screenShake = 20;
+  setThrusterOn(false);
+  stopLavaSound();
+  sfx('death');
+  // Death particles
+  for (let i = 0; i < 30; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const sp = 30 + Math.random() * 120;
+    particles.push({
+      x: player.x, y: player.y,
+      vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 50,
+      life: 0.5 + Math.random() * 0.8, maxLife: 1.3,
+      color: ['#a86','#875','#987','#f80','#4af'][Math.floor(Math.random() * 5)],
+      size: 2 + Math.random() * 4,
+    });
+  }
+  const hm = Math.floor(player.height / 10);
+  if (hm > Math.floor(bestScore / 10)) {
+    bestScore = player.height;
+    saveBest();
+    sfx('highScore');
+  }
+}
+
+function spawnDebris(x, y, color) {
+  for (let i = 0; i < 12; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const sp = 50 + Math.random() * 100;
+    particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.3 + Math.random() * 0.4, maxLife: 0.7, color, size: 2 + Math.random() * 3 });
+  }
+}
+
+function spawnPickupParticles(x, y, type) {
+  const c = type === 'fuel' ? '#4f4' : type === 'shield' ? '#4af' : '#fa0';
+  for (let i = 0; i < 8; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const sp = 30 + Math.random() * 60;
+    particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.3 + Math.random() * 0.3, maxLife: 0.6, color: c, size: 2 + Math.random() * 2 });
+  }
+}
+
+// ── Particles ──
+function updateParticles(dt) {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vy += 150 * dt;
+    p.life -= dt;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+  if (particles.length > 300) particles.splice(0, particles.length - 300);
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    const alpha = Math.max(0, p.life / p.maxLife);
+    const sy = p.y - camera.y;
+    if (sy < -10 || sy > H + 10) continue;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, sy, p.size * alpha, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ── Camera ──
+function updateCamera(dt) {
+  const lookAhead = player.vy < 0 ? -H * 0.15 : -H * 0.05;
+  const targetY = player.y - H * 0.6 + lookAhead;
+  const lr = 1 - Math.pow(0.02, dt);
+  camera.y += (targetY - camera.y) * lr;
+}
+
+// ── Spawn Manager ──
+function getDifficulty() {
+  const h = player.height;
+  return {
+    rockInterval: Math.max(ROCK_INTERVAL_MIN, ROCK_INTERVAL_START - h * 0.00012),
+    windEnabled: h > WIND_START_H,
+    windStr: Math.min(200, (h - WIND_START_H) * 0.02),
+    lavaDrips: h > 1500,
+    lavaDripRate: Math.min(0.04, (h - 1500) * 0.00002),
+  };
+}
+
+function spawnManager(dt) {
+  const diff = getDifficulty();
+  // Cave segments ahead
+  while (lastSegY > camera.y - H * 2) {
+    lastSegY -= CAVE_SEG_H;
+    const seg = genSeg(lastSegY);
+    caveSegs.push(seg);
+    if (Math.random() < 0.3) spawnStalactite(seg);
+  }
+  // Cleanup far below
+  caveSegs = caveSegs.filter(s => s.y - CAVE_SEG_H < lava.y + 300 || s.y > camera.y - H * 3);
+  crystals = crystals.filter(c => c.y < lava.y + 300 || c.y > camera.y - H * 3);
+  // Rocks
+  rockTimer -= dt;
+  if (rockTimer <= 0) { spawnRock(); rockTimer = diff.rockInterval; }
+  // Fuel — guaranteed at regular vertical intervals so survival is always possible
+  while (nextFuelY > camera.y - H * 1.5) {
+    spawnPickup('fuel', nextFuelY);
+    nextFuelY -= FUEL_INTERVAL;
+  }
+  // Shield (rare)
+  if (Math.random() < 0.003 * dt * 60) spawnPickup('shield', camera.y - H / 2 - Math.random() * 200);
+  // Boost (rare)
+  if (Math.random() < 0.002 * dt * 60) spawnPickup('boost', camera.y - H / 2 - Math.random() * 200);
+  // Wind
+  if (diff.windEnabled && windGust.timer <= 0 && Math.random() < 0.008 * dt * 60) {
+    windGust.x = (Math.random() < 0.5 ? -1 : 1) * diff.windStr;
+    windGust.timer = 2 + Math.random() * 3;
+  }
+  // Lava drips
+  if (diff.lavaDrips && Math.random() < diff.lavaDripRate * dt * 60) {
+    const cave = getCaveAt(camera.y - 30);
+    if (cave) {
+      obstacles.push({ type: 'lavaDrip', x: cave.lx + Math.random() * (cave.rx - cave.lx), y: camera.y - 30, vy: 100 + Math.random() * 60, r: 3 });
+    }
+  }
+}
+
+// ── HUD ──
+function drawHUD() {
+  const hm = Math.floor(player.height / 10);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.font = 'bold 28px monospace'; ctx.fillStyle = '#fff';
+  ctx.fillText(hm + 'm', W / 2, 12);
+  if (bestScore > 0) {
+    ctx.font = '14px sans-serif'; ctx.fillStyle = '#888';
+    ctx.fillText('Best: ' + Math.floor(bestScore / 10) + 'm', W / 2, 44);
+  }
+  // Fuel gauge
+  const gx = 20, gy = 70, gw = 16, gh = 140;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(gx, gy, gw, gh);
+  ctx.strokeStyle = '#555'; ctx.lineWidth = 1; ctx.strokeRect(gx, gy, gw, gh);
+  const ff = player.fuel / MAX_FUEL;
+  const fc = ff > 0.3 ? '#0c0' : ff > 0.1 ? '#fa0' : '#f00';
+  ctx.fillStyle = fc; ctx.fillRect(gx + 1, gy + gh - gh * ff, gw - 2, gh * ff);
+  ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff';
+  ctx.fillText('FUEL', gx + gw / 2, gy + gh + 6);
+  // Shield
+  if (player.hasShield) {
+    ctx.fillStyle = 'rgba(80,150,255,0.3)';
+    ctx.beginPath(); ctx.arc(W - 40, 40, 15, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#4af'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.font = 'bold 10px sans-serif'; ctx.fillStyle = '#4af'; ctx.textAlign = 'center';
+    ctx.fillText('SHIELD', W - 40, 62);
+  }
+  // Boost indicator
+  if (player.boosting) {
+    ctx.fillStyle = 'rgba(255,170,0,0.3)';
+    ctx.beginPath(); ctx.arc(W - 40, player.hasShield ? 90 : 40, 15, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#fa0'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.font = 'bold 10px sans-serif'; ctx.fillStyle = '#fa0'; ctx.textAlign = 'center';
+    ctx.fillText('BOOST', W - 40, (player.hasShield ? 90 : 40) + 22);
+  }
+  // Wind warning
+  if (windGust.timer > 0 && player.height > WIND_START_H) {
+    ctx.font = 'bold 14px sans-serif'; ctx.fillStyle = '#aaa'; ctx.textAlign = 'center';
+    const arrow = windGust.x > 0 ? '>>>' : '<<<';
+    ctx.fillText('WIND ' + arrow, W / 2, 64);
+  }
+}
+
+// ── Speed Lines ──
+function drawSpeedLines() {
+  ctx.globalAlpha = 0.15;
+  ctx.strokeStyle = '#fa0'; ctx.lineWidth = 1.5;
+  for (let i = 0; i < 8; i++) {
+    const x = Math.random() * W;
+    const y = Math.random() * H;
+    ctx.beginPath();
+    ctx.moveTo(x, y); ctx.lineTo(x + (Math.random() - 0.5) * 10, y + 30 + Math.random() * 40);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ── Render ──
+function drawGame() {
+  ctx.fillStyle = '#0a0a1a'; ctx.fillRect(0, 0, W, H);
+  ctx.save();
+  if (screenShake > 0.5) {
+    ctx.translate((Math.random() - 0.5) * screenShake, (Math.random() - 0.5) * screenShake);
+  }
+  drawCave();
+  drawCrystals();
+  drawObstacles();
+  drawPickups();
+  drawPlayer();
+  drawParticles();
+  drawLava();
+  ctx.restore();
+  if (player.boosting) drawSpeedLines();
+  drawHUD();
+}
+
+// ── Menu ──
+function drawMenu() {
+  ctx.fillStyle = '#0a0a1a'; ctx.fillRect(0, 0, W, H);
+  // Decorative lava at bottom
+  const t = performance.now() / 1000;
+  const lavaY = H * 0.78;
+  ctx.beginPath();
+  ctx.moveTo(0, lavaY);
+  for (let x = 0; x <= W; x += 8) {
+    ctx.lineTo(x, lavaY + Math.sin(x * 0.02 + t * 2) * 6 + Math.sin(x * 0.05 + t * 2.5) * 3);
+  }
+  ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
+  const lg = ctx.createLinearGradient(0, lavaY, 0, H);
+  lg.addColorStop(0, '#ff4400'); lg.addColorStop(0.3, '#cc2200'); lg.addColorStop(1, '#661100');
+  ctx.fillStyle = lg; ctx.fill();
+  // Glow
+  const gg = ctx.createLinearGradient(0, lavaY - 80, 0, lavaY);
+  gg.addColorStop(0, 'rgba(255,100,0,0)'); gg.addColorStop(1, 'rgba(255,100,0,0.08)');
+  ctx.fillStyle = gg; ctx.fillRect(0, lavaY - 80, W, 80);
+  // Title
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = 'bold 52px "Segoe UI",sans-serif'; ctx.fillStyle = '#f80';
+  ctx.fillText('JETPACK ESCAPE', W / 2, H * 0.22);
+  ctx.font = '18px "Segoe UI",sans-serif'; ctx.fillStyle = '#888';
+  ctx.fillText('Fly. Survive. Escape.', W / 2, H * 0.22 + 45);
+  if (bestScore > 0) {
+    ctx.font = '16px sans-serif'; ctx.fillStyle = '#ffd700';
+    ctx.fillText('Best: ' + Math.floor(bestScore / 10) + 'm', W / 2, H * 0.22 + 75);
+  }
+  // Start
+  const pulse = Math.sin(t * 3) * 0.3 + 0.7;
+  ctx.font = 'bold 22px sans-serif'; ctx.fillStyle = `rgba(255,136,0,${pulse})`;
+  ctx.fillText('Press SPACE to Start', W / 2, H * 0.48);
+  // Controls
+  ctx.font = '14px sans-serif'; ctx.fillStyle = '#556';
+  ctx.fillText('W / Up = Thrust    A D / Left Right = Move    Manage fuel, dodge rocks, escape the lava', W / 2, H * 0.58);
+}
+
+// ── Dead Screen ──
+function drawDead() {
+  drawGame();
+  const alpha = Math.min(1, deathTimer / 30);
+  ctx.fillStyle = `rgba(0,0,0,${alpha * 0.7})`;
+  ctx.fillRect(0, 0, W, H);
+  if (deathTimer > 20) {
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = 'bold 48px "Segoe UI",sans-serif'; ctx.fillStyle = '#f44';
+    ctx.fillText('GAME OVER', W / 2, H * 0.3);
+    const hm = Math.floor(player.height / 10);
+    ctx.font = 'bold 28px monospace'; ctx.fillStyle = '#fff';
+    ctx.fillText(hm + 'm', W / 2, H * 0.42);
+    if (player.height >= bestScore && bestScore > 0) {
+      ctx.font = 'bold 20px sans-serif'; ctx.fillStyle = '#ffd700';
+      ctx.fillText('NEW BEST!', W / 2, H * 0.50);
+    } else if (bestScore > 0) {
+      ctx.font = '16px sans-serif'; ctx.fillStyle = '#888';
+      ctx.fillText('Best: ' + Math.floor(bestScore / 10) + 'm', W / 2, H * 0.50);
+    }
+  }
+  if (deathTimer > 40) {
+    const pulse = Math.sin(performance.now() / 1000 * 3) * 0.3 + 0.7;
+    ctx.font = '18px sans-serif'; ctx.fillStyle = `rgba(200,200,200,${pulse})`;
+    ctx.fillText('Press SPACE to retry', W / 2, H * 0.62);
+  }
+}
+
+// ── Game Loop ──
+let lastTime = 0;
+function loop(now) {
+  const dt = Math.min((now - lastTime) / 1000, 1 / 30);
+  lastTime = now;
+  if (state === 'menu') {
+    drawMenu();
+  } else if (state === 'playing') {
+    gameTime += dt;
+    updatePlayer(dt);
+    updateLava(dt);
+    updateObstacles(dt);
+    updatePickups(dt);
+    updateParticles(dt);
+    updateCamera(dt);
+    checkCollisions();
+    spawnManager(dt);
+    updateLavaSound();
+    if (screenShake > 0) screenShake *= 0.85;
+    drawGame();
+  } else if (state === 'dead') {
+    deathTimer++;
+    updateParticles(dt);
+    if (screenShake > 0) screenShake *= 0.85;
+    drawDead();
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
