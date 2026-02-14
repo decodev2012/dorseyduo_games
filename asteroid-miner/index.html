@@ -435,6 +435,13 @@ function updateBotShip(bot) {
   // Grudge decays slowly
   if (bot.grudge > 0) bot.grudge -= 0.002;
 
+  // Leash: if bot is too far from home base, force return
+  const BOT_LEASH = 2000;
+  if (hasBase && bot.state !== 'returning' && bot.state !== 'revenge') {
+    const homeDist = Math.hypot(bot.x - bot.homeBase.x, bot.y - bot.homeBase.y);
+    if (homeDist > BOT_LEASH) { bot.state = 'returning'; bot.targetEnemy = null; bot.targetAst = null; }
+  }
+
   // State transitions
   // Defend home base if under attack
   if (hasBase && bot.homeBase.underAttack > 0 && bot.state !== 'returning') {
@@ -472,10 +479,10 @@ function updateBotShip(bot) {
   bot.thrusting = false;
 
   if (bot.state === 'mining') {
-    // Find asteroid to mine
+    // Find asteroid to mine (wide search)
     if (!bot.targetAst || bot.targetAst.hp <= 0 || !asteroids.includes(bot.targetAst)) {
       bot.targetAst = null;
-      let bestD = 600;
+      let bestD = 1500;
       for (const a of asteroids) {
         const d = Math.hypot(a.x - bot.x, a.y - bot.y);
         if (d < bestD) { bestD = d; bot.targetAst = a; }
@@ -486,20 +493,36 @@ function updateBotShip(bot) {
       botSteer(bot, bot.targetAst.x, bot.targetAst.y, d > 100);
       if (d < 200) botTryShoot(bot);
     } else {
-      // Roam
-      botSteer(bot, bot.x + Math.cos(bot.angle) * 200, bot.y + Math.sin(bot.angle) * 200, true);
+      // No asteroid found — hunt nearest enemy instead of drifting
+      let huntTarget = null, huntDist = 2000;
+      for (const s of ships) {
+        if (!s.alive) continue;
+        const d = Math.hypot(s.x - bot.x, s.y - bot.y);
+        if (d < huntDist) { huntDist = d; huntTarget = s; }
+      }
+      for (const other of botShips) {
+        if (!other.alive || other === bot) continue;
+        const d = Math.hypot(other.x - bot.x, other.y - bot.y);
+        if (d < huntDist) { huntDist = d; huntTarget = other; }
+      }
+      if (huntTarget) {
+        botSteer(bot, huntTarget.x, huntTarget.y, true);
+        if (huntDist < 200) botTryShoot(bot);
+      } else if (hasBase) {
+        botSteer(bot, bot.homeBase.x, bot.homeBase.y, true);
+      }
     }
   } else if (bot.state === 'returning') {
     if (hasBase) {
       const d = Math.hypot(bot.homeBase.x - bot.x, bot.homeBase.y - bot.y);
       botSteer(bot, bot.homeBase.x, bot.homeBase.y, d > 60);
-      // Brake when close so bot doesn't orbit
       if (d < 80) { bot.vx *= 0.92; bot.vy *= 0.92; }
       if (d < 50) {
-        bot.hp = Math.min(bot.maxHp, bot.hp + 0.15);
-        bot.shield = Math.min(bot.maxShield, bot.shield + 0.05);
+        bot.hp = Math.min(bot.maxHp, bot.hp + 0.5);
+        bot.shield = Math.min(bot.maxShield, bot.shield + 0.1);
         if (bot.ore > 0) { bot.money += bot.ore; bot.ore = 0; }
-        if (bot.hp >= bot.maxHp) { botAutoUpgrade(bot); bot.state = 'mining'; bot.targetAst = null; }
+        botAutoUpgrade(bot);
+        if (bot.hp >= bot.maxHp * 0.7) { bot.state = 'mining'; bot.targetAst = null; }
       }
     } else { bot.state = 'mining'; }
   } else if (bot.state === 'fighting') {
@@ -527,12 +550,8 @@ function updateBotShip(bot) {
       botTryShoot(bot);
     }
   } else if (bot.state === 'defending') {
-    // Rush back to base and fight enemies near it
-    const d = Math.hypot(bot.homeBase.x - bot.x, bot.homeBase.y - bot.y);
-    botSteer(bot, bot.homeBase.x, bot.homeBase.y, d > 60);
-    if (d < 80) { bot.vx *= 0.92; bot.vy *= 0.92; }
-    // Attack any enemy near the base
-    let baseEnemy = null, beDist = 250;
+    // Rush back to base and actively hunt enemies near it
+    let baseEnemy = null, beDist = 400;
     for (const s of ships) {
       if (!s.alive) continue;
       const dd = Math.hypot(s.x - bot.homeBase.x, s.y - bot.homeBase.y);
@@ -544,8 +563,15 @@ function updateBotShip(bot) {
       if (dd < beDist) { beDist = dd; baseEnemy = other; }
     }
     if (baseEnemy) {
-      botSteer(bot, baseEnemy.x, baseEnemy.y, Math.hypot(baseEnemy.x - bot.x, baseEnemy.y - bot.y) > 80);
+      // Chase the enemy actively
+      const ed = Math.hypot(baseEnemy.x - bot.x, baseEnemy.y - bot.y);
+      botSteer(bot, baseEnemy.x, baseEnemy.y, ed > 80);
       botTryShoot(bot);
+    } else {
+      // Patrol near base, don't just sit still
+      const d = Math.hypot(bot.homeBase.x - bot.x, bot.homeBase.y - bot.y);
+      if (d > 200) botSteer(bot, bot.homeBase.x, bot.homeBase.y, true);
+      else botSteer(bot, bot.homeBase.x + Math.cos(bot.angle) * 150, bot.homeBase.y + Math.sin(bot.angle) * 150, true);
     }
   }
 
@@ -916,6 +942,10 @@ function update() {
               type: Math.random() < 0.3 ? 2 : 1, value: 3 + Math.floor(Math.random() * 4),
               life: 600
             });
+          }
+          // Revenge: bot whose base was destroyed gets max grudge
+          for (const bot of botShips) {
+            if (bot.homeBase === b) { bot.grudge = 10; bot.state = 'revenge'; }
           }
           alienBases.splice(j, 1);
           sfxBreak();
