@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fishing Tycoon</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0f0e1a;
+    color: #fff;
+    overflow: hidden;
+    height: 100vh;
+    user-select: none;
+}
+
+#header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    background: #1a1830;
+    border-bottom: 2px solid #2d2a4a;
+}
+
+#header h1 {
+    font-size: 22px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.stat-bar { display: flex; gap: 24px; }
+
+.stat {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 16px; font-weight: 700;
+    background: #2d2a4a; padding: 8px 16px; border-radius: 12px;
+}
+
+.stat .icon { font-size: 20px; }
+.stat .value { color: #fdcb6e; }
+.stat .fish-value { color: #74b9ff; }
+
+#main { display: flex; height: calc(100vh - 58px); }
+
+/* POND */
+#pond-panel {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; position: relative; overflow: hidden;
+}
+
+#pond {
+    width: 100%; flex: 1; position: relative;
+    background: linear-gradient(180deg, #1a1830 0%, #0c2340 30%, #0a3d6b 60%, #0d4f8a 100%);
+    overflow: hidden;
+}
+
+#water-surface {
+    position: absolute; top: 28%; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(116,185,255,0.25), rgba(116,185,255,0.4), rgba(116,185,255,0.25), transparent);
+    z-index: 3;
+}
+
+.wave {
+    position: absolute; width: 200%; height: 30px; left: -50%;
+    background: repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(116,185,255,0.08) 40px, rgba(116,185,255,0.08) 80px);
+    animation: wave 4s linear infinite;
+}
+.wave:nth-child(1) { top: 28%; animation-duration: 4s; }
+.wave:nth-child(2) { top: 35%; animation-duration: 5s; opacity: 0.6; }
+.wave:nth-child(3) { top: 42%; animation-duration: 6s; opacity: 0.4; }
+
+@keyframes wave {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(40px); }
+}
+
+/* Rod */
+#rod {
+    position: absolute;
+    top: 3%; left: 3%; width: 46%; height: 5px;
+    background: linear-gradient(90deg, #5a3a1a 0%, #8B4513 20%, #A0522D 50%, #CD853F 80%, #DEB887 100%);
+    transform-origin: 0% 50%;
+    transform: rotate(15deg);
+    z-index: 7;
+    border-radius: 3px 1px 1px 3px;
+    pointer-events: none;
+    clip-path: polygon(0% 0%, 100% 20%, 100% 80%, 0% 100%);
+}
+
+/* Fishing line - always visible */
+#fishing-line {
+    position: absolute;
+    width: 2px;
+    background: linear-gradient(180deg, rgba(200,200,200,0.9), rgba(150,150,150,0.6));
+    z-index: 6;
+    pointer-events: none;
+}
+
+#bobber {
+    position: absolute;
+    bottom: -8px; left: -7px;
+    width: 16px; height: 16px;
+    background: radial-gradient(circle at 40% 35%, #ff6b6b, #e74c3c, #c0392b);
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.8);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    transition: transform 0.08s;
+}
+
+#bobber.flash {
+    box-shadow: 0 0 16px rgba(253,203,110,0.8), 0 2px 8px rgba(0,0,0,0.4);
+}
+
+/* Catch zone circle around bobber */
+#catch-zone {
+    position: absolute;
+    border: 1.5px dashed rgba(162,155,254,0.2);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 5;
+}
+
+#catch-zone.catching {
+    border-color: rgba(253,203,110,0.5);
+    background: rgba(253,203,110,0.08);
+}
+
+/* Game fish swimming across */
+.game-fish {
+    position: absolute;
+    pointer-events: none;
+    z-index: 3;
+    filter: drop-shadow(0 1px 3px rgba(0,0,0,0.4));
+}
+
+/* Splash ripple */
+.ripple {
+    position: absolute;
+    width: 30px; height: 10px;
+    border: 2px solid rgba(116,185,255,0.6);
+    border-radius: 50%;
+    z-index: 9;
+    pointer-events: none;
+    animation: rippleOut 0.6s ease forwards;
+}
+
+@keyframes rippleOut {
+    0% { transform: translate(-50%, -50%) scale(0.5); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
+}
+
+/* Info bar */
+#info-bar {
+    padding: 10px 20px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    background: #1a1830;
+    border-top: 2px solid #2d2a4a;
+    font-size: 13px;
+    color: #666;
+}
+
+#info-bar .controls {
+    color: #a29bfe;
+    font-weight: 600;
+}
+
+/* Catch popup */
+.catch-popup {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    background: #2d2a4a; border: 2px solid #6c5ce7;
+    border-radius: 16px; padding: 20px 32px;
+    text-align: center; z-index: 20;
+    animation: popIn 0.4s ease forwards;
+}
+
+.catch-popup .fish-name { font-size: 22px; font-weight: 800; margin: 8px 0 4px; }
+.catch-popup .fish-emoji { font-size: 42px; }
+.catch-popup .fish-coins { font-size: 18px; color: #fdcb6e; font-weight: 700; }
+
+@keyframes popIn {
+    0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+    60% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+@keyframes popOut {
+    0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    100% { transform: translate(-50%, -60%) scale(0.8); opacity: 0; }
+}
+
+.float-coin {
+    position: absolute; font-size: 16px; font-weight: 700;
+    color: #fdcb6e; pointer-events: none;
+    animation: floatUp 1.5s ease forwards; z-index: 20;
+}
+
+@keyframes floatUp {
+    0% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-60px); }
+}
+
+/* SHOP */
+#shop-panel {
+    width: 380px; background: #1a1830;
+    border-left: 2px solid #2d2a4a;
+    display: flex; flex-direction: column;
+}
+
+.shop-tabs { display: flex; border-bottom: 2px solid #2d2a4a; }
+
+.shop-tab {
+    flex: 1; padding: 12px 8px; text-align: center;
+    font-size: 13px; font-weight: 700; cursor: pointer;
+    background: transparent; border: none; color: #888;
+    transition: color 0.2s, background 0.2s;
+}
+.shop-tab:hover { color: #ccc; }
+.shop-tab.active { color: #fff; background: #2d2a4a; border-bottom: 3px solid #6c5ce7; }
+
+.shop-content { flex: 1; overflow-y: auto; padding: 12px; }
+.shop-content::-webkit-scrollbar { width: 6px; }
+.shop-content::-webkit-scrollbar-track { background: transparent; }
+.shop-content::-webkit-scrollbar-thumb { background: #2d2a4a; border-radius: 3px; }
+
+.shop-section { display: none; }
+.shop-section.active { display: block; }
+
+.upgrade-card {
+    background: #2d2a4a; border-radius: 14px; padding: 14px;
+    margin-bottom: 10px; display: flex; align-items: center; gap: 12px;
+    transition: transform 0.15s, box-shadow 0.15s; border: 2px solid transparent;
+}
+.upgrade-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+.upgrade-card.owned { border-color: #00b894; opacity: 0.85; }
+.upgrade-card.locked { opacity: 0.4; }
+
+.upgrade-icon {
+    font-size: 32px; width: 50px; height: 50px;
+    display: flex; align-items: center; justify-content: center;
+    background: #1a1830; border-radius: 12px; flex-shrink: 0;
+}
+
+.upgrade-info { flex: 1; }
+.upgrade-name { font-size: 15px; font-weight: 700; margin-bottom: 3px; }
+.upgrade-desc { font-size: 12px; color: #888; line-height: 1.3; }
+
+.upgrade-buy {
+    border: none; border-radius: 10px; padding: 8px 14px;
+    font-size: 13px; font-weight: 700; cursor: pointer;
+    background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+    color: #fff; transition: transform 0.15s, opacity 0.15s; white-space: nowrap;
+}
+.upgrade-buy:hover:not(:disabled) { transform: scale(1.05); }
+.upgrade-buy:disabled { opacity: 0.4; cursor: not-allowed; }
+.upgrade-buy.owned-btn { background: #00b894; cursor: default; }
+
+.auto-card { background: #2d2a4a; border-radius: 14px; padding: 14px; margin-bottom: 10px; }
+.auto-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.auto-card-title { font-size: 15px; font-weight: 700; }
+.auto-count { font-size: 13px; color: #a29bfe; font-weight: 600; }
+.auto-card-desc { font-size: 12px; color: #888; margin-bottom: 10px; }
+.auto-income { font-size: 12px; color: #fdcb6e; font-weight: 600; margin-bottom: 10px; }
+
+/* Auto-fisher visuals */
+.af-line {
+    position: absolute; width: 1px;
+    background: rgba(0,184,148,0.45);
+    z-index: 4; pointer-events: none;
+}
+.af-bobber {
+    position: absolute; width: 10px; height: 10px;
+    background: radial-gradient(circle at 40% 35%, #55efc4, #00b894);
+    border-radius: 50%;
+    border: 1.5px solid rgba(255,255,255,0.5);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    z-index: 5; pointer-events: none;
+}
+.af-bobber.af-bite { animation: afBite 0.2s ease infinite; }
+@keyframes afBite {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(5px); }
+}
+.af-fish {
+    position: absolute; font-size: 18px;
+    z-index: 4; pointer-events: none; display: none;
+}
+.af-fish.af-nibble { animation: afNibble 0.25s ease infinite; }
+@keyframes afNibble {
+    0%, 100% { transform: rotate(0deg) translateX(0); }
+    25% { transform: rotate(-6deg) translateX(-2px); }
+    75% { transform: rotate(6deg) translateX(2px); }
+}
+
+.escape-text {
+    position: absolute;
+    font-size: 14px;
+    font-weight: 700;
+    color: #ff6b6b;
+    pointer-events: none;
+    animation: escapeFloat 1.2s ease forwards;
+    z-index: 20;
+    white-space: nowrap;
+}
+
+@keyframes escapeFloat {
+    0% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-50px); }
+}
+
+/* Catch log */
+#catch-log {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 20;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.catch-log-entry {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(26,24,48,0.85);
+    border: 1px solid rgba(108,92,231,0.3);
+    border-radius: 10px;
+    padding: 5px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    animation: logSlideIn 0.25s ease forwards;
+    white-space: nowrap;
+}
+
+.catch-log-entry.fading {
+    animation: logFadeOut 0.4s ease forwards;
+}
+
+.catch-log-entry .log-emoji { font-size: 18px; }
+.catch-log-entry .log-name { font-weight: 700; }
+.catch-log-entry .log-value { color: #fdcb6e; }
+
+@keyframes logSlideIn {
+    0% { opacity: 0; transform: translateX(-20px); }
+    100% { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes logFadeOut {
+    0% { opacity: 1; transform: translateX(0); }
+    100% { opacity: 0; transform: translateX(-20px); }
+}
+
+.rarity-common { color: #b2bec3; }
+.rarity-uncommon { color: #00b894; }
+.rarity-rare { color: #74b9ff; }
+.rarity-epic { color: #a29bfe; }
+.rarity-legendary { color: #fdcb6e; }
+.rarity-mythic { color: #fd79a8; }
+</style>
+</head>
+<body>
+
+<div id="header">
+    <h1>FISHING TYCOON</h1>
+    <div class="stat-bar">
+        <div class="stat">
+            <span class="icon">$</span>
+            <span class="value" id="coins-display">0</span>
+        </div>
+        <div class="stat">
+            <span class="icon">~</span>
+            <span class="fish-value" id="fish-display">0 caught</span>
+        </div>
+    </div>
+</div>
+
+<div id="main">
+    <div id="pond-panel">
+        <div id="pond">
+            <div class="wave"></div>
+            <div class="wave"></div>
+            <div class="wave"></div>
+            <div id="water-surface"></div>
+            <div id="rod"></div>
+            <div id="catch-log"></div>
+            <div id="catch-zone"></div>
+            <div id="fishing-line"><div id="bobber"></div></div>
+        </div>
+        <div id="info-bar">
+            <span class="controls">W / S &nbsp;or&nbsp; Arrow Keys</span>
+            <span>to move your lure</span>
+        </div>
+    </div>
+
+    <div id="shop-panel">
+        <div class="shop-tabs">
+            <button class="shop-tab active" onclick="switchTab('rods')">RODS</button>
+            <button class="shop-tab" onclick="switchTab('bait')">BAIT</button>
+            <button class="shop-tab" onclick="switchTab('auto')">AUTO-FISH</button>
+        </div>
+        <div class="shop-content">
+            <div id="rods-section" class="shop-section active"></div>
+            <div id="bait-section" class="shop-section"></div>
+            <div id="auto-section" class="shop-section"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ─── GAME DATA ───
+const FISH = [
+    { name: 'Minnow',      emoji: '\u{1F41F}', value: 2,    rarity: 'common',    weight: 40, minRod: 0, minBait: 0 },
+    { name: 'Perch',        emoji: '\u{1F41F}', value: 5,    rarity: 'common',    weight: 30, minRod: 0, minBait: 0 },
+    { name: 'Bass',         emoji: '\u{1F41F}', value: 12,   rarity: 'uncommon',  weight: 20, minRod: 1, minBait: 0 },
+    { name: 'Trout',        emoji: '\u{1F41F}', value: 25,   rarity: 'uncommon',  weight: 14, minRod: 1, minBait: 1 },
+    { name: 'Salmon',       emoji: '\u{1F41F}', value: 50,   rarity: 'rare',      weight: 10, minRod: 2, minBait: 1 },
+    { name: 'Tuna',         emoji: '\u{1F41F}', value: 100,  rarity: 'rare',      weight: 7,  minRod: 2, minBait: 2 },
+    { name: 'Swordfish',    emoji: '\u{1F41F}', value: 200,  rarity: 'epic',      weight: 5,  minRod: 3, minBait: 2 },
+    { name: 'Marlin',       emoji: '\u{1F41F}', value: 400,  rarity: 'epic',      weight: 3,  minRod: 3, minBait: 3 },
+    { name: 'Golden Fish',  emoji: '\u{1F31F}', value: 800,  rarity: 'legendary', weight: 2,  minRod: 4, minBait: 3 },
+    { name: 'Diamond Fish', emoji: '\u{1F48E}', value: 2000, rarity: 'mythic',    weight: 1,  minRod: 4, minBait: 4 },
+];
+
+const RODS = [
+    { name: 'Wooden Rod',      icon: '\u{1FAB5}', cost: 0,     radius: 20, speed: 1.5, cooldown: 50, grip: 0.50, desc: 'A basic rod. Fish slip away often.' },
+    { name: 'Fiberglass Rod',  icon: '\u{1F3A3}', cost: 50,    radius: 25, speed: 2.2, cooldown: 42, grip: 0.62, desc: 'Better hold. Unlocks Bass.' },
+    { name: 'Carbon Rod',      icon: '\u{1F3A3}', cost: 250,   radius: 30, speed: 3,   cooldown: 34, grip: 0.74, desc: 'Solid grip. Unlocks Salmon.' },
+    { name: 'Titanium Rod',    icon: '\u{1F3A3}', cost: 1000,  radius: 36, speed: 4,   cooldown: 26, grip: 0.84, desc: 'Rarely lose a fish. Unlocks Swordfish.' },
+    { name: 'Diamond Rod',     icon: '\u{1F48E}', cost: 4000,  radius: 42, speed: 5.2, cooldown: 18, grip: 0.93, desc: 'Iron grip. Unlocks Golden Fish.' },
+    { name: 'Quantum Rod',     icon: '\u{269B}\u{FE0F}',  cost: 15000, radius: 50, speed: 6.5, cooldown: 10, grip: 1.0,  desc: 'Never lets go.' },
+];
+
+const BAITS = [
+    { name: 'Worm',          icon: '\u{1FAB1}', cost: 0,     bonus: 0,    desc: 'A simple worm. Free and easy.' },
+    { name: 'Cricket',       icon: '\u{1F997}', cost: 40,    bonus: 0.15, desc: '+15% rare fish chance. Unlocks Trout.' },
+    { name: 'Shrimp',        icon: '\u{1F990}', cost: 200,   bonus: 0.3,  desc: '+30% rare fish chance. Unlocks Tuna.' },
+    { name: 'Squid',         icon: '\u{1F991}', cost: 800,   bonus: 0.45, desc: '+45% rare fish chance. Unlocks Marlin.' },
+    { name: 'Golden Lure',   icon: '\u{2728}',  cost: 3500,  bonus: 0.6,  desc: '+60% rare fish chance. Unlocks Golden Fish.' },
+    { name: 'Quantum Bait',  icon: '\u{1F300}', cost: 12000, bonus: 0.8,  desc: '+80% rare fish chance. Maximum power.' },
+];
+
+const RARITY_SPEED = { common: 1, uncommon: 1.2, rare: 1.5, epic: 1.8, legendary: 2.2, mythic: 2.8 };
+const RARITY_SIZE = { common: 24, uncommon: 27, rare: 30, epic: 34, legendary: 38, mythic: 44 };
+const RARITY_GLOW = {
+    common:    'drop-shadow(0 0 3px rgba(178,190,195,0.5))',
+    uncommon:  'drop-shadow(0 0 5px rgba(0,184,148,0.7))',
+    rare:      'drop-shadow(0 0 6px rgba(116,185,255,0.8)) drop-shadow(0 0 12px rgba(116,185,255,0.3))',
+    epic:      'drop-shadow(0 0 7px rgba(162,155,254,0.9)) drop-shadow(0 0 14px rgba(162,155,254,0.4))',
+    legendary: 'drop-shadow(0 0 8px rgba(253,203,110,1)) drop-shadow(0 0 18px rgba(253,203,110,0.5))',
+    mythic:    'drop-shadow(0 0 8px rgba(253,121,168,1)) drop-shadow(0 0 18px rgba(253,121,168,0.5))',
+};
+const RARITY_SLIP = { common: 0, uncommon: 0.03, rare: 0.07, epic: 0.12, legendary: 0.18, mythic: 0.25 };
+
+// ─── GAME STATE ───
+let state = {
+    coins: 0, totalCoins: 0, fishCaught: 0,
+    rodLevel: 0, baitLevel: 0,
+    autoFishers: 0, autoSpeed: 0, autoRodLevel: 0,
+};
+
+const AUTO_ROD_COSTS = [0, 100, 500, 2000, 8000, 30000];
+
+// ─── FISHING / GAME LOOP STATE ───
+let lureY = 0.5;
+let bobberPos = { x: 0, y: 0 };
+let gameFish = [];
+let catchCooldown = 0;
+let keys = {};
+
+// ─── DOM REFS ───
+const pond = document.getElementById('pond');
+const rodEl = document.getElementById('rod');
+const lineEl = document.getElementById('fishing-line');
+const bobberEl = document.getElementById('bobber');
+const catchZone = document.getElementById('catch-zone');
+
+// ─── INPUT ───
+document.addEventListener('keydown', (e) => {
+    keys[e.key] = true;
+    if (['ArrowUp','ArrowDown','w','W','s','S',' '].includes(e.key)) e.preventDefault();
+});
+document.addEventListener('keyup', (e) => { keys[e.key] = false; });
+
+// ─── ROD & LINE POSITIONING ───
+function getRodTip() {
+    let pw = pond.offsetWidth;
+    let ph = pond.offsetHeight;
+    let originX = pw * 0.03;
+    let originY = ph * 0.03 + 2.5;
+    let rodLength = pw * 0.46;
+    let angle = (12 + lureY * 28) * Math.PI / 180;
+    return {
+        x: originX + rodLength * Math.cos(angle),
+        y: originY + rodLength * Math.sin(angle)
+    };
+}
+
+function updateRodPosition() {
+    let angle = 12 + lureY * 28;
+    rodEl.style.transform = `rotate(${angle}deg)`;
+
+    let tip = getRodTip();
+    let ph = pond.offsetHeight;
+
+    let minY = ph * 0.32;
+    let maxY = ph * 0.88;
+    let by = minY + lureY * (maxY - minY);
+    by = Math.max(by, tip.y + 30);
+
+    bobberPos = { x: tip.x, y: by };
+
+    lineEl.style.left = tip.x + 'px';
+    lineEl.style.top = tip.y + 'px';
+    lineEl.style.height = (by - tip.y) + 'px';
+
+    // Update catch zone
+    let rod = RODS[state.rodLevel];
+    let r = rod.radius;
+    catchZone.style.width = (r * 2) + 'px';
+    catchZone.style.height = (r * 2) + 'px';
+    catchZone.style.left = (bobberPos.x - r) + 'px';
+    catchZone.style.top = (bobberPos.y - r) + 'px';
+}
+
+// ─── RIPPLE EFFECT ───
+function spawnRipple(x, y) {
+    let r = document.createElement('div');
+    r.className = 'ripple';
+    r.style.left = x + 'px';
+    r.style.top = y + 'px';
+    pond.appendChild(r);
+    setTimeout(() => r.remove(), 600);
+}
+
+// ─── CATCH FISH (weighted random for spawning) ───
+function pickFish() {
+    let available = FISH.filter(f => f.minRod <= state.rodLevel && f.minBait <= state.baitLevel);
+    let baitBonus = BAITS[state.baitLevel].bonus;
+
+    let pool = [];
+    available.forEach(fish => {
+        let w = fish.weight;
+        if (fish.rarity !== 'common') {
+            w = Math.ceil(w * (1 + baitBonus));
+        } else {
+            w = Math.max(5, Math.ceil(w * (1 - baitBonus * 0.5)));
+        }
+        pool.push({ fish, weight: w });
+    });
+
+    let total = pool.reduce((s, p) => s + p.weight, 0);
+    let roll = Math.random() * total;
+    let cumulative = 0;
+    for (let p of pool) {
+        cumulative += p.weight;
+        if (roll <= cumulative) return p.fish;
+    }
+    return pool[pool.length - 1].fish;
+}
+
+function autoPickFish() {
+    let available = FISH.filter(f => f.minRod <= state.autoRodLevel && f.minBait <= state.baitLevel);
+    let baitBonus = BAITS[state.baitLevel].bonus;
+
+    let pool = [];
+    available.forEach(fish => {
+        let w = fish.weight;
+        if (fish.rarity !== 'common') {
+            w = Math.ceil(w * (1 + baitBonus));
+        } else {
+            w = Math.max(5, Math.ceil(w * (1 - baitBonus * 0.5)));
+        }
+        pool.push({ fish, weight: w });
+    });
+
+    let total = pool.reduce((s, p) => s + p.weight, 0);
+    let roll = Math.random() * total;
+    let cumulative = 0;
+    for (let p of pool) {
+        cumulative += p.weight;
+        if (roll <= cumulative) return p.fish;
+    }
+    return pool[pool.length - 1].fish;
+}
+
+// ─── FISH SPAWNING ───
+function spawnGameFish() {
+    let pw = pond.offsetWidth;
+    let ph = pond.offsetHeight;
+
+    let fish = pickFish();
+    let fromRight = Math.random() > 0.5;
+
+    let baseSpeed = 0.8 + Math.random() * 0.8;
+    let speed = baseSpeed * (RARITY_SPEED[fish.rarity] || 1);
+    if (fromRight) speed = -speed;
+
+    let size = RARITY_SIZE[fish.rarity] || 24;
+    let y = ph * (0.32 + Math.random() * 0.56);
+    let x = fromRight ? pw + 20 : -(size + 10);
+
+    let el = document.createElement('div');
+    el.className = 'game-fish';
+    el.textContent = fish.emoji;
+    el.style.fontSize = size + 'px';
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    el.style.transform = fromRight ? 'scaleX(1)' : 'scaleX(-1)';
+    el.style.filter = RARITY_GLOW[fish.rarity] || '';
+    pond.appendChild(el);
+
+    gameFish.push({
+        data: fish, x, y, speed, size, el, caught: false
+    });
+}
+
+function scheduleSpawn() {
+    let delay = 700 + Math.random() * 1000;
+    setTimeout(() => {
+        spawnGameFish();
+        scheduleSpawn();
+    }, delay);
+}
+
+// ─── CATCH A GAME FISH ───
+function catchGameFish(f) {
+    f.caught = true;
+    let fish = f.data;
+    let rod = RODS[state.rodLevel];
+
+    // Roll for catch vs escape
+    let catchChance = rod.grip - (RARITY_SLIP[fish.rarity] || 0);
+    let success = Math.random() < catchChance;
+
+    if (success) {
+        // Caught!
+        state.coins += fish.value;
+        state.totalCoins += fish.value;
+        state.fishCaught++;
+        addCatchLog(fish, fish.value);
+
+        f.el.style.transition = 'transform 0.25s ease, opacity 0.25s ease';
+        f.el.style.transform = 'scale(0) rotate(20deg)';
+        f.el.style.opacity = '0';
+        setTimeout(() => f.el.remove(), 300);
+
+        bobberEl.classList.add('flash');
+        catchZone.classList.add('catching');
+        setTimeout(() => {
+            bobberEl.classList.remove('flash');
+            catchZone.classList.remove('catching');
+        }, 200);
+
+        spawnRipple(bobberPos.x, bobberPos.y);
+
+        let coin = document.createElement('div');
+        coin.className = 'float-coin';
+        coin.textContent = `+$${fish.value}`;
+        coin.style.left = bobberPos.x + 'px';
+        coin.style.top = (bobberPos.y - 10) + 'px';
+        pond.appendChild(coin);
+        setTimeout(() => coin.remove(), 1500);
+
+        if (fish.rarity !== 'common' && fish.rarity !== 'uncommon') {
+            showCatchPopup(fish, fish.value);
+        }
+
+        updateUI();
+    } else {
+        // Fish got away! Dart it off screen
+        let pw = pond.offsetWidth;
+        let goRight = f.speed > 0;
+        f.el.style.transition = 'left 0.3s ease-in, opacity 0.3s ease';
+        f.el.style.left = (goRight ? pw + 60 : -80) + 'px';
+        f.el.style.opacity = '0.3';
+        setTimeout(() => f.el.remove(), 350);
+
+        spawnRipple(bobberPos.x, bobberPos.y);
+
+        // "Got away!" text
+        let msg = document.createElement('div');
+        msg.className = 'escape-text';
+        msg.textContent = 'Got away!';
+        msg.style.left = bobberPos.x + 'px';
+        msg.style.top = (bobberPos.y - 10) + 'px';
+        pond.appendChild(msg);
+        setTimeout(() => msg.remove(), 1200);
+    }
+
+    // Cooldown either way
+    catchCooldown = rod.cooldown;
+}
+
+// ─── GAME LOOP ───
+function gameStep() {
+    let pw = pond.offsetWidth;
+    let ph = pond.offsetHeight;
+
+    // Move lure based on input
+    let rod = RODS[state.rodLevel];
+    let speed = rod.speed / ph; // normalize to 0-1 range
+    if (keys['ArrowUp'] || keys['w'] || keys['W']) lureY -= speed;
+    if (keys['ArrowDown'] || keys['s'] || keys['S']) lureY += speed;
+    lureY = Math.max(0.05, Math.min(0.98, lureY));
+
+    updateRodPosition();
+
+    // Move fish
+    for (let f of gameFish) {
+        if (f.caught) continue;
+        f.x += f.speed;
+        f.el.style.left = f.x + 'px';
+    }
+
+    // Remove off-screen fish
+    gameFish = gameFish.filter(f => {
+        if (f.caught && f.el.parentNode === null) return false;
+        if (!f.caught && (f.x < -(f.size + 20) || f.x > pw + f.size + 20)) {
+            f.el.remove();
+            return false;
+        }
+        return true;
+    });
+
+    // Collision detection
+    if (catchCooldown > 0) {
+        catchCooldown--;
+    } else {
+        let radius = rod.radius;
+        let bx = bobberPos.x;
+        let by = bobberPos.y;
+
+        for (let f of gameFish) {
+            if (f.caught) continue;
+            let fx = f.x + f.size * 0.5;
+            let fy = f.y + f.size * 0.5;
+            let dist = Math.hypot(fx - bx, fy - by);
+            if (dist < radius) {
+                catchGameFish(f);
+                break;
+            }
+        }
+    }
+
+    requestAnimationFrame(gameStep);
+}
+
+// ─── CATCH POPUP ───
+function addCatchLog(fish, value) {
+    let log = document.getElementById('catch-log');
+    let entry = document.createElement('div');
+    entry.className = 'catch-log-entry';
+    entry.innerHTML = `<span class="log-emoji">${fish.emoji}</span><span class="log-name rarity-${fish.rarity}">${fish.name}</span><span class="log-value">+$${value}</span>`;
+    log.prepend(entry);
+
+    // Keep max 5 entries
+    while (log.children.length > 5) {
+        log.lastChild.remove();
+    }
+
+    // Fade out after 3s
+    setTimeout(() => {
+        entry.classList.add('fading');
+        setTimeout(() => { if (entry.parentNode) entry.remove(); }, 400);
+    }, 3000);
+}
+
+function showCatchPopup(fish, value) {
+    let existing = document.querySelector('.catch-popup');
+    if (existing) existing.remove();
+
+    let popup = document.createElement('div');
+    popup.className = 'catch-popup';
+    popup.innerHTML = `
+        <div class="fish-emoji">${fish.emoji}</div>
+        <div class="fish-name rarity-${fish.rarity}">${fish.name}</div>
+        <div class="fish-coins">+$${value}</div>
+    `;
+    pond.appendChild(popup);
+
+    setTimeout(() => {
+        popup.style.animation = 'popOut 0.3s ease forwards';
+        setTimeout(() => popup.remove(), 300);
+    }, 1000);
+}
+
+// ─── AUTO-FISHERS ───
+let autoFisherObjects = [];
+
+function getAutoInterval() {
+    let baseInterval = 4000;
+    let speedMult = [1, 0.75, 0.55, 0.4, 0.3];
+    return baseInterval * (speedMult[state.autoSpeed] || 0.3);
+}
+
+function updateAutoFishers() {
+    autoFisherObjects.forEach(af => {
+        clearTimeout(af.waitTimer);
+        clearTimeout(af.biteTimer);
+        clearTimeout(af.catchTimer);
+        clearTimeout(af.resetTimer);
+        if (af.approachId) cancelAnimationFrame(af.approachId);
+        if (af.lineEl) af.lineEl.remove();
+        if (af.bobberEl) af.bobberEl.remove();
+        if (af.fishEl) af.fishEl.remove();
+    });
+    autoFisherObjects = [];
+
+    if (state.autoFishers <= 0) return;
+
+    let pw = pond.offsetWidth;
+    let ph = pond.offsetHeight;
+    let surfaceY = ph * 0.28;
+    let count = Math.min(state.autoFishers, 20);
+
+    for (let i = 0; i < count; i++) {
+        let x = pw * (0.08 + ((i + 0.5) / count) * 0.84);
+        let row = i % 3;
+        let bobberY = ph * (0.40 + row * 0.14) + (Math.sin(i * 2.3) * ph * 0.04);
+        bobberY = Math.min(bobberY, ph * 0.88);
+
+        let lineEl = document.createElement('div');
+        lineEl.className = 'af-line';
+        lineEl.style.left = x + 'px';
+        lineEl.style.top = surfaceY + 'px';
+        lineEl.style.height = (bobberY - surfaceY) + 'px';
+        pond.appendChild(lineEl);
+
+        let bobberEl = document.createElement('div');
+        bobberEl.className = 'af-bobber';
+        bobberEl.style.left = (x - 5) + 'px';
+        bobberEl.style.top = (bobberY - 5) + 'px';
+        pond.appendChild(bobberEl);
+
+        let fishEl = document.createElement('div');
+        fishEl.className = 'af-fish';
+        pond.appendChild(fishEl);
+
+        let af = {
+            lineEl, bobberEl, fishEl, x, bobberY,
+            waitTimer: null, biteTimer: null, catchTimer: null, resetTimer: null, approachId: null
+        };
+        autoFisherObjects.push(af);
+
+        let stagger = (i / count) * getAutoInterval() + Math.random() * 800;
+        af.waitTimer = setTimeout(() => afCycle(af), stagger);
+    }
+}
+
+function afCycle(af) {
+    let pw = pond.offsetWidth;
+    let interval = getAutoInterval();
+    let caughtFish = autoPickFish();
+
+    let fromRight = Math.random() > 0.5;
+    let startX = fromRight ? af.x + 70 + Math.random() * 40 : af.x - 70 - Math.random() * 40;
+    let startY = af.bobberY + (Math.random() - 0.5) * 30;
+
+    af.fishEl.textContent = caughtFish.emoji;
+    af.fishEl.style.display = 'block';
+    af.fishEl.style.opacity = '0.85';
+    af.fishEl.style.left = startX + 'px';
+    af.fishEl.style.top = (startY - 9) + 'px';
+    af.fishEl.style.transition = 'none';
+    af.fishEl.style.fontSize = '18px';
+    af.fishEl.classList.remove('af-nibble');
+    af.fishEl.style.transform = fromRight ? 'scaleX(1)' : 'scaleX(-1)';
+
+    let endX = af.x - 9;
+    let endY = af.bobberY - 9;
+    let startTime = null;
+    let duration = 900;
+
+    function animate(timestamp) {
+        if (!startTime) startTime = timestamp;
+        let progress = Math.min((timestamp - startTime) / duration, 1);
+        let eased = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+        let waveY = Math.sin(progress * Math.PI * 4) * 8 * (1 - progress);
+
+        af.fishEl.style.left = (startX + (endX - startX) * eased) + 'px';
+        af.fishEl.style.top = ((startY - 9) + (endY - (startY - 9)) * eased + waveY) + 'px';
+
+        if (progress < 1) {
+            af.approachId = requestAnimationFrame(animate);
+        } else {
+            af.bobberEl.classList.add('af-bite');
+            af.fishEl.classList.add('af-nibble');
+            spawnRipple(af.x, af.bobberY);
+
+            af.biteTimer = setTimeout(() => {
+                af.bobberEl.classList.remove('af-bite');
+                af.fishEl.classList.remove('af-nibble');
+
+                // Grip check - auto rod determines catch success
+                let autoRod = RODS[state.autoRodLevel];
+                let gripChance = autoRod.grip - (RARITY_SLIP[caughtFish.rarity] || 0);
+                let caught = Math.random() < gripChance;
+
+                af.fishEl.style.transition = 'top 0.35s ease-in, opacity 0.3s ease 0.05s';
+                af.fishEl.style.top = (af.bobberY - 50) + 'px';
+                af.fishEl.style.opacity = '0';
+
+                if (caught) {
+                    state.coins += caughtFish.value;
+                    state.totalCoins += caughtFish.value;
+                    state.fishCaught++;
+
+                    let coin = document.createElement('div');
+                    coin.className = 'float-coin';
+                    coin.textContent = `+$${caughtFish.value}`;
+                    coin.style.fontSize = '11px';
+                    coin.style.left = af.x + 'px';
+                    coin.style.top = (af.bobberY - 20) + 'px';
+                    pond.appendChild(coin);
+                    setTimeout(() => coin.remove(), 1500);
+                }
+                updateUI();
+
+                af.resetTimer = setTimeout(() => {
+                    af.fishEl.style.display = 'none';
+                    af.fishEl.style.transition = 'none';
+                    let nextWait = Math.max(400, interval - 1900);
+                    af.waitTimer = setTimeout(() => afCycle(af), nextWait);
+                }, 400);
+            }, 600);
+        }
+    }
+
+    af.approachId = requestAnimationFrame(animate);
+}
+
+function getAutoFisherCost() {
+    return Math.floor(100 * Math.pow(1.6, state.autoFishers));
+}
+
+const AUTO_SPEED_COSTS = [0, 500, 2000, 8000, 25000];
+
+// ─── UPGRADES ───
+function buyRod(level) {
+    if (level <= state.rodLevel || level !== state.rodLevel + 1) return;
+    if (state.coins < RODS[level].cost) return;
+    state.coins -= RODS[level].cost;
+    state.rodLevel = level;
+    updateUI();
+}
+
+function buyBait(level) {
+    if (level <= state.baitLevel || level !== state.baitLevel + 1) return;
+    if (state.coins < BAITS[level].cost) return;
+    state.coins -= BAITS[level].cost;
+    state.baitLevel = level;
+    updateUI();
+}
+
+function buyAutoFisher() {
+    let cost = getAutoFisherCost();
+    if (state.coins < cost) return;
+    state.coins -= cost;
+    state.autoFishers++;
+    updateAutoFishers();
+    updateUI();
+}
+
+function buyAutoRod() {
+    let nextLevel = state.autoRodLevel + 1;
+    if (nextLevel >= RODS.length) return;
+    let cost = AUTO_ROD_COSTS[nextLevel];
+    if (state.coins < cost) return;
+    state.coins -= cost;
+    state.autoRodLevel = nextLevel;
+    updateUI();
+}
+
+function buyAutoSpeed() {
+    let nextLevel = state.autoSpeed + 1;
+    if (nextLevel >= AUTO_SPEED_COSTS.length) return;
+    if (state.coins < AUTO_SPEED_COSTS[nextLevel]) return;
+    state.coins -= AUTO_SPEED_COSTS[nextLevel];
+    state.autoSpeed = nextLevel;
+    updateAutoFishers();
+    updateUI();
+}
+
+// ─── SHOP ───
+function switchTab(tab) {
+    document.querySelectorAll('.shop-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.shop-section').forEach(s => s.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById(tab + '-section').classList.add('active');
+}
+
+function renderShop() {
+    let rodsHtml = '';
+    RODS.forEach((rod, i) => {
+        let owned = i <= state.rodLevel;
+        let canBuy = i === state.rodLevel + 1 && state.coins >= rod.cost;
+        let isNext = i === state.rodLevel + 1;
+        let locked = i > state.rodLevel + 1;
+
+        let btnHtml = '';
+        if (owned && i === state.rodLevel) btnHtml = `<button class="upgrade-buy owned-btn" disabled>EQUIPPED</button>`;
+        else if (owned) btnHtml = `<button class="upgrade-buy owned-btn" disabled>OWNED</button>`;
+        else if (isNext) btnHtml = `<button class="upgrade-buy" onclick="buyRod(${i})" ${canBuy ? '' : 'disabled'}>$${rod.cost}</button>`;
+        else btnHtml = `<button class="upgrade-buy" disabled>$${rod.cost}</button>`;
+
+        rodsHtml += `<div class="upgrade-card ${owned ? 'owned' : ''} ${locked ? 'locked' : ''}">
+            <div class="upgrade-icon">${rod.icon}</div>
+            <div class="upgrade-info"><div class="upgrade-name">${rod.name}</div>
+            <div class="upgrade-desc">${rod.desc}<br>Radius: ${rod.radius} | Speed: ${rod.speed} | Grip: ${Math.round(rod.grip * 100)}%</div></div>${btnHtml}</div>`;
+    });
+    document.getElementById('rods-section').innerHTML = rodsHtml;
+
+    let baitHtml = '';
+    BAITS.forEach((bait, i) => {
+        let owned = i <= state.baitLevel;
+        let canBuy = i === state.baitLevel + 1 && state.coins >= bait.cost;
+        let isNext = i === state.baitLevel + 1;
+        let locked = i > state.baitLevel + 1;
+
+        let btnHtml = '';
+        if (owned && i === state.baitLevel) btnHtml = `<button class="upgrade-buy owned-btn" disabled>EQUIPPED</button>`;
+        else if (owned) btnHtml = `<button class="upgrade-buy owned-btn" disabled>OWNED</button>`;
+        else if (isNext) btnHtml = `<button class="upgrade-buy" onclick="buyBait(${i})" ${canBuy ? '' : 'disabled'}>$${bait.cost}</button>`;
+        else btnHtml = `<button class="upgrade-buy" disabled>$${bait.cost}</button>`;
+
+        baitHtml += `<div class="upgrade-card ${owned ? 'owned' : ''} ${locked ? 'locked' : ''}">
+            <div class="upgrade-icon">${bait.icon}</div>
+            <div class="upgrade-info"><div class="upgrade-name">${bait.name}</div>
+            <div class="upgrade-desc">${bait.desc}</div></div>${btnHtml}</div>`;
+    });
+    document.getElementById('bait-section').innerHTML = baitHtml;
+
+    let afCost = getAutoFisherCost();
+    let canBuyAF = state.coins >= afCost;
+    let speedLabel = ['1x', '1.33x', '1.8x', '2.5x', '3.3x'];
+    let nextSpeedCost = state.autoSpeed < AUTO_SPEED_COSTS.length - 1 ? AUTO_SPEED_COSTS[state.autoSpeed + 1] : null;
+    let canBuySpeed = nextSpeedCost !== null && state.coins >= nextSpeedCost;
+
+    let autoIncome = '';
+    if (state.autoFishers > 0) {
+        let avgValue = 0;
+        let available = FISH.filter(f => f.minRod <= state.autoRodLevel && f.minBait <= state.baitLevel);
+        let totalW = available.reduce((s, f) => s + f.weight, 0);
+        available.forEach(f => avgValue += (f.weight / totalW) * f.value);
+        let autoGrip = RODS[state.autoRodLevel].grip;
+        let speedMult = [1, 0.75, 0.55, 0.4, 0.3];
+        let interval = 4 * (speedMult[state.autoSpeed] || 0.3);
+        let perSec = (state.autoFishers / interval) * avgValue * autoGrip;
+        autoIncome = `<div class="auto-income">~ $${perSec.toFixed(1)}/sec income</div>`;
+    }
+
+    // Auto rod upgrade
+    let autoRod = RODS[state.autoRodLevel];
+    let nextAutoRodLevel = state.autoRodLevel + 1;
+    let nextAutoRod = nextAutoRodLevel < RODS.length ? RODS[nextAutoRodLevel] : null;
+    let nextAutoRodCost = nextAutoRodLevel < AUTO_ROD_COSTS.length ? AUTO_ROD_COSTS[nextAutoRodLevel] : null;
+    let canBuyAutoRod = nextAutoRodCost !== null && state.coins >= nextAutoRodCost;
+
+    document.getElementById('auto-section').innerHTML = `
+        <div class="auto-card">
+            <div class="auto-card-header"><div class="auto-card-title">Auto-Fishers</div>
+            <div class="auto-count">Owned: ${state.autoFishers}</div></div>
+            <div class="auto-card-desc">Each auto-fisher catches fish for you automatically.</div>
+            ${autoIncome}
+            <button class="upgrade-buy" onclick="buyAutoFisher()" ${canBuyAF ? '' : 'disabled'} style="width:100%;padding:10px;">
+                Buy Auto-Fisher — $${afCost.toLocaleString()}</button>
+        </div>
+        <div class="auto-card" ${state.autoFishers === 0 ? 'style="opacity:0.4;pointer-events:none;"' : ''}>
+            <div class="auto-card-header"><div class="auto-card-title">Auto-Fisher Rod</div>
+            <div class="auto-count">${autoRod.icon} ${autoRod.name}</div></div>
+            <div class="auto-card-desc">Grip: ${Math.round(autoRod.grip * 100)}% — Better rods unlock rarer fish and lose fewer catches.</div>
+            ${nextAutoRod ? `<button class="upgrade-buy" onclick="buyAutoRod()" ${canBuyAutoRod ? '' : 'disabled'} style="width:100%;padding:10px;">
+                Upgrade to ${nextAutoRod.name} — $${nextAutoRodCost.toLocaleString()}</button>` : '<div style="color:#00b894;font-weight:700;text-align:center;">MAX ROD</div>'}
+        </div>
+        <div class="auto-card" ${state.autoFishers === 0 ? 'style="opacity:0.4;pointer-events:none;"' : ''}>
+            <div class="auto-card-header"><div class="auto-card-title">Auto-Fish Speed</div>
+            <div class="auto-count">Level: ${state.autoSpeed} / ${AUTO_SPEED_COSTS.length - 1}</div></div>
+            <div class="auto-card-desc">Current speed: ${speedLabel[state.autoSpeed]}. Make auto-fishers catch faster.</div>
+            ${nextSpeedCost !== null ? `<button class="upgrade-buy" onclick="buyAutoSpeed()" ${canBuySpeed ? '' : 'disabled'} style="width:100%;padding:10px;">
+                Upgrade Speed — $${nextSpeedCost.toLocaleString()}</button>` : '<div style="color:#00b894;font-weight:700;text-align:center;">MAX LEVEL</div>'}
+        </div>`;
+}
+
+// ─── UTILITIES ───
+function formatNum(n) {
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+    if (n >= 10000) return (n / 1000).toFixed(1) + 'K';
+    return n.toLocaleString();
+}
+
+function updateUI() {
+    document.getElementById('coins-display').textContent = formatNum(state.coins);
+    document.getElementById('fish-display').textContent = formatNum(state.fishCaught) + ' caught';
+    renderShop();
+}
+
+// ─── INIT ───
+updateRodPosition();
+updateUI();
+scheduleSpawn();
+requestAnimationFrame(gameStep);
+</script>
+</body>
+</html>
