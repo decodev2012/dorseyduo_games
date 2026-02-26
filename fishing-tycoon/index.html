@@ -1093,6 +1093,20 @@ function renderShop() {
         </div>`;
 }
 
+// ─── SAVE / LOAD ───
+const SAVE_KEY = 'fishingTycoon_save';
+
+function saveState() {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+}
+
+function loadState() {
+    try {
+        let saved = localStorage.getItem(SAVE_KEY);
+        if (saved) Object.assign(state, JSON.parse(saved));
+    } catch(e) {}
+}
+
 // ─── UTILITIES ───
 function formatNum(n) {
     if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
@@ -1104,11 +1118,14 @@ function updateUI() {
     document.getElementById('coins-display').textContent = formatNum(state.coins);
     document.getElementById('fish-display').textContent = formatNum(state.fishCaught) + ' caught';
     renderShop();
+    saveState();
 }
 
 // ─── INIT ───
+loadState();
 updateRodPosition();
 updateUI();
+if (state.autoFishers > 0) updateAutoFishers();
 scheduleSpawn();
 requestAnimationFrame(gameStep);
 </script>
