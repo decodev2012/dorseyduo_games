@@ -211,7 +211,7 @@ let stations; // array of { x, y, hp, maxHp, destroyed, owner (ship num) }
 let botColorIdx = 0;
 let stationAngle = 0;
 let screenShake = 0;
-let hoverMode = false, hoverStart = false;
+let hoverStart = false;
 let bigMap = false;
 
 // Parallax stars
@@ -1692,8 +1692,7 @@ canvas.addEventListener('mousemove', e => {
   const rect = canvas.getBoundingClientRect();
   const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
   const my = (e.clientY - rect.top) * (canvas.height / rect.height);
-  hoverMode = mx > 300 && mx < 500 && my > 260 && my < 305;
-  hoverStart = mx > 300 && mx < 500 && my > 320 && my < 370;
+  hoverStart = mx > 300 && mx < 500 && my > 260 && my < 310;
 });
 
 canvas.addEventListener('click', e => {
@@ -1701,8 +1700,7 @@ canvas.addEventListener('click', e => {
   const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
   const my = (e.clientY - rect.top) * (canvas.height / rect.height);
   if (state === 'menu') {
-    if (mx > 300 && mx < 500 && my > 260 && my < 305) mode = mode === '1P' ? '2P' : '1P';
-    if (mx > 300 && mx < 500 && my > 320 && my < 370) initGame();
+    if (mx > 300 && mx < 500 && my > 260 && my < 310) initGame();
   }
 });
 
@@ -1719,21 +1717,14 @@ function drawMenu() {
   ctx.font = '16px sans-serif'; ctx.fillStyle = '#666';
   ctx.fillText('Mine. Upgrade. Survive.', canvas.width / 2, 155);
 
-  // Mode
-  ctx.fillStyle = hoverMode ? '#1a2a3a' : '#0a1a2a'; ctx.strokeStyle = '#8af'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.roundRect(300, 260, 200, 42, 10); ctx.fill(); ctx.stroke();
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 18px sans-serif';
-  ctx.fillText(mode === '1P' ? '1 Player' : '2 Players', canvas.width / 2, 288);
-
   // Start
   ctx.fillStyle = hoverStart ? '#1a3a1a' : '#0a2a0a'; ctx.strokeStyle = '#4f8'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.roundRect(300, 320, 200, 48, 10); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.roundRect(300, 260, 200, 48, 10); ctx.fill(); ctx.stroke();
   ctx.fillStyle = '#4f8'; ctx.font = 'bold 20px sans-serif';
-  ctx.fillText('LAUNCH', canvas.width / 2, 351);
+  ctx.fillText('LAUNCH', canvas.width / 2, 291);
 
   ctx.font = '13px sans-serif'; ctx.fillStyle = '#555';
-  ctx.fillText('P1: WASD + Space + E', canvas.width / 2, 420);
-  ctx.fillText('P2: Arrows + Enter + RShift', canvas.width / 2, 440);
+  ctx.fillText('WASD + Space + E to play', canvas.width / 2, 380);
 }
 
 function drawGameOver() {
