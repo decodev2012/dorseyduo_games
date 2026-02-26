@@ -2394,9 +2394,13 @@ loop();
 ._jb{position:absolute;inset:0;border-radius:50%;background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.2)}
 ._jk{position:absolute;width:52px;height:52px;top:34px;left:34px;border-radius:50%;background:rgba(255,255,255,0.3);border:2px solid rgba(255,255,255,0.45)}
 #_aim-zone{position:fixed;top:0;right:0;width:55%;height:100%;pointer-events:all;touch-action:none}
+#_spc{position:absolute;bottom:145px;left:15px;width:90px;height:90px;border-radius:50%;background:rgba(255,160,0,0.2);border:2px solid rgba(255,160,0,0.5);display:flex;align-items:center;justify-content:center;color:rgba(255,200,50,0.9);font-size:28px;font-weight:700;pointer-events:all;touch-action:none;user-select:none;-webkit-user-select:none;flex-direction:column;gap:2px}
+#_spc span{font-size:10px;font-weight:700;color:rgba(255,200,50,0.7);letter-spacing:1px}
+#_spc.lit{background:rgba(255,200,0,0.4);border-color:rgba(255,220,0,0.9)}
 </style>
 <div id="_tc">
   <div id="_joy"><div class="_jb"></div><div class="_jk"></div></div>
+  <div id="_spc">⚡<span>SPECIAL</span></div>
 </div>
 <div id="_aim-zone" style="display:none"></div>
 <script>
@@ -2431,6 +2435,11 @@ loop();
   function jEnd(e){for(const t of e.changedTouches)if(t.identifier===jid){jid=null;knob.style.left=C+'px';knob.style.top=C+'px';setDir(0,0);}}
   joy.addEventListener('touchend',jEnd,{passive:false});
   joy.addEventListener('touchcancel',jEnd,{passive:false});
+  // Special ability button
+  const spc=document.getElementById('_spc');
+  spc.addEventListener('touchstart',e=>{e.preventDefault();sk(' ','Space',true);spc.classList.add('lit');},{passive:false});
+  spc.addEventListener('touchend',e=>{e.preventDefault();sk(' ','Space',false);spc.classList.remove('lit');},{passive:false});
+  spc.addEventListener('touchcancel',()=>{sk(' ','Space',false);spc.classList.remove('lit');});
   // Aim + fire zone: touch dispatches mouse events to canvas
   const aim=document.getElementById('_aim-zone');
   function fireMouseEvent(type,t){
