@@ -107,8 +107,8 @@ const GOAL_Y2 = RY + RH/2 + GOAL_H/2;
 // Constants
 const PR = 20;        // player radius
 const PUCK_R = 7;     // puck radius
-const PLAYER_FRIC = 0.97;
-const PUCK_FRIC = 0.988;
+const PLAYER_FRIC = 0.979;
+const PUCK_FRIC = 0.990;
 const PUCK_MAX = 30;
 const STICK_LEN = 42;
 const STICK_R = 3;
@@ -131,11 +131,14 @@ function lerpAngle(a, b, t) {
 }
 
 let p1, p2, puck;
+let botKickoffOffset = 0;
 
 function reset() {
   p1 = mkPlayer(RX + 160, RY + RH/2, '#e05050', { up:'w', dn:'s', lt:'a', rt:'d' }, 0);
   p2 = mkPlayer(RX + RW - 160, RY + RH/2, '#5090ee', { up:'ArrowUp', dn:'ArrowDown', lt:'ArrowLeft', rt:'ArrowRight' }, Math.PI);
   puck = { x: RX + RW/2, y: RY + RH/2, vx: 0, vy: 0 };
+  // Random lateral offset so bot doesn't charge straight at kickoff
+  botKickoffOffset = (Math.random() - 0.5) * 80;
 }
 
 const keys = {};
@@ -172,10 +175,10 @@ function stickHitPuck(p) {
     puck.y = cy + ny * minDist;
     const relDot = (puck.vx - p.vx)*nx + (puck.vy - p.vy)*ny;
     if (relDot < 0) {
-      puck.vx -= relDot * nx * 2.8;
-      puck.vy -= relDot * ny * 2.8;
-      puck.vx += p.vx * 0.5;
-      puck.vy += p.vy * 0.5;
+      puck.vx -= relDot * nx * 1.8;
+      puck.vy -= relDot * ny * 1.8;
+      puck.vx += p.vx * 0.4;
+      puck.vy += p.vy * 0.4;
     }
   }
 }
@@ -318,9 +321,11 @@ function updateBot() {
     tx = RX + 10;
     ty = RY + RH / 2;
   } else {
-    // Chase predicted puck
+    // Chase predicted puck, with a lateral offset at kickoff (when puck is slow)
+    const puckSpeed = Math.hypot(puck.vx, puck.vy);
+    const offsetFade = Math.max(0, 1 - puckSpeed / 3);
     tx = tpx;
-    ty = tpy;
+    ty = tpy + botKickoffOffset * offsetFade;
   }
 
   const ddx = tx - bot.x, ddy = ty - bot.y;
