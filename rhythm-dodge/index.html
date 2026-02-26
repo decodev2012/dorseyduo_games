@@ -832,5 +832,36 @@ function loop(now){
 }
 requestAnimationFrame(loop);
 </script>
+<!-- Touch Controls: 4 tap lanes -->
+<style>
+#_tc{position:fixed;bottom:0;left:0;right:0;height:22%;z-index:999;display:none;pointer-events:none}
+#_tc.on{display:flex}
+._lane{flex:1;border-top:2px solid rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.4);font-size:22px;font-weight:700;pointer-events:all;touch-action:none;user-select:none;-webkit-user-select:none;transition:background 0.05s}
+._lane:active,._lane.lit{background:rgba(255,255,255,0.18)}
+._lane:nth-child(1){background:rgba(100,80,200,0.15)}
+._lane:nth-child(2){background:rgba(80,160,100,0.15)}
+._lane:nth-child(3){background:rgba(80,160,100,0.15)}
+._lane:nth-child(4){background:rgba(100,80,200,0.15)}
+</style>
+<div id="_tc">
+  <div class="_lane" id="_l0">D</div>
+  <div class="_lane" id="_l1">F</div>
+  <div class="_lane" id="_l2">J</div>
+  <div class="_lane" id="_l3">K</div>
+</div>
+<script>
+(function(){
+  if(!('ontouchstart' in window))return;
+  document.getElementById('_tc').classList.add('on');
+  const KEYS=[['d','KeyD'],['f','KeyF'],['j','KeyJ'],['k','KeyK']];
+  function sk(k,c,dn){document.dispatchEvent(new KeyboardEvent(dn?'keydown':'keyup',{key:k,code:c,bubbles:true}));}
+  KEYS.forEach(([k,c],i)=>{
+    const el=document.getElementById('_l'+i);
+    el.addEventListener('touchstart',e=>{e.preventDefault();sk(k,c,true);el.classList.add('lit');},{passive:false});
+    el.addEventListener('touchend',e=>{e.preventDefault();sk(k,c,false);el.classList.remove('lit');},{passive:false});
+    el.addEventListener('touchcancel',()=>{sk(k,c,false);el.classList.remove('lit');});
+  });
+})();
+</script>
 </body>
 </html>

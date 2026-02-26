@@ -1921,5 +1921,36 @@ function gameLoop(timestamp) {
 
 requestAnimationFrame(gameLoop);
 </script>
+<!-- Touch Controls (P1) -->
+<style>
+#_tc{position:fixed;bottom:0;left:0;right:0;z-index:999;pointer-events:none;display:none}
+#_tc.on{display:block}
+._btn{position:absolute;border-radius:50%;background:rgba(255,255,255,0.15);border:2px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.8);font-weight:700;pointer-events:all;touch-action:none;user-select:none;-webkit-user-select:none;line-height:1.2;text-align:center}
+</style>
+<div id="_tc">
+  <div class="_btn" id="_tlt" style="bottom:15px;left:15px;width:80px;height:80px;font-size:24px;">↺</div>
+  <div class="_btn" id="_trt" style="bottom:15px;left:110px;width:80px;height:80px;font-size:24px;">↻</div>
+  <div class="_btn" id="_thr" style="bottom:110px;left:62px;width:80px;height:80px;font-size:13px;background:rgba(100,200,100,0.2);border-color:rgba(100,200,100,0.5)">THRUST</div>
+  <div class="_btn" id="_tfire" style="bottom:15px;right:15px;width:85px;height:85px;font-size:13px;background:rgba(220,80,80,0.25);border-color:rgba(220,80,80,0.55)">FIRE</div>
+  <div class="_btn" id="_tdock" style="bottom:115px;right:25px;width:65px;height:65px;font-size:12px;">DOCK</div>
+</div>
+<script>
+(function(){
+  if(!('ontouchstart' in window))return;
+  document.getElementById('_tc').classList.add('on');
+  function sk(k,c,dn){window.dispatchEvent(new KeyboardEvent(dn?'keydown':'keyup',{key:k,code:c,bubbles:true}));}
+  function btn(id,k,c){
+    const el=document.getElementById(id);
+    el.addEventListener('touchstart',e=>{e.preventDefault();sk(k,c,true);},{passive:false});
+    el.addEventListener('touchend',e=>{e.preventDefault();sk(k,c,false);},{passive:false});
+    el.addEventListener('touchcancel',()=>sk(k,c,false));
+  }
+  btn('_tlt','a','KeyA');
+  btn('_trt','d','KeyD');
+  btn('_thr','w','KeyW');
+  btn('_tfire',' ','Space');
+  btn('_tdock','e','KeyE');
+})();
+</script>
 </body>
 </html>

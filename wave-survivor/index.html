@@ -2386,5 +2386,71 @@ function loop() {
 
 loop();
 </script>
+<!-- Touch Controls -->
+<style>
+#_tc{position:fixed;bottom:0;left:0;right:0;z-index:999;pointer-events:none;display:none}
+#_tc.on{display:block}
+#_joy{position:absolute;bottom:15px;left:15px;width:120px;height:120px;pointer-events:all;touch-action:none}
+._jb{position:absolute;inset:0;border-radius:50%;background:rgba(255,255,255,0.1);border:2px solid rgba(255,255,255,0.2)}
+._jk{position:absolute;width:52px;height:52px;top:34px;left:34px;border-radius:50%;background:rgba(255,255,255,0.3);border:2px solid rgba(255,255,255,0.45)}
+#_aim-zone{position:fixed;top:0;right:0;width:55%;height:100%;pointer-events:all;touch-action:none}
+</style>
+<div id="_tc">
+  <div id="_joy"><div class="_jb"></div><div class="_jk"></div></div>
+</div>
+<div id="_aim-zone" style="display:none"></div>
+<script>
+(function(){
+  if(!('ontouchstart' in window))return;
+  document.getElementById('_tc').classList.add('on');
+  document.getElementById('_aim-zone').style.display='block';
+  const cvs=document.getElementById('canvas');
+  function sk(k,c,dn){document.dispatchEvent(new KeyboardEvent(dn?'keydown':'keyup',{key:k,code:c,bubbles:true}));}
+  // Joystick
+  const joy=document.getElementById('_joy'),knob=joy.querySelector('._jk');
+  const JR=60,C=34;let jid=null,aL=false,aR=false,aU=false,aD=false;
+  function setDir(dx,dy){
+    const th=0.3,nL=dx<-th,nR=dx>th,nU=dy<-th,nD=dy>th;
+    if(nL!==aL){sk('a','KeyA',nL);aL=nL;}
+    if(nR!==aR){sk('d','KeyD',nR);aR=nR;}
+    if(nU!==aU){sk('w','KeyW',nU);aU=nU;}
+    if(nD!==aD){sk('s','KeyS',nD);aD=nD;}
+  }
+  joy.addEventListener('touchstart',e=>{e.preventDefault();jid=e.changedTouches[0].identifier;},{passive:false});
+  joy.addEventListener('touchmove',e=>{
+    e.preventDefault();
+    for(const t of e.changedTouches){
+      if(t.identifier!==jid)continue;
+      const r=joy.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+      let dx=(t.clientX-cx)/JR,dy=(t.clientY-cy)/JR,m=Math.hypot(dx,dy);
+      if(m>1){dx/=m;dy/=m;}
+      knob.style.left=(C+dx*C*0.55)+'px';knob.style.top=(C+dy*C*0.55)+'px';
+      setDir(dx,dy);
+    }
+  },{passive:false});
+  function jEnd(e){for(const t of e.changedTouches)if(t.identifier===jid){jid=null;knob.style.left=C+'px';knob.style.top=C+'px';setDir(0,0);}}
+  joy.addEventListener('touchend',jEnd,{passive:false});
+  joy.addEventListener('touchcancel',jEnd,{passive:false});
+  // Aim + fire zone: touch dispatches mouse events to canvas
+  const aim=document.getElementById('_aim-zone');
+  function fireMouseEvent(type,t){
+    cvs.dispatchEvent(new MouseEvent(type,{clientX:t.clientX,clientY:t.clientY,bubbles:true}));
+  }
+  aim.addEventListener('touchstart',e=>{
+    e.preventDefault();
+    fireMouseEvent('mousemove',e.changedTouches[0]);
+    fireMouseEvent('mousedown',e.changedTouches[0]);
+  },{passive:false});
+  aim.addEventListener('touchmove',e=>{
+    e.preventDefault();
+    fireMouseEvent('mousemove',e.changedTouches[0]);
+  },{passive:false});
+  aim.addEventListener('touchend',e=>{
+    e.preventDefault();
+    cvs.dispatchEvent(new MouseEvent('mouseup',{bubbles:true}));
+  },{passive:false});
+  aim.addEventListener('touchcancel',()=>cvs.dispatchEvent(new MouseEvent('mouseup',{bubbles:true})));
+})();
+</script>
 </body>
 </html>

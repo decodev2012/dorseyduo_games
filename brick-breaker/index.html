@@ -448,5 +448,32 @@ function loop(t){
 }
 requestAnimationFrame(loop);
 </script>
+<!-- Touch Controls -->
+<style>
+#_tc{position:fixed;bottom:15px;left:0;right:0;z-index:999;pointer-events:none;display:none}
+#_tc.on{display:block}
+._btn{position:absolute;border-radius:50%;background:rgba(255,255,255,0.15);border:2px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.8);font-size:22px;font-weight:700;pointer-events:all;touch-action:none;user-select:none;-webkit-user-select:none}
+</style>
+<div id="_tc">
+  <div class="_btn" id="_lt" style="bottom:0;left:15px;width:80px;height:80px;">◀</div>
+  <div class="_btn" id="_rt" style="bottom:0;left:110px;width:80px;height:80px;">▶</div>
+  <div class="_btn" id="_sp" style="bottom:0;right:15px;width:80px;height:80px;font-size:13px;line-height:1.2">LAUNCH</div>
+</div>
+<script>
+(function(){
+  if(!('ontouchstart' in window))return;
+  document.getElementById('_tc').classList.add('on');
+  function sk(k,c,dn){window.dispatchEvent(new KeyboardEvent(dn?'keydown':'keyup',{key:k,code:c,bubbles:true}));}
+  function btn(id,k,c){
+    const el=document.getElementById(id);
+    el.addEventListener('touchstart',e=>{e.preventDefault();sk(k,c,true);},{passive:false});
+    el.addEventListener('touchend',e=>{e.preventDefault();sk(k,c,false);},{passive:false});
+    el.addEventListener('touchcancel',()=>sk(k,c,false));
+  }
+  btn('_lt','ArrowLeft','ArrowLeft');
+  btn('_rt','ArrowRight','ArrowRight');
+  btn('_sp',' ','Space');
+})();
+</script>
 </body>
 </html>

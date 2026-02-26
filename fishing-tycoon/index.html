@@ -1141,5 +1141,30 @@ if (state.autoFishers > 0) updateAutoFishers();
 scheduleSpawn();
 requestAnimationFrame(gameStep);
 </script>
+<!-- Touch Controls -->
+<style>
+#_tc{position:fixed;bottom:15px;right:15px;z-index:999;pointer-events:none;display:none;flex-direction:column;gap:10px}
+#_tc.on{display:flex}
+._btn{width:70px;height:70px;border-radius:50%;background:rgba(255,255,255,0.15);border:2px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.8);font-size:26px;pointer-events:all;touch-action:none;user-select:none;-webkit-user-select:none}
+</style>
+<div id="_tc">
+  <div class="_btn" id="_up">▲</div>
+  <div class="_btn" id="_dn">▼</div>
+</div>
+<script>
+(function(){
+  if(!('ontouchstart' in window))return;
+  document.getElementById('_tc').classList.add('on');
+  function sk(k,c,dn){document.dispatchEvent(new KeyboardEvent(dn?'keydown':'keyup',{key:k,code:c,bubbles:true}));}
+  function btn(id,k,c){
+    const el=document.getElementById(id);
+    el.addEventListener('touchstart',e=>{e.preventDefault();sk(k,c,true);},{passive:false});
+    el.addEventListener('touchend',e=>{e.preventDefault();sk(k,c,false);},{passive:false});
+    el.addEventListener('touchcancel',()=>sk(k,c,false));
+  }
+  btn('_up','w','KeyW');
+  btn('_dn','s','KeyS');
+})();
+</script>
 </body>
 </html>
