@@ -626,13 +626,25 @@ function spawnGameFish() {
     });
 }
 
+let spawnTimeout = null;
+
 function scheduleSpawn() {
     let delay = 700 + Math.random() * 1000;
-    setTimeout(() => {
+    spawnTimeout = setTimeout(() => {
         spawnGameFish();
         scheduleSpawn();
     }, delay);
 }
+
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+        // Clear fish that piled up while tab was hidden and restart spawn cleanly
+        for (let f of gameFish) f.el.remove();
+        gameFish = [];
+        clearTimeout(spawnTimeout);
+        scheduleSpawn();
+    }
+});
 
 // ─── CATCH A GAME FISH ───
 function catchGameFish(f) {
