@@ -448,16 +448,21 @@ function loop(t){
 }
 requestAnimationFrame(loop);
 </script>
-<!-- Touch Controls -->
+<!-- Touch Controls (P1 + P2) -->
 <style>
 #_tc{position:fixed;bottom:15px;left:0;right:0;z-index:999;pointer-events:none;display:none}
 #_tc.on{display:block}
-._btn{position:absolute;border-radius:50%;background:rgba(255,255,255,0.15);border:2px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.8);font-size:22px;font-weight:700;pointer-events:all;touch-action:none;user-select:none;-webkit-user-select:none}
+._btn{position:absolute;border-radius:50%;background:rgba(255,255,255,0.15);border:2px solid rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.8);font-size:20px;font-weight:700;pointer-events:all;touch-action:none;user-select:none;-webkit-user-select:none;line-height:1.2;text-align:center}
 </style>
 <div id="_tc">
-  <div class="_btn" id="_lt" style="bottom:0;left:15px;width:80px;height:80px;">◀</div>
-  <div class="_btn" id="_rt" style="bottom:0;left:110px;width:80px;height:80px;">▶</div>
-  <div class="_btn" id="_sp" style="bottom:0;right:15px;width:80px;height:80px;font-size:13px;line-height:1.2">LAUNCH</div>
+  <!-- P1: left side -->
+  <div class="_btn" id="_1lt" style="bottom:0;left:15px;width:75px;height:75px;">◀</div>
+  <div class="_btn" id="_1rt" style="bottom:0;left:100px;width:75px;height:75px;">▶</div>
+  <div class="_btn" id="_1sp" style="bottom:0;left:185px;width:75px;height:75px;font-size:12px">LAUNCH</div>
+  <!-- P2: right side -->
+  <div class="_btn" id="_2lt" style="bottom:0;right:185px;width:75px;height:75px;">◀</div>
+  <div class="_btn" id="_2rt" style="bottom:0;right:100px;width:75px;height:75px;">▶</div>
+  <div class="_btn" id="_2sp" style="bottom:0;right:15px;width:75px;height:75px;font-size:12px">LAUNCH</div>
 </div>
 <script>
 (function(){
@@ -470,9 +475,12 @@ requestAnimationFrame(loop);
     el.addEventListener('touchend',e=>{e.preventDefault();sk(k,c,false);},{passive:false});
     el.addEventListener('touchcancel',()=>sk(k,c,false));
   }
-  btn('_lt','ArrowLeft','ArrowLeft');
-  btn('_rt','ArrowRight','ArrowRight');
-  btn('_sp',' ','Space');
+  btn('_1lt','a','KeyA');
+  btn('_1rt','d','KeyD');
+  btn('_1sp',' ','Space');
+  btn('_2lt','ArrowLeft','ArrowLeft');
+  btn('_2rt','ArrowRight','ArrowRight');
+  btn('_2sp','Enter','Enter');
 })();
 </script>
 </body>

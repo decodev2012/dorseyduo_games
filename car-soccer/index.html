@@ -2958,7 +2958,7 @@ function gameLoop(time) {
 
 requestAnimationFrame(gameLoop);
 </script>
-<!-- Touch Controls (P1) -->
+<!-- Touch Controls (P1 + P2) -->
 <style>
 #_tc{position:fixed;bottom:0;left:0;right:0;z-index:999;pointer-events:none;display:none}
 #_tc.on{display:block}
@@ -2968,42 +2968,52 @@ requestAnimationFrame(gameLoop);
 ._btn{position:absolute;border-radius:50%;background:rgba(255,200,0,0.25);border:2px solid rgba(255,200,0,0.55);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.85);font-size:13px;font-weight:700;pointer-events:all;touch-action:none;user-select:none;-webkit-user-select:none;line-height:1.2;text-align:center}
 </style>
 <div id="_tc">
-  <div id="_joy"><div class="_jb"></div><div class="_jk"></div></div>
-  <div class="_btn" id="_boost" style="bottom:30px;right:25px;width:80px;height:80px;">BOOST</div>
+  <div class="_jw" id="_j1" style="bottom:15px;left:15px"><div class="_jb"></div><div class="_jk"></div></div>
+  <div class="_btn" id="_b1" style="bottom:35px;left:148px;width:72px;height:72px;">BOOST</div>
+  <div class="_btn" id="_b2" style="bottom:35px;right:148px;width:72px;height:72px;">BOOST</div>
+  <div class="_jw" id="_j2" style="bottom:15px;right:15px"><div class="_jb"></div><div class="_jk"></div></div>
 </div>
 <script>
 (function(){
   if(!('ontouchstart' in window))return;
   document.getElementById('_tc').classList.add('on');
   function sk(k,c,dn){window.dispatchEvent(new KeyboardEvent(dn?'keydown':'keyup',{key:k,code:c,bubbles:true}));}
-  const joy=document.getElementById('_joy'),knob=joy.querySelector('._jk');
-  const JR=60,C=34;let jid=null,aL=false,aR=false,aU=false,aD=false;
-  function setDir(dx,dy){
-    const th=0.35,nL=dx<-th,nR=dx>th,nU=dy<-th,nD=dy>th;
-    if(nL!==aL){sk('a','KeyA',nL);aL=nL;}
-    if(nR!==aR){sk('d','KeyD',nR);aR=nR;}
-    if(nU!==aU){sk('w','KeyW',nU);aU=nU;}
-    if(nD!==aD){sk('s','KeyS',nD);aD=nD;}
-  }
-  joy.addEventListener('touchstart',e=>{e.preventDefault();jid=e.changedTouches[0].identifier;},{passive:false});
-  joy.addEventListener('touchmove',e=>{
-    e.preventDefault();
-    for(const t of e.changedTouches){
-      if(t.identifier!==jid)continue;
-      const r=joy.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
-      let dx=(t.clientX-cx)/JR,dy=(t.clientY-cy)/JR,m=Math.hypot(dx,dy);
-      if(m>1){dx/=m;dy/=m;}
-      knob.style.left=(C+dx*C*0.55)+'px';knob.style.top=(C+dy*C*0.55)+'px';
-      setDir(dx,dy);
+  function mkJoy(id,K){
+    const w=document.getElementById(id),kn=w.querySelector('._jk');
+    const JR=60,C=34;let jid=null,s={L:false,R:false,U:false,D:false};
+    function sd(dx,dy){
+      const th=0.35,nL=dx<-th,nR=dx>th,nU=dy<-th,nD=dy>th;
+      if(nL!==s.L){sk(K.L[0],K.L[1],nL);s.L=nL;}
+      if(nR!==s.R){sk(K.R[0],K.R[1],nR);s.R=nR;}
+      if(nU!==s.U){sk(K.U[0],K.U[1],nU);s.U=nU;}
+      if(nD!==s.D){sk(K.D[0],K.D[1],nD);s.D=nD;}
     }
-  },{passive:false});
-  function jEnd(e){for(const t of e.changedTouches)if(t.identifier===jid){jid=null;knob.style.left=C+'px';knob.style.top=C+'px';setDir(0,0);}}
-  joy.addEventListener('touchend',jEnd,{passive:false});
-  joy.addEventListener('touchcancel',jEnd,{passive:false});
-  const boost=document.getElementById('_boost');
-  boost.addEventListener('touchstart',e=>{e.preventDefault();sk('ShiftLeft','ShiftLeft',true);},{passive:false});
-  boost.addEventListener('touchend',e=>{e.preventDefault();sk('ShiftLeft','ShiftLeft',false);},{passive:false});
-  boost.addEventListener('touchcancel',()=>sk('ShiftLeft','ShiftLeft',false));
+    w.addEventListener('touchstart',e=>{e.preventDefault();jid=e.changedTouches[0].identifier;},{passive:false});
+    w.addEventListener('touchmove',e=>{
+      e.preventDefault();
+      for(const t of e.changedTouches){
+        if(t.identifier!==jid)continue;
+        const r=w.getBoundingClientRect(),cx=r.left+r.width/2,cy=r.top+r.height/2;
+        let dx=(t.clientX-cx)/JR,dy=(t.clientY-cy)/JR,m=Math.hypot(dx,dy);
+        if(m>1){dx/=m;dy/=m;}
+        kn.style.left=(C+dx*C*0.55)+'px';kn.style.top=(C+dy*C*0.55)+'px';
+        sd(dx,dy);
+      }
+    },{passive:false});
+    function je(e){for(const t of e.changedTouches)if(t.identifier===jid){jid=null;kn.style.left=C+'px';kn.style.top=C+'px';sd(0,0);}}
+    w.addEventListener('touchend',je,{passive:false});
+    w.addEventListener('touchcancel',je,{passive:false});
+  }
+  function mkBtn(id,k,c){
+    const el=document.getElementById(id);
+    el.addEventListener('touchstart',e=>{e.preventDefault();sk(k,c,true);},{passive:false});
+    el.addEventListener('touchend',e=>{e.preventDefault();sk(k,c,false);},{passive:false});
+    el.addEventListener('touchcancel',()=>sk(k,c,false));
+  }
+  mkJoy('_j1',{L:['a','KeyA'],R:['d','KeyD'],U:['w','KeyW'],D:['s','KeyS']});
+  mkJoy('_j2',{L:['ArrowLeft','ArrowLeft'],R:['ArrowRight','ArrowRight'],U:['ArrowUp','ArrowUp'],D:['ArrowDown','ArrowDown']});
+  mkBtn('_b1','ShiftLeft','ShiftLeft');
+  mkBtn('_b2','ShiftRight','ShiftRight');
 })();
 </script>
 </body>
