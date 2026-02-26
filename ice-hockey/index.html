@@ -364,8 +364,21 @@ function stickHitPuck(p) {
   }
 }
 
+function clampToRink(p) {
+  if (p.x - PR < RX)       { p.x = RX + PR;       p.vx =  Math.abs(p.vx) * 0.5; }
+  if (p.x + PR > RX + RW)  { p.x = RX + RW - PR;  p.vx = -Math.abs(p.vx) * 0.5; }
+  if (p.y - PR < RY)       { p.y = RY + PR;        p.vy =  Math.abs(p.vy) * 0.5; }
+  if (p.y + PR > RY + RH)  { p.y = RY + RH - PR;  p.vy = -Math.abs(p.vy) * 0.5; }
+}
+
 function movePlayer(p) {
-  if (p.stun > 0) { p.stun--; return; }
+  if (p.stun > 0) {
+    p.stun--;
+    p.x += p.vx; p.y += p.vy;
+    p.vx *= PLAYER_FRIC; p.vy *= PLAYER_FRIC;
+    clampToRink(p);
+    return;
+  }
   let mx = 0, my = 0;
   if (keys[p.keys.up]) my -= 1;
   if (keys[p.keys.dn]) my += 1;
@@ -382,12 +395,7 @@ function movePlayer(p) {
   p.dy = Math.sin(p.angle);
   p.x += p.vx; p.y += p.vy;
   p.vx *= PLAYER_FRIC; p.vy *= PLAYER_FRIC;
-
-  // Clamp to rink
-  if (p.x - PR < RX)       { p.x = RX + PR;       p.vx = Math.abs(p.vx) * 0.5; }
-  if (p.x + PR > RX + RW)  { p.x = RX + RW - PR;  p.vx = -Math.abs(p.vx) * 0.5; }
-  if (p.y - PR < RY)       { p.y = RY + PR;        p.vy = Math.abs(p.vy) * 0.5; }
-  if (p.y + PR > RY + RH)  { p.y = RY + RH - PR;  p.vy = -Math.abs(p.vy) * 0.5; }
+  clampToRink(p);
 }
 
 function bodyCheck() {
@@ -485,7 +493,13 @@ function goal() {
 
 function updateBot(genome) {
   const bot = p2;
-  if (bot.stun > 0) { bot.stun--; return; }
+  if (bot.stun > 0) {
+    bot.stun--;
+    bot.x += bot.vx; bot.y += bot.vy;
+    bot.vx *= PLAYER_FRIC; bot.vy *= PLAYER_FRIC;
+    clampToRink(bot);
+    return;
+  }
 
   const goalX = RX + 10, goalY = RY + RH / 2;
   let [mx, my] = botDecision(genome, bot, puck, goalX, goalY);
@@ -509,11 +523,7 @@ function updateBot(genome) {
   bot.dy = Math.sin(bot.angle);
   bot.x += bot.vx; bot.y += bot.vy;
   bot.vx *= PLAYER_FRIC; bot.vy *= PLAYER_FRIC;
-
-  if (bot.x - PR < RX)      { bot.x = RX + PR;      bot.vx =  Math.abs(bot.vx) * 0.5; }
-  if (bot.x + PR > RX + RW) { bot.x = RX + RW - PR; bot.vx = -Math.abs(bot.vx) * 0.5; }
-  if (bot.y - PR < RY)      { bot.y = RY + PR;       bot.vy =  Math.abs(bot.vy) * 0.5; }
-  if (bot.y + PR > RY + RH) { bot.y = RY + RH - PR;  bot.vy = -Math.abs(bot.vy) * 0.5; }
+  clampToRink(bot);
 }
 
 const DEFAULT_GENOME = { lookahead: 12, behindOffset: PR + PUCK_R + 8, nearThresh: PR*2 + PUCK_R + STICK_LEN };
