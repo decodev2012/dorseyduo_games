@@ -50,6 +50,11 @@
   }
   .mode-btn:hover { background: #3a3a6a; border-color: #667eea; }
   .mode-btn.active { background: #667eea; border-color: #667eea; }
+  #trainingView { display:none; text-align:center; }
+  #trainingView p { color:#aaa; margin-bottom:16px; font-size:14px; letter-spacing:1px; }
+  #trainingGenText { color:#fff; font-size:16px; margin-bottom:14px; }
+  #trainingBarWrap { background:#1a1a3a; border-radius:6px; height:8px; width:300px; overflow:hidden; margin:0 auto 30px; }
+  #trainingBar { background:#667eea; height:100%; width:0%; transition:width 0.1s; }
   #playBtn {
     margin-top: 20px;
     background: #667eea; border: none; color: #fff;
@@ -84,11 +89,19 @@
         <p>Arrow Keys — Move</p>
       </div>
     </div>
-    <div class="mode-btns">
-      <button class="mode-btn active" id="twoPlayerBtn">2 Players</button>
-      <button class="mode-btn" id="botBtn">vs Bot</button>
+    <div id="menuView">
+      <div class="mode-btns">
+        <button class="mode-btn active" id="twoPlayerBtn">2 Players</button>
+        <button class="mode-btn" id="botBtn">vs Bot</button>
+        <button class="mode-btn" id="learnBtn">Learning Bot</button>
+      </div>
+      <button id="playBtn">PLAY</button>
     </div>
-    <button id="playBtn">PLAY</button>
+    <div id="trainingView">
+      <p>Bot is playing matches against itself...</p>
+      <div id="trainingGenText">Generation 0 / 100</div>
+      <div id="trainingBarWrap"><div id="trainingBar"></div></div>
+    </div>
   </div>
   <div id="goalMsg">GOAL!</div>
 </div>
@@ -132,6 +145,174 @@ function lerpAngle(a, b, t) {
 
 let p1, p2, puck;
 let botKickoffOffset = 0;
+
+// ===== LEARNING BOT =====
+let evolvedGenome = null;
+let trainingGen = 0;
+const TRAINING_GENS = 500;
+
+function randomGenome() {
+  return {
+    lookahead:    5 + Math.random() * 15,
+    behindOffset: 10 + Math.random() * 50,
+    nearThresh:   40 + Math.random() * 80,
+  };
+}
+
+function mutateGenome(g) {
+  return {
+    lookahead:    Math.max(0,  Math.min(25,  g.lookahead    + (Math.random()-0.5) * 6)),
+    behindOffset: Math.max(5,  Math.min(80,  g.behindOffset + (Math.random()-0.5) * 12)),
+    nearThresh:   Math.max(30, Math.min(150, g.nearThresh   + (Math.random()-0.5) * 20)),
+  };
+}
+
+// Shared decision function used by both live bot and simulator
+function botDecision(genome, bot, pk, goalX, goalY) {
+  const tpx = Math.max(RX+PR, Math.min(RX+RW-PR, pk.x + pk.vx * genome.lookahead));
+  const tpy = Math.max(RY+PR, Math.min(RY+RH-PR, pk.y + pk.vy * genome.lookahead));
+  const puckDist = Math.hypot(pk.x - bot.x, pk.y - bot.y);
+  let tx, ty;
+  if (puckDist < genome.nearThresh) {
+    const pgDx = goalX - pk.x, pgDy = goalY - pk.y;
+    const pgDist = Math.hypot(pgDx, pgDy) || 1;
+    tx = Math.max(RX+PR, Math.min(RX+RW-PR, pk.x - (pgDx/pgDist) * genome.behindOffset));
+    ty = Math.max(RY+PR, Math.min(RY+RH-PR, pk.y - (pgDy/pgDist) * genome.behindOffset));
+  } else {
+    tx = tpx; ty = tpy;
+  }
+  const dx = tx - bot.x, dy = ty - bot.y, d = Math.hypot(dx, dy);
+  return d > 6 ? [dx/d, dy/d] : [0, 0];
+}
+
+// Simulation helpers (mirrors game physics without rendering)
+function simMove(p, mx, my) {
+  if (mx !== 0 || my !== 0) {
+    p.angle = lerpAngle(p.angle, Math.atan2(my, mx), 0.15);
+    p.vx += mx * 0.12; p.vy += my * 0.12;
+  }
+  p.dx = Math.cos(p.angle); p.dy = Math.sin(p.angle);
+  p.x += p.vx; p.y += p.vy;
+  p.vx *= PLAYER_FRIC; p.vy *= PLAYER_FRIC;
+  if (p.x-PR < RX)     { p.x = RX+PR;     p.vx =  Math.abs(p.vx)*0.5; }
+  if (p.x+PR > RX+RW)  { p.x = RX+RW-PR;  p.vx = -Math.abs(p.vx)*0.5; }
+  if (p.y-PR < RY)     { p.y = RY+PR;      p.vy =  Math.abs(p.vy)*0.5; }
+  if (p.y+PR > RY+RH)  { p.y = RY+RH-PR;  p.vy = -Math.abs(p.vy)*0.5; }
+}
+
+function simBodyCheck(a, b) {
+  const dx = b.x-a.x, dy = b.y-a.y, dist = Math.hypot(dx,dy);
+  if (dist >= PR*2 || dist === 0) return;
+  const nx = dx/dist, ny = dy/dist, ov = PR*2-dist;
+  a.x -= nx*ov/2; a.y -= ny*ov/2; b.x += nx*ov/2; b.y += ny*ov/2;
+  const s1 = Math.hypot(a.vx,a.vy), s2 = Math.hypot(b.vx,b.vy);
+  if (s1>2.5 && (a.vx*nx+a.vy*ny)>0)     { b.vx+=nx*s1*0.9; b.vy+=ny*s1*0.9; a.vx*=0.4; a.vy*=0.4; }
+  if (s2>2.5 && (b.vx*(-nx)+b.vy*(-ny))>0){ a.vx-=nx*s2*0.9; a.vy-=ny*s2*0.9; b.vx*=0.4; b.vy*=0.4; }
+}
+
+function simStick(p, pk) {
+  const offX=p.dy*PR*0.7, offY=-p.dx*PR*0.7;
+  const sx=p.x+p.dx*PR*0.4+offX, sy=p.y+p.dy*PR*0.4+offY;
+  const ex=sx+p.dx*STICK_LEN, ey=sy+p.dy*STICK_LEN;
+  const sdx=ex-sx, sdy=ey-sy, sl2=sdx*sdx+sdy*sdy;
+  let t=((pk.x-sx)*sdx+(pk.y-sy)*sdy)/sl2;
+  t=Math.max(0,Math.min(1,t));
+  const cx=sx+t*sdx, cy=sy+t*sdy, dx=pk.x-cx, dy=pk.y-cy, dist=Math.hypot(dx,dy), min=PUCK_R+STICK_R;
+  if (dist<min && dist>0) {
+    const nx=dx/dist, ny=dy/dist;
+    pk.x=cx+nx*min; pk.y=cy+ny*min;
+    const rd=(pk.vx-p.vx)*nx+(pk.vy-p.vy)*ny;
+    if (rd<0) { pk.vx-=rd*nx*1.8; pk.vy-=rd*ny*1.8; pk.vx+=p.vx*0.4; pk.vy+=p.vy*0.4; }
+  }
+}
+
+function simBodyPuck(p, pk) {
+  const dx=pk.x-p.x, dy=pk.y-p.y, dist=Math.hypot(dx,dy);
+  if (dist<PR+PUCK_R && dist>0) {
+    const nx=dx/dist, ny=dy/dist;
+    pk.x=p.x+nx*(PR+PUCK_R); pk.y=p.y+ny*(PR+PUCK_R);
+    const d=(pk.vx-p.vx)*nx+(pk.vy-p.vy)*ny;
+    if (d<0) { pk.vx-=d*nx; pk.vy-=d*ny; }
+  }
+}
+
+function simPuck(pk) {
+  pk.x+=pk.vx; pk.y+=pk.vy; pk.vx*=PUCK_FRIC; pk.vy*=PUCK_FRIC;
+  if (pk.x-PUCK_R<RX   && (pk.y<GOAL_Y1||pk.y>GOAL_Y2)) { pk.x=RX+PUCK_R;     pk.vx= Math.abs(pk.vx)*0.7; }
+  if (pk.x+PUCK_R>RX+RW && (pk.y<GOAL_Y1||pk.y>GOAL_Y2)) { pk.x=RX+RW-PUCK_R; pk.vx=-Math.abs(pk.vx)*0.7; }
+  if (pk.y-PUCK_R<RY)  { pk.y=RY+PUCK_R;    pk.vy= Math.abs(pk.vy)*0.7; }
+  if (pk.y+PUCK_R>RY+RH){ pk.y=RY+RH-PUCK_R; pk.vy=-Math.abs(pk.vy)*0.7; }
+  if (pk.y>=GOAL_Y1&&pk.y<=GOAL_Y2) {
+    if (pk.x-PUCK_R<RX-GOAL_DEPTH)    { pk.x=RX-GOAL_DEPTH+PUCK_R;    pk.vx= Math.abs(pk.vx)*0.5; }
+    if (pk.x+PUCK_R>RX+RW+GOAL_DEPTH) { pk.x=RX+RW+GOAL_DEPTH-PUCK_R; pk.vx=-Math.abs(pk.vx)*0.5; }
+  }
+  const sp=Math.hypot(pk.vx,pk.vy); if (sp>PUCK_MAX) { pk.vx=pk.vx/sp*PUCK_MAX; pk.vy=pk.vy/sp*PUCK_MAX; }
+}
+
+function simReset(a, b, pk) {
+  a.x=RX+160;     a.y=RY+RH/2; a.vx=0; a.vy=0; a.angle=0;      a.dx=1;  a.dy=0;
+  b.x=RX+RW-160;  b.y=RY+RH/2; b.vx=0; b.vy=0; b.angle=Math.PI; b.dx=-1; b.dy=0;
+  pk.x=RX+RW/2; pk.y=RY+RH/2; pk.vx=0; pk.vy=0;
+}
+
+// Simulate a match between two genomes; returns 'A' or 'B'
+function simulateMatch(gA, gB) {
+  const a  = { x:RX+160,    y:RY+RH/2, vx:0, vy:0, angle:0,      dx:1,  dy:0 };
+  const b  = { x:RX+RW-160, y:RY+RH/2, vx:0, vy:0, angle:Math.PI, dx:-1, dy:0 };
+  const pk = { x:RX+RW/2,   y:RY+RH/2, vx:0, vy:0 };
+  let sa=0, sb=0;
+  for (let f=0; f<3600; f++) {
+    const [ax,ay] = botDecision(gA, a, pk, RX+RW-10, RY+RH/2); simMove(a, ax, ay);
+    const [bx,by] = botDecision(gB, b, pk, RX+10,    RY+RH/2); simMove(b, bx, by);
+    simBodyCheck(a, b);
+    simPuck(pk);
+    simBodyPuck(a,pk); simBodyPuck(b,pk);
+    simStick(a,pk);    simStick(b,pk);
+    if (pk.y>=GOAL_Y1 && pk.y<=GOAL_Y2) {
+      if (pk.x<RX-4)     { sb++; simReset(a,b,pk); }
+      else if (pk.x>RX+RW+4) { sa++; simReset(a,b,pk); }
+    }
+    if (sa>=3 || sb>=3) break;
+  }
+  if (sa > sb) return 'A';
+  if (sb > sa) return 'B';
+  return null;
+}
+
+function runTraining() {
+  trainingGen = 0;
+  let champion = randomGenome();
+  let challenger = mutateGenome(champion);
+  document.getElementById('menuView').style.display = 'none';
+  document.getElementById('trainingView').style.display = 'block';
+  document.getElementById('overlay').classList.remove('hidden');
+
+  function step() {
+    const BATCH = 8;
+    for (let i=0; i<BATCH && trainingGen<TRAINING_GENS; i++) {
+      // Play both sides for fairness
+      const w1 = simulateMatch(champion, challenger);
+      const w2 = simulateMatch(challenger, champion);
+      const challengerWins = (w1==='B'?1:0) + (w2==='A'?1:0);
+      if (challengerWins >= 2) champion = challenger;
+      challenger = mutateGenome(champion);
+      trainingGen++;
+    }
+    const pct = (trainingGen / TRAINING_GENS * 100).toFixed(0);
+    document.getElementById('trainingBar').style.width = pct + '%';
+    document.getElementById('trainingGenText').textContent = `Generation ${trainingGen} / ${TRAINING_GENS}`;
+
+    if (trainingGen >= TRAINING_GENS) {
+      evolvedGenome = champion;
+      document.getElementById('menuView').style.display = '';
+      document.getElementById('trainingView').style.display = 'none';
+      startGame('vsLearningBot');
+    } else {
+      requestAnimationFrame(step);
+    }
+  }
+  requestAnimationFrame(step);
+}
 
 function reset() {
   p1 = mkPlayer(RX + 160, RY + RH/2, '#e05050', { up:'w', dn:'s', lt:'a', rt:'d' }, 0);
@@ -302,37 +483,25 @@ function goal() {
   msg.style.display = 'block';
 }
 
-function updateBot() {
+function updateBot(genome) {
   const bot = p2;
   if (bot.stun > 0) { bot.stun--; return; }
 
-  // Predict puck position a short time ahead
-  const lookahead = 14;
-  const tpx = Math.max(RX + PR, Math.min(RX + RW - PR, puck.x + puck.vx * lookahead));
-  const tpy = Math.max(RY + PR, Math.min(RY + RH - PR, puck.y + puck.vy * lookahead));
+  const goalX = RX + 10, goalY = RY + RH / 2;
+  let [mx, my] = botDecision(genome, bot, puck, goalX, goalY);
 
-  // If bot's stick is near puck, push toward P1's goal (left side)
-  const { sx, sy, ex, ey } = getStick(bot);
-  const nearPuck = Math.hypot(puck.x - bot.x, puck.y - bot.y) < PR + PUCK_R + STICK_LEN + 5;
-
-  let tx, ty;
-  if (nearPuck) {
-    // Attack: aim at left goal
-    tx = RX + 10;
-    ty = RY + RH / 2;
-  } else {
-    // Chase predicted puck, with a lateral offset at kickoff (when puck is slow)
+  // Apply kickoff lateral offset for regular bot so it doesn't go dead straight
+  if (gameMode === 'vsBot' && (mx !== 0 || my !== 0)) {
     const puckSpeed = Math.hypot(puck.vx, puck.vy);
-    const offsetFade = Math.max(0, 1 - puckSpeed / 3);
-    tx = tpx;
-    ty = tpy + botKickoffOffset * offsetFade;
+    const fade = Math.max(0, 1 - puckSpeed / 3);
+    const tx = bot.x + mx * 100;
+    const ty = bot.y + my * 100 + botKickoffOffset * fade;
+    const dx = tx - bot.x, dy = ty - bot.y, d = Math.hypot(dx, dy);
+    if (d > 0) { mx = dx/d; my = dy/d; }
   }
 
-  const ddx = tx - bot.x, ddy = ty - bot.y;
-  const dist = Math.hypot(ddx, ddy);
-  if (dist > 6) {
-    const mx = ddx / dist, my = ddy / dist;
-    bot.angle = lerpAngle(bot.angle, Math.atan2(my, mx), 0.12);
+  if (mx !== 0 || my !== 0) {
+    bot.angle = lerpAngle(bot.angle, Math.atan2(my, mx), 0.15);
     bot.vx += mx * 0.12;
     bot.vy += my * 0.12;
   }
@@ -347,10 +516,13 @@ function updateBot() {
   if (bot.y + PR > RY + RH) { bot.y = RY + RH - PR;  bot.vy = -Math.abs(bot.vy) * 0.5; }
 }
 
+const DEFAULT_GENOME = { lookahead: 12, behindOffset: PR + PUCK_R + 8, nearThresh: PR*2 + PUCK_R + STICK_LEN };
+
 function update() {
   if (phase !== 'playing') return;
   movePlayer(p1);
-  if (gameMode === 'vsBot') updateBot();
+  if (gameMode === 'vsBot') updateBot(DEFAULT_GENOME);
+  else if (gameMode === 'vsLearningBot') updateBot(evolvedGenome);
   else movePlayer(p2);
   bodyCheck();
   updatePuck();
@@ -364,7 +536,7 @@ function tickGoal() {
   document.getElementById('goalMsg').style.display = 'none';
   if (score[0] >= WIN || score[1] >= WIN) {
     phase = 'over';
-    const winner = score[0] >= WIN ? 'Player 1' : (gameMode === 'vsBot' ? 'Bot' : 'Player 2');
+    const winner = score[0] >= WIN ? 'Player 1' : (gameMode === 'vsBot' ? 'Bot' : gameMode === 'vsLearningBot' ? 'Learning Bot' : 'Player 2');
     document.getElementById('overlayTitle').textContent = `${winner} Wins!`;
     document.getElementById('overlaySub').textContent = `${score[0]} – ${score[1]}`;
     document.getElementById('overlay').classList.remove('hidden');
@@ -552,6 +724,11 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
+function setActiveBtn(id) {
+  ['twoPlayerBtn','botBtn','learnBtn'].forEach(b => document.getElementById(b).classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
 function startGame(mode) {
   gameMode = mode;
   score = [0, 0];
@@ -559,24 +736,22 @@ function startGame(mode) {
   phase = 'playing';
   document.getElementById('overlayTitle').textContent = 'Ice Hockey';
   document.getElementById('overlaySub').textContent = 'First to 5 goals wins';
-  document.getElementById('p2ctrl').style.display = mode === 'vsBot' ? 'none' : '';
+  document.getElementById('p2ctrl').style.display = (mode === 'vsBot' || mode === 'vsLearningBot') ? 'none' : '';
   document.getElementById('overlay').classList.add('hidden');
 }
 
 document.getElementById('twoPlayerBtn').addEventListener('click', () => {
-  gameMode = 'twoPlayer';
-  document.getElementById('twoPlayerBtn').classList.add('active');
-  document.getElementById('botBtn').classList.remove('active');
+  gameMode = 'twoPlayer'; setActiveBtn('twoPlayerBtn');
 });
-
 document.getElementById('botBtn').addEventListener('click', () => {
-  gameMode = 'vsBot';
-  document.getElementById('botBtn').classList.add('active');
-  document.getElementById('twoPlayerBtn').classList.remove('active');
+  gameMode = 'vsBot'; setActiveBtn('botBtn');
 });
-
+document.getElementById('learnBtn').addEventListener('click', () => {
+  setActiveBtn('learnBtn');
+  runTraining();
+});
 document.getElementById('playBtn').addEventListener('click', () => {
-  startGame(gameMode);
+  if (gameMode !== 'vsLearningBot' || evolvedGenome) startGame(gameMode);
 });
 
 reset();
