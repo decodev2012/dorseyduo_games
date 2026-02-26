@@ -857,7 +857,14 @@ requestAnimationFrame(loop);
   function sk(k,c,dn){document.dispatchEvent(new KeyboardEvent(dn?'keydown':'keyup',{key:k,code:c,bubbles:true}));}
   KEYS.forEach(([k,c],i)=>{
     const el=document.getElementById('_l'+i);
-    el.addEventListener('touchstart',e=>{e.preventDefault();sk(k,c,true);el.classList.add('lit');},{passive:false});
+    el.addEventListener('touchstart',e=>{
+      if(state!=='playing'){
+        // pass tap through to canvas for menu interaction
+        canvas.dispatchEvent(new MouseEvent('click',{clientX:e.changedTouches[0].clientX,clientY:e.changedTouches[0].clientY,bubbles:true}));
+        return;
+      }
+      e.preventDefault();sk(k,c,true);el.classList.add('lit');
+    },{passive:false});
     el.addEventListener('touchend',e=>{e.preventDefault();sk(k,c,false);el.classList.remove('lit');},{passive:false});
     el.addEventListener('touchcancel',()=>{sk(k,c,false);el.classList.remove('lit');});
   });

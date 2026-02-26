@@ -1196,6 +1196,11 @@ requestAnimationFrame(loop);
   function jEnd(e){for(const t of e.changedTouches)if(t.identifier===jid){jid=null;knob.style.left=C+'px';knob.style.top=C+'px';setDir(0,0);}}
   joy.addEventListener('touchend',jEnd,{passive:false});
   joy.addEventListener('touchcancel',jEnd,{passive:false});
+  // Tap anywhere to start/retry
+  document.addEventListener('touchstart',()=>{
+    if(state==='menu'){initAudio();document.dispatchEvent(new KeyboardEvent('keydown',{key:' ',code:'Space',bubbles:true}));}
+    else if(state==='dead'&&deathTimer>40){document.dispatchEvent(new KeyboardEvent('keydown',{key:' ',code:'Space',bubbles:true}));}
+  },{passive:true});
 })();
 </script>
 </body>

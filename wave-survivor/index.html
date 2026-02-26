@@ -2404,7 +2404,7 @@ loop();
   if(!('ontouchstart' in window))return;
   document.getElementById('_tc').classList.add('on');
   document.getElementById('_aim-zone').style.display='block';
-  const cvs=document.getElementById('canvas');
+  const cvs=canvas; // canvas = document.getElementById('game')
   function sk(k,c,dn){document.dispatchEvent(new KeyboardEvent(dn?'keydown':'keyup',{key:k,code:c,bubbles:true}));}
   // Joystick
   const joy=document.getElementById('_joy'),knob=joy.querySelector('._jk');
