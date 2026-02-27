@@ -63,7 +63,7 @@ const terrain = [
   poly([[-800,0],[ 800,0],[ 800,200],[-800,200]]),
 
   // First rock cluster - gentle start
-  poly([[100,-10],[320,-10],[320,-80],[260,-120],[160,-90],[80,-40]]),
+  poly([[100,-60],[320,-60],[320,-130],[260,-170],[160,-140],[80,-90]]),
   poly([[280,-75],[400,-75],[420,-180],[340,-200],[260,-140]]),
 
   // Angled slab
@@ -232,8 +232,8 @@ function update(now) {
   const hx = sx + ARM_LEN * Math.cos(armAngle);
   const hy = sy + ARM_LEN * Math.sin(armAngle);
 
-  // Natural unground: hammer head no longer in terrain
-  if (grounded && !hammerInGround(pivotX, pivotY)) grounded = false;
+  // Unground when cursor rises above shoulder — user is raising the arm
+  if (grounded && wy < sy) grounded = false;
 
   if (!grounded) {
     // Sweep hammer path for first terrain surface crossing
