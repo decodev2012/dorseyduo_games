@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Getting Over It - Dorsey Duo</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1008;overflow:hidden;cursor:none}
+canvas{display:block}
+a.back{position:fixed;top:10px;left:14px;color:#c8a060;text-decoration:none;font:14px monospace;z-index:10}
+a.back:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">&larr; Back</a>
+<canvas id="game"></canvas>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let W = canvas.width = innerWidth;
+let H = canvas.height = innerHeight;
+window.addEventListener('resize', () => { W = canvas.width = innerWidth; H = canvas.height = innerHeight; });
+
+// ── Constants ──
+const GRAVITY = 900;
+const ARM_LEN = 100;       // length of hammer arm
+const BODY_R = 22;         // cauldron radius (collision)
+const FRICTION = 0.55;     // velocity damping on terrain contact
+
+// ── State ──
+const START_X = 200, START_Y = -50;
+let body = { x: START_X, y: START_Y, vx: 0, vy: 0 };
+let armAngle = Math.PI / 2;
+let prevArmAngle = Math.PI / 2;
+let grounded = false;
+let pivotX = 0, pivotY = 0;
+let mouse = { x: W / 2, y: H / 2 };
+let camX = 0, camY = 0;
+let highestY = START_Y; // track highest point for falling back
+
+canvas.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+
+// ── Terrain ──
+// Each shape: polygon { verts: [{x,y},...] }
+// Y increases downward. Ground is at y=0.
+function poly(pts) { return { verts: pts.map(([x,y])=>({x,y})) }; }
+
+const terrain = [
+  // Flat ground
+  poly([[-800,0],[ 800,0],[ 800,200],[-800,200]]),
+
+  // First rock cluster - gentle start
+  poly([[100,-10],[320,-10],[320,-80],[260,-120],[160,-90],[80,-40]]),
+  poly([[280,-75],[400,-75],[420,-180],[340,-200],[260,-140]]),
+
+  // Angled slab
+  poly([[380,-160],[520,-160],[560,-300],[420,-280]]),
+
+  // Tall rock wall
+  poly([[500,-270],[600,-250],[620,-480],[520,-500],[460,-380]]),
+
+  // Overhang rock (tricky)
+  poly([[460,-480],[620,-460],[680,-600],[560,-640],[440,-580]]),
+
+  // Big flat boulder
+  poly([[600,-580],[820,-560],[860,-700],[760,-760],[620,-720]]),
+
+  // Narrow ledge
+  poly([[800,-700],[920,-680],[940,-780],[840,-800],[780,-760]]),
+
+  // Steep cliff face
+  poly([[880,-770],[1000,-750],[1040,-980],[940,-1020],[860,-900]]),
+
+  // Summit platform
+  poly([[900,-1000],[1100,-980],[1120,-1100],[1000,-1140],[880,-1080]]),
+
+  // Floating boulders
+  poly([[1060,-1060],[1220,-1040],[1240,-1160],[1100,-1200],[1040,-1120]]),
+  poly([[1180,-1150],[1340,-1120],[1360,-1260],[1220,-1300],[1160,-1220]]),
+
+  // High ridge
+  poly([[1280,-1240],[1460,-1200],[1500,-1400],[1380,-1460],[1260,-1360]]),
+
+  // Near-peak rock
+  poly([[1400,-1400],[1560,-1380],[1600,-1580],[1460,-1640],[1360,-1520]]),
+
+  // Peak
+  poly([[1520,-1560],[1660,-1520],[1680,-1700],[1540,-1760],[1480,-1640]]),
+];
+
+// ── Point-in-polygon (ray casting) ──
+function pointInPoly(px, py, verts) {
+  let inside = false;
+  for (let i = 0, j = verts.length - 1; i < verts.length; j = i++) {
+    const xi = verts[i].x, yi = verts[i].y;
+    const xj = verts[j].x, yj = verts[j].y;
+    if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi))
+      inside = !inside;
+  }
+  return inside;
+}
+
+function hammerInTerrain(hx, hy) {
+  for (const t of terrain) if (pointInPoly(hx, hy, t.verts)) return true;
+  return false;
+}
+
+// ── Circle vs polygon collision for body ──
+// Returns MTV (push-out vector) or null
+function circlePolyPush(cx, cy, r, verts) {
+  let minPen = Infinity, pushX = 0, pushY = 0;
+  const n = verts.length;
+  for (let i = 0; i < n; i++) {
+    const a = verts[i], b = verts[(i + 1) % n];
+    const ex = b.x - a.x, ey = b.y - a.y;
+    const len = Math.sqrt(ex * ex + ey * ey);
+    if (len === 0) continue;
+    // Edge normal (pointing outward for CCW poly, inward otherwise — we'll just use both)
+    const nx = -ey / len, ny = ex / len;
+    // Project circle center onto normal
+    let minP = Infinity, maxP = -Infinity;
+    for (const v of verts) {
+      const p = v.x * nx + v.y * ny;
+      if (p < minP) minP = p;
+      if (p > maxP) maxP = p;
+    }
+    const cp = cx * nx + cy * ny;
+    const pen1 = cp + r - minP;
+    const pen2 = maxP - (cp - r);
+    const pen = Math.min(pen1, pen2);
+    if (pen < 0) return null; // separating axis found
+    if (pen < minPen) {
+      minPen = pen;
+      // Choose direction to push OUT
+      pushX = pen1 < pen2 ? -nx : nx;
+      pushY = pen1 < pen2 ? -ny : ny;
+    }
+  }
+  // Also check vertex distances
+  for (const v of verts) {
+    const dx = cx - v.x, dy = cy - v.y;
+    const d = Math.sqrt(dx * dx + dy * dy);
+    if (d < r && d > 0 && d < minPen) {
+      minPen = d;
+      pushX = dx / d;
+      pushY = dy / d;
+    }
+  }
+  if (!pointInPoly(cx, cy, verts) && minPen > r * 0.5) return null;
+  return { nx: pushX, ny: pushY, pen: minPen };
+}
+
+function resolveBodyTerrain() {
+  for (const t of terrain) {
+    const push = circlePolyPush(body.x, body.y, BODY_R, t.verts);
+    if (push) {
+      body.x += push.nx * push.pen;
+      body.y += push.ny * push.pen;
+      // Cancel velocity into surface
+      const dot = body.vx * push.nx + body.vy * push.ny;
+      if (dot < 0) {
+        body.vx -= dot * push.nx * FRICTION;
+        body.vy -= dot * push.ny * FRICTION;
+      }
+    }
+  }
+}
+
+// ── Angle helpers ──
+function angleDiff(a, b) {
+  let d = a - b;
+  while (d > Math.PI) d -= 2 * Math.PI;
+  while (d < -Math.PI) d += 2 * Math.PI;
+  return d;
+}
+
+// ── Update ──
+let lastT = 0;
+function update(now) {
+  const dt = Math.min((now - lastT) / 1000, 0.05);
+  lastT = now;
+
+  // World-space mouse
+  const wx = mouse.x + camX;
+  const wy = mouse.y + camY;
+
+  // Arm angle toward mouse
+  const dx = wx - body.x, dy = wy - body.y;
+  const newAngle = Math.atan2(dy, dx);
+  const dθ = angleDiff(newAngle, armAngle);
+  prevArmAngle = armAngle;
+  armAngle = newAngle;
+
+  // Hammer head
+  const hx = body.x + ARM_LEN * Math.cos(armAngle);
+  const hy = body.y + ARM_LEN * Math.sin(armAngle);
+
+  if (hammerInTerrain(hx, hy)) {
+    if (!grounded) {
+      // Just landed — set pivot
+      pivotX = hx;
+      pivotY = hy;
+      grounded = true;
+    }
+    // Rotate body around pivot
+    const oldBx = body.x, oldBy = body.y;
+    body.x = pivotX - ARM_LEN * Math.cos(armAngle);
+    body.y = pivotY - ARM_LEN * Math.sin(armAngle);
+    // Derive velocity from movement
+    body.vx = (body.x - oldBx) / dt;
+    body.vy = (body.y - oldBy) / dt;
+    // Resolve body/terrain overlap
+    resolveBodyTerrain();
+  } else {
+    grounded = false;
+    // Free fall
+    body.vy += GRAVITY * dt;
+    body.x += body.vx * dt;
+    body.y += body.vy * dt;
+    // Dampen horizontal drift a little
+    body.vx *= 0.995;
+    resolveBodyTerrain();
+  }
+
+  // Reset if fallen below ground
+  if (body.y > 300) {
+    // Fall back to highest point reached, or start
+    const resetY = highestY < START_Y - 100 ? highestY + 200 : START_Y;
+    body.x = START_X; body.y = Math.min(resetY, START_Y);
+    body.vx = 0; body.vy = 0;
+    grounded = false;
+  }
+  if (body.y < highestY) highestY = body.y;
+
+  // Camera: smoothly follow body
+  const targetCX = body.x - W * 0.35;
+  const targetCY = body.y - H * 0.55;
+  camX += (targetCX - camX) * 0.12;
+  camY += (targetCY - camY) * 0.12;
+}
+
+// ── Draw ──
+function drawTerrain() {
+  ctx.fillStyle = '#5c3d1e';
+  ctx.strokeStyle = '#3a2510';
+  ctx.lineWidth = 2;
+  for (const t of terrain) {
+    ctx.beginPath();
+    ctx.moveTo(t.verts[0].x, t.verts[0].y);
+    for (let i = 1; i < t.verts.length; i++) ctx.lineTo(t.verts[i].x, t.verts[i].y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    // Surface highlight
+    ctx.save();
+    ctx.clip();
+    ctx.strokeStyle = 'rgba(200,160,80,0.18)';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(t.verts[0].x, t.verts[0].y);
+    for (let i = 1; i < t.verts.length; i++) ctx.lineTo(t.verts[i].x, t.verts[i].y);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawCharacter() {
+  const bx = body.x, by = body.y;
+  // Compute arm angle relative to body (for drawing)
+  const hx = bx + ARM_LEN * Math.cos(armAngle);
+  const hy = by + ARM_LEN * Math.sin(armAngle);
+
+  // Hammer pole (from shoulder, up through body center area)
+  const shoulderX = bx + 8, shoulderY = by - 10;
+  ctx.strokeStyle = '#8b6914';
+  ctx.lineWidth = 5;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(shoulderX, shoulderY);
+  ctx.lineTo(hx, hy);
+  ctx.stroke();
+
+  // Hammer head (T-shape)
+  const perpX = -(hy - shoulderY), perpY = (hx - shoulderX);
+  const perpLen = Math.sqrt(perpX * perpX + perpY * perpY) || 1;
+  const pnx = perpX / perpLen, pny = perpY / perpLen;
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 8;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(hx - pnx * 18, hy - pny * 18);
+  ctx.lineTo(hx + pnx * 18, hy + pny * 18);
+  ctx.stroke();
+  // Hammer head face
+  ctx.fillStyle = '#aaa';
+  ctx.beginPath();
+  ctx.arc(hx, hy, 10, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#666';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Cauldron body (orange-brown like original)
+  const cg = ctx.createLinearGradient(bx - 28, by, bx + 28, by + 40);
+  cg.addColorStop(0, '#c84010');
+  cg.addColorStop(0.5, '#e05020');
+  cg.addColorStop(1, '#803010');
+  ctx.fillStyle = cg;
+  ctx.beginPath();
+  ctx.ellipse(bx, by + 14, 28, 24, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#601808';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  // Cauldron rim
+  ctx.fillStyle = '#d06020';
+  ctx.beginPath();
+  ctx.ellipse(bx, by - 6, 28, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#a04010';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  // Cauldron legs
+  ctx.strokeStyle = '#601808';
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  for (const [lx, ly] of [[-14, 36],[0, 40],[14, 36]]) {
+    ctx.beginPath();
+    ctx.moveTo(bx + lx * 0.7, by + ly - 4);
+    ctx.lineTo(bx + lx, by + ly);
+    ctx.stroke();
+  }
+
+  // Man sitting in cauldron
+  // Body
+  ctx.fillStyle = '#3a6ab0';
+  ctx.beginPath();
+  ctx.ellipse(bx, by - 2, 14, 18, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Head
+  ctx.fillStyle = '#d4a070';
+  ctx.beginPath();
+  ctx.arc(bx + 4, by - 22, 13, 0, Math.PI * 2);
+  ctx.fill();
+  // Beard
+  ctx.fillStyle = '#888';
+  ctx.beginPath();
+  ctx.ellipse(bx + 4, by - 13, 8, 6, 0, 0, Math.PI);
+  ctx.fill();
+  // Eyes
+  ctx.fillStyle = '#111';
+  ctx.beginPath();
+  ctx.arc(bx, by - 24, 2, 0, Math.PI * 2);
+  ctx.arc(bx + 8, by - 24, 2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Pivot indicator when grounded
+  if (grounded) {
+    ctx.strokeStyle = 'rgba(255,220,80,0.7)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(pivotX - camX, pivotY - camY, 8, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+function draw() {
+  // Sky gradient
+  const sk = ctx.createLinearGradient(0, 0, 0, H);
+  sk.addColorStop(0, '#0a0612');
+  sk.addColorStop(1, '#1a0c08');
+  ctx.fillStyle = sk;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.save();
+  ctx.translate(-camX, -camY);
+  drawTerrain();
+  drawCharacter();
+  ctx.restore();
+
+  // Height HUD
+  const meters = Math.max(0, Math.floor(-body.y / 40));
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(W - 110, 10, 100, 32);
+  ctx.fillStyle = '#c8a060';
+  ctx.font = 'bold 16px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(meters + ' m', W - 60, 31);
+}
+
+function loop(now) {
+  update(now);
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
