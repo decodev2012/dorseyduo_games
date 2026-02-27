@@ -38,6 +38,7 @@ let armAngle = Math.PI / 2;
 let prevArmAngle = Math.PI / 2;
 let grounded = false;
 let pivotX = 0, pivotY = 0;
+let prevHammerX = START_X + ARM_OX, prevHammerY = START_Y + ARM_OY + ARM_LEN;
 let mouse = { x: W / 2, y: H / 2 };
 let camX = 0, camY = 0;
 let highestY = START_Y; // track highest point for falling back
@@ -107,6 +108,31 @@ function pointInPoly(px, py, verts) {
 function hammerInTerrain(hx, hy) {
   for (const t of terrain) if (pointInPoly(hx, hy, t.verts)) return true;
   return false;
+}
+
+// Segment-segment intersection — returns t along AB, or null
+function segT(ax, ay, bx, by, cx, cy, dx, dy) {
+  const denom = (bx-ax)*(dy-cy) - (by-ay)*(dx-cx);
+  if (Math.abs(denom) < 1e-10) return null;
+  const t = ((cx-ax)*(dy-cy) - (cy-ay)*(dx-cx)) / denom;
+  const u = ((cx-ax)*(by-ay) - (cy-ay)*(bx-ax)) / denom;
+  return (t >= 0 && t <= 1 && u >= 0 && u <= 1) ? t : null;
+}
+
+// Sweep hammer from (ax,ay)→(bx,by), return first surface crossing point
+function sweepHammer(ax, ay, bx, by) {
+  let minT = 1, hx = null, hy = null;
+  for (const t of terrain) {
+    const n = t.verts.length;
+    for (let i = 0; i < n; i++) {
+      const v1 = t.verts[i], v2 = t.verts[(i+1)%n];
+      const tt = segT(ax, ay, bx, by, v1.x, v1.y, v2.x, v2.y);
+      if (tt !== null && tt < minT) {
+        minT = tt; hx = ax + tt*(bx-ax); hy = ay + tt*(by-ay);
+      }
+    }
+  }
+  return hx !== null ? {x: hx, y: hy} : null;
 }
 
 // ── Circle vs polygon collision for body ──
@@ -206,34 +232,51 @@ function update(now) {
   const hx = sx + ARM_LEN * Math.cos(armAngle);
   const hy = sy + ARM_LEN * Math.sin(armAngle);
 
-  if (hammerInTerrain(hx, hy)) {
-    if (!grounded) {
-      // Just landed — set pivot
-      pivotX = hx;
-      pivotY = hy;
+  if (grounded) {
+    // Unground if mouse swings to the body-side of the pivot
+    // dot(pivot→body, pivot→mouse) > 0 means mouse is behind the pivot → release
+    const pbx = body.x - pivotX, pby = body.y - pivotY;
+    const pmx = wx - pivotX, pmy = wy - pivotY;
+    if (pbx * pmx + pby * pmy > ARM_LEN * 20) grounded = false;
+  }
+
+  if (!grounded) {
+    // Sweep hammer path for first terrain surface crossing
+    const hit = sweepHammer(prevHammerX, prevHammerY, hx, hy);
+    if (hit) {
+      pivotX = hit.x; pivotY = hit.y; grounded = true;
+    } else if (hammerInTerrain(hx, hy)) {
+      // Already inside (large jump) — find surface by sweeping from body center
+      const hit2 = sweepHammer(sx, sy, hx, hy);
+      pivotX = hit2 ? hit2.x : hx;
+      pivotY = hit2 ? hit2.y : hy;
       grounded = true;
     }
-    // Rotate body around pivot (shoulder stays at pivot - arm direction)
+  }
+
+  if (grounded) {
+    // Body rotates around pivot
     const oldBx = body.x, oldBy = body.y;
     body.x = pivotX - ARM_LEN * Math.cos(armAngle) - ARM_OX;
     body.y = pivotY - ARM_LEN * Math.sin(armAngle) - ARM_OY;
-    // Derive velocity from movement — scale down so fast flicks don't launch you
     body.vx = (body.x - oldBx) / dt * 0.3;
     body.vy = (body.y - oldBy) / dt * 0.3;
     const spd = Math.hypot(body.vx, body.vy);
     if (spd > MAX_SPEED) { body.vx = body.vx / spd * MAX_SPEED; body.vy = body.vy / spd * MAX_SPEED; }
-    // Resolve body/terrain overlap
     resolveBodyTerrain();
   } else {
-    grounded = false;
     // Free fall
     body.vy += GRAVITY * dt;
     body.x += body.vx * dt;
     body.y += body.vy * dt;
-    // Dampen horizontal drift a little
     body.vx *= 0.995;
     resolveBodyTerrain();
   }
+
+  // Track hammer position for next frame's sweep
+  const nsx = body.x + ARM_OX, nsy = body.y + ARM_OY;
+  prevHammerX = nsx + ARM_LEN * Math.cos(armAngle);
+  prevHammerY = nsy + ARM_LEN * Math.sin(armAngle);
 
   // Reset if fallen below ground
   if (body.y > 300) {
