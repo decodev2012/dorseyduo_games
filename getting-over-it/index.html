@@ -24,8 +24,9 @@ window.addEventListener('resize', () => { W = canvas.width = innerWidth; H = can
 
 // ── Constants ──
 const GRAVITY = 500;
-const MAX_SPEED = 220;
-const KEY_CURSOR_SPEED = 180; // px/s for arrow key cursor movement
+const MAX_SPEED = 200;
+const KEY_CURSOR_SPEED = 340; // px/s for arrow key cursor movement
+const MAX_ARM_RATE = 5;       // rad/s — limits how fast the arm can spin
 const ARM_LEN = 110;       // length of hammer arm
 const ARM_OX = 8, ARM_OY = -10; // shoulder offset from body center
 const BODY_R = 22;         // cauldron radius (collision)
@@ -237,22 +238,20 @@ function update(now) {
   // Shoulder position (arm origin)
   const sx = body.x + ARM_OX, sy = body.y + ARM_OY;
 
-  // Arm angle from shoulder toward mouse
-  const newAngle = Math.atan2(wy - sy, wx - sx);
+  // Arm angle — rate-limited so fast mouse flicks don't cause big velocity spikes
+  const targetAngle = Math.atan2(wy - sy, wx - sx);
+  const maxDelta = MAX_ARM_RATE * dt;
+  const rawDelta = angleDiff(targetAngle, armAngle);
+  const clampedDelta = Math.max(-maxDelta, Math.min(maxDelta, rawDelta));
   prevArmAngle = armAngle;
-  armAngle = newAngle;
+  armAngle += clampedDelta;
 
   // Hammer head (from shoulder)
   const hx = sx + ARM_LEN * Math.cos(armAngle);
   const hy = sy + ARM_LEN * Math.sin(armAngle);
 
-  if (grounded) {
-    // Unground if mouse swings to the body-side of the pivot
-    // dot(pivot→body, pivot→mouse) > 0 means mouse is behind the pivot → release
-    const pbx = body.x - pivotX, pby = body.y - pivotY;
-    const pmx = wx - pivotX, pmy = wy - pivotY;
-    if (pbx * pmx + pby * pmy > ARM_LEN * 20) grounded = false;
-  }
+  // Natural unground: hammer head no longer in terrain
+  if (grounded && !hammerInTerrain(pivotX, pivotY)) grounded = false;
 
   if (!grounded) {
     // Sweep hammer path for first terrain surface crossing
@@ -260,7 +259,7 @@ function update(now) {
     if (hit) {
       pivotX = hit.x; pivotY = hit.y; grounded = true;
     } else if (hammerInTerrain(hx, hy)) {
-      // Already inside (large jump) — find surface by sweeping from body center
+      // Already inside (large jump) — find surface by sweeping from shoulder
       const hit2 = sweepHammer(sx, sy, hx, hy);
       pivotX = hit2 ? hit2.x : hx;
       pivotY = hit2 ? hit2.y : hy;
