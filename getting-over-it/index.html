@@ -6,7 +6,7 @@
 <title>Getting Over It - Dorsey Duo</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#1a1008;overflow:hidden;cursor:none}
+body{background:#1a1008;overflow:hidden}
 canvas{display:block}
 a.back{position:fixed;top:10px;left:14px;color:#c8a060;text-decoration:none;font:14px monospace;z-index:10}
 a.back:hover{text-decoration:underline}
@@ -41,13 +41,12 @@ let prevArmAngle = -Math.PI / 2;
 let grounded = false;
 let pivotX = 0, pivotY = 0;
 let prevHammerX = START_X + ARM_OX, prevHammerY = START_Y + ARM_OY - ARM_LEN;
-// Virtual cursor — driven by mouse OR arrow keys
+// Virtual cursor — driven by arrow keys only
 let cursor = { x: W / 2, y: H / 2 };
 let camX = 0, camY = 0;
 let highestY = START_Y; // track highest point for falling back
 
 const keys = {};
-canvas.addEventListener('mousemove', e => { cursor.x = e.clientX; cursor.y = e.clientY; });
 window.addEventListener('keydown', e => {
   keys[e.code] = true;
   if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
@@ -223,7 +222,7 @@ function update(now) {
   // Shoulder position (arm origin)
   const sx = body.x + ARM_OX, sy = body.y + ARM_OY;
 
-  // Arm angle — rate-limited so fast mouse flicks don't cause big velocity spikes
+  // Arm angle — rate-limited so fast key movements don't cause big velocity spikes
   const targetAngle = Math.atan2(wy - sy, wx - sx);
   const maxDelta = MAX_ARM_RATE * dt;
   const rawDelta = angleDiff(targetAngle, armAngle);
