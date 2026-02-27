@@ -252,7 +252,7 @@ function update(now) {
   }
 
   if (grounded) {
-    // Body rotates around pivot — no terrain resolve (fights constraint)
+    // Body rotates around pivot
     const oldBx = body.x, oldBy = body.y;
     body.x = pivotX - ARM_LEN * Math.cos(armAngle) - ARM_OX;
     body.y = pivotY - ARM_LEN * Math.sin(armAngle) - ARM_OY;
@@ -260,6 +260,7 @@ function update(now) {
     body.vy = (body.y - oldBy) / dt * 0.15;
     const spd = Math.hypot(body.vx, body.vy);
     if (spd > MAX_SPEED) { body.vx = body.vx / spd * MAX_SPEED; body.vy = body.vy / spd * MAX_SPEED; }
+    resolveBodyTerrain();
   } else {
     // Free fall — sub-stepped to prevent tunneling through terrain
     const N = 5;
