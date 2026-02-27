@@ -25,8 +25,8 @@ window.addEventListener('resize', () => { W = canvas.width = innerWidth; H = can
 // ── Constants ──
 const GRAVITY = 500;
 const MAX_SPEED = 200;
-const KEY_CURSOR_SPEED = 340; // px/s for arrow key cursor movement
-const MAX_ARM_RATE = 5;       // rad/s — limits how fast the arm can spin
+const KEY_CURSOR_SPEED = 600; // px/s for arrow key cursor movement
+const MAX_ARM_RATE = 8;       // rad/s — limits how fast the arm can spin
 const ARM_LEN = 110;       // length of hammer arm
 const ARM_OX = 8, ARM_OY = -10; // shoulder offset from body center
 const BODY_R = 22;         // cauldron radius (collision)
@@ -170,16 +170,15 @@ function resolveBodyTerrain() {
       if (!inside && minDist >= BODY_R) continue;
       any = true;
 
-      const d = Math.max(minDist, 0.001);
       let nx, ny, pen;
       if (inside) {
-        // Push toward closest boundary point and past it
-        nx = (cpx-body.x)/d; ny = (cpy-body.y)/d;
-        pen = minDist + BODY_R;
+        // Push toward closest boundary point and BODY_R past it
+        if (minDist < 0.001) { nx = 0; ny = -1; pen = BODY_R; }
+        else { nx=(cpx-body.x)/minDist; ny=(cpy-body.y)/minDist; pen=minDist+BODY_R; }
       } else {
         // Push away from closest boundary point
-        nx = (body.x-cpx)/d; ny = (body.y-cpy)/d;
-        pen = BODY_R - minDist;
+        if (minDist < 0.001) { nx = 0; ny = -1; pen = BODY_R - minDist; }
+        else { nx=(body.x-cpx)/minDist; ny=(body.y-cpy)/minDist; pen=BODY_R-minDist; }
       }
       body.x += nx * pen;
       body.y += ny * pen;
@@ -254,7 +253,7 @@ function update(now) {
   }
 
   if (grounded) {
-    // Body rotates around pivot
+    // Body rotates around pivot — no terrain resolve (fights constraint)
     const oldBx = body.x, oldBy = body.y;
     body.x = pivotX - ARM_LEN * Math.cos(armAngle) - ARM_OX;
     body.y = pivotY - ARM_LEN * Math.sin(armAngle) - ARM_OY;
@@ -262,14 +261,17 @@ function update(now) {
     body.vy = (body.y - oldBy) / dt * 0.15;
     const spd = Math.hypot(body.vx, body.vy);
     if (spd > MAX_SPEED) { body.vx = body.vx / spd * MAX_SPEED; body.vy = body.vy / spd * MAX_SPEED; }
-    resolveBodyTerrain();
   } else {
-    // Free fall
-    body.vy += GRAVITY * dt;
-    body.x += body.vx * dt;
-    body.y += body.vy * dt;
+    // Free fall — sub-stepped to prevent tunneling through terrain
+    const N = 5;
+    const sdt = dt / N;
+    for (let s = 0; s < N; s++) {
+      body.vy += GRAVITY * sdt;
+      body.x += body.vx * sdt;
+      body.y += body.vy * sdt;
+      resolveBodyTerrain();
+    }
     body.vx *= 0.995;
-    resolveBodyTerrain();
   }
 
   // Track hammer position for next frame's sweep
