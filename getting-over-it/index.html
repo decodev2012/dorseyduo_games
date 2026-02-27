@@ -145,69 +145,55 @@ function sweepHammer(ax, ay, bx, by) {
 }
 
 // ── Circle vs polygon collision for body ──
-// Returns MTV (push-out vector) or null
-function circlePolyPush(cx, cy, r, verts) {
-  let minPen = Infinity, pushX = 0, pushY = 0;
-  const n = verts.length;
-  for (let i = 0; i < n; i++) {
-    const a = verts[i], b = verts[(i + 1) % n];
-    const ex = b.x - a.x, ey = b.y - a.y;
-    const len = Math.sqrt(ex * ex + ey * ey);
-    if (len === 0) continue;
-    // Edge normal (pointing outward for CCW poly, inward otherwise — we'll just use both)
-    const nx = -ey / len, ny = ex / len;
-    // Project circle center onto normal
-    let minP = Infinity, maxP = -Infinity;
-    for (const v of verts) {
-      const p = v.x * nx + v.y * ny;
-      if (p < minP) minP = p;
-      if (p > maxP) maxP = p;
-    }
-    const cp = cx * nx + cy * ny;
-    const pen1 = cp + r - minP;
-    const pen2 = maxP - (cp - r);
-    const pen = Math.min(pen1, pen2);
-    if (pen < 0) return null; // separating axis found
-    if (pen < minPen) {
-      minPen = pen;
-      // Choose direction to push OUT
-      pushX = pen1 < pen2 ? -nx : nx;
-      pushY = pen1 < pen2 ? -ny : ny;
-    }
-  }
-  // Also check vertex distances
-  for (const v of verts) {
-    const dx = cx - v.x, dy = cy - v.y;
-    const d = Math.sqrt(dx * dx + dy * dy);
-    if (d < r && d > 0 && d < minPen) {
-      minPen = d;
-      pushX = dx / d;
-      pushY = dy / d;
-    }
-  }
-  if (!pointInPoly(cx, cy, verts) && minPen > r * 0.5) return null;
-  return { nx: pushX, ny: pushY, pen: minPen };
-}
-
+// Uses closest-point-on-boundary approach — more reliable than SAT
 function resolveBodyTerrain() {
-  for (const t of terrain) {
-    const push = circlePolyPush(body.x, body.y, BODY_R, t.verts);
-    if (push) {
-      body.x += push.nx * push.pen;
-      body.y += push.ny * push.pen;
-      // Cancel velocity into surface + damp sliding
-      const dot = body.vx * push.nx + body.vy * push.ny;
+  for (let iter = 0; iter < 3; iter++) {
+    let any = false;
+    for (const terr of terrain) {
+      const verts = terr.verts;
+      const nv = verts.length;
+      const inside = pointInPoly(body.x, body.y, verts);
+
+      // Find closest point on polygon boundary to body center
+      let minDist = Infinity, cpx = 0, cpy = 0;
+      for (let i = 0; i < nv; i++) {
+        const a = verts[i], b = verts[(i+1)%nv];
+        const edx = b.x-a.x, edy = b.y-a.y;
+        const len2 = edx*edx+edy*edy;
+        if (len2 < 1e-10) continue;
+        const tp = Math.max(0, Math.min(1, ((body.x-a.x)*edx+(body.y-a.y)*edy)/len2));
+        const px = a.x+tp*edx, py = a.y+tp*edy;
+        const d = Math.hypot(body.x-px, body.y-py);
+        if (d < minDist) { minDist=d; cpx=px; cpy=py; }
+      }
+
+      if (!inside && minDist >= BODY_R) continue;
+      any = true;
+
+      const d = Math.max(minDist, 0.001);
+      let nx, ny, pen;
+      if (inside) {
+        // Push toward closest boundary point and past it
+        nx = (cpx-body.x)/d; ny = (cpy-body.y)/d;
+        pen = minDist + BODY_R;
+      } else {
+        // Push away from closest boundary point
+        nx = (body.x-cpx)/d; ny = (body.y-cpy)/d;
+        pen = BODY_R - minDist;
+      }
+      body.x += nx * pen;
+      body.y += ny * pen;
+
+      // Cancel velocity into surface, damp tangential
+      const dot = body.vx*nx + body.vy*ny;
       if (dot < 0) {
-        // Remove normal component
-        body.vx -= dot * push.nx * FRICTION;
-        body.vy -= dot * push.ny * FRICTION;
-        // Remove most of the tangential (sliding) component
-        const tanVx = body.vx - (body.vx * push.nx) * push.nx;
-        const tanVy = body.vy - (body.vy * push.ny) * push.ny;
-        body.vx -= tanVx * SLIDE;
-        body.vy -= tanVy * SLIDE;
+        body.vx -= dot * nx * FRICTION;
+        body.vy -= dot * ny * FRICTION;
+        body.vx *= (1 - SLIDE);
+        body.vy *= (1 - SLIDE);
       }
     }
+    if (!any) break;
   }
 }
 
