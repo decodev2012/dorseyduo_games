@@ -113,9 +113,9 @@ function pointInPoly(px, py, verts) {
   return inside;
 }
 
-function hammerInTerrain(hx, hy) {
-  for (const t of terrain) if (pointInPoly(hx, hy, t.verts)) return true;
-  return false;
+// Only the flat ground (terrain[0]) is grippable — rocks are obstacles only
+function hammerInGround(hx, hy) {
+  return pointInPoly(hx, hy, terrain[0].verts);
 }
 
 // Segment-segment intersection — returns t along AB, or null
@@ -127,17 +127,15 @@ function segT(ax, ay, bx, by, cx, cy, dx, dy) {
   return (t >= 0 && t <= 1 && u >= 0 && u <= 1) ? t : null;
 }
 
-// Sweep hammer from (ax,ay)→(bx,by), return first surface crossing point
+// Sweep hammer from (ax,ay)→(bx,by) — only checks flat ground (terrain[0])
 function sweepHammer(ax, ay, bx, by) {
   let minT = 1, hx = null, hy = null;
-  for (const t of terrain) {
-    const n = t.verts.length;
-    for (let i = 0; i < n; i++) {
-      const v1 = t.verts[i], v2 = t.verts[(i+1)%n];
-      const tt = segT(ax, ay, bx, by, v1.x, v1.y, v2.x, v2.y);
-      if (tt !== null && tt < minT) {
-        minT = tt; hx = ax + tt*(bx-ax); hy = ay + tt*(by-ay);
-      }
+  const g = terrain[0];
+  for (let i = 0; i < g.verts.length; i++) {
+    const v1 = g.verts[i], v2 = g.verts[(i+1)%g.verts.length];
+    const tt = segT(ax, ay, bx, by, v1.x, v1.y, v2.x, v2.y);
+    if (tt !== null && tt < minT) {
+      minT = tt; hx = ax + tt*(bx-ax); hy = ay + tt*(by-ay);
     }
   }
   return hx !== null ? {x: hx, y: hy} : null;
@@ -235,14 +233,14 @@ function update(now) {
   const hy = sy + ARM_LEN * Math.sin(armAngle);
 
   // Natural unground: hammer head no longer in terrain
-  if (grounded && !hammerInTerrain(pivotX, pivotY)) grounded = false;
+  if (grounded && !hammerInGround(pivotX, pivotY)) grounded = false;
 
   if (!grounded) {
     // Sweep hammer path for first terrain surface crossing
     const hit = sweepHammer(prevHammerX, prevHammerY, hx, hy);
     if (hit) {
       pivotX = hit.x; pivotY = hit.y; grounded = true;
-    } else if (hammerInTerrain(hx, hy)) {
+    } else if (hammerInGround(hx, hy)) {
       // Already inside (large jump) — find surface by sweeping from shoulder
       const hit2 = sweepHammer(sx, sy, hx, hy);
       pivotX = hit2 ? hit2.x : hx;
