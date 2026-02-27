@@ -24,7 +24,8 @@ window.addEventListener('resize', () => { W = canvas.width = innerWidth; H = can
 
 // ── Constants ──
 const GRAVITY = 500;
-const MAX_SPEED = 420;
+const MAX_SPEED = 220;
+const KEY_CURSOR_SPEED = 180; // px/s for arrow key cursor movement
 const ARM_LEN = 110;       // length of hammer arm
 const ARM_OX = 8, ARM_OY = -10; // shoulder offset from body center
 const BODY_R = 22;         // cauldron radius (collision)
@@ -39,11 +40,18 @@ let prevArmAngle = Math.PI / 2;
 let grounded = false;
 let pivotX = 0, pivotY = 0;
 let prevHammerX = START_X + ARM_OX, prevHammerY = START_Y + ARM_OY + ARM_LEN;
-let mouse = { x: W / 2, y: H / 2 };
+// Virtual cursor — driven by mouse OR arrow keys
+let cursor = { x: W / 2, y: H / 2 };
 let camX = 0, camY = 0;
 let highestY = START_Y; // track highest point for falling back
 
-canvas.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+const keys = {};
+canvas.addEventListener('mousemove', e => { cursor.x = e.clientX; cursor.y = e.clientY; });
+window.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
 
 // ── Terrain ──
 // Each shape: polygon { verts: [{x,y},...] }
@@ -216,9 +224,15 @@ function update(now) {
   const dt = Math.min((now - lastT) / 1000, 0.05);
   lastT = now;
 
-  // World-space mouse
-  const wx = mouse.x + camX;
-  const wy = mouse.y + camY;
+  // Arrow keys move virtual cursor
+  if (keys['ArrowLeft'])  cursor.x -= KEY_CURSOR_SPEED * dt;
+  if (keys['ArrowRight']) cursor.x += KEY_CURSOR_SPEED * dt;
+  if (keys['ArrowUp'])    cursor.y -= KEY_CURSOR_SPEED * dt;
+  if (keys['ArrowDown'])  cursor.y += KEY_CURSOR_SPEED * dt;
+
+  // World-space cursor
+  const wx = cursor.x + camX;
+  const wy = cursor.y + camY;
 
   // Shoulder position (arm origin)
   const sx = body.x + ARM_OX, sy = body.y + ARM_OY;
@@ -259,8 +273,8 @@ function update(now) {
     const oldBx = body.x, oldBy = body.y;
     body.x = pivotX - ARM_LEN * Math.cos(armAngle) - ARM_OX;
     body.y = pivotY - ARM_LEN * Math.sin(armAngle) - ARM_OY;
-    body.vx = (body.x - oldBx) / dt * 0.3;
-    body.vy = (body.y - oldBy) / dt * 0.3;
+    body.vx = (body.x - oldBx) / dt * 0.15;
+    body.vy = (body.y - oldBy) / dt * 0.15;
     const spd = Math.hypot(body.vx, body.vy);
     if (spd > MAX_SPEED) { body.vx = body.vx / spd * MAX_SPEED; body.vy = body.vy / spd * MAX_SPEED; }
     resolveBodyTerrain();
