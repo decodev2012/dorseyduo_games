@@ -27,7 +27,8 @@ const GRAVITY = 500;
 const MAX_SPEED = 420;
 const ARM_LEN = 100;       // length of hammer arm
 const BODY_R = 22;         // cauldron radius (collision)
-const FRICTION = 0.55;     // velocity damping on terrain contact
+const FRICTION = 0.9;      // normal velocity cancel (stops bouncing)
+const SLIDE = 0.75;        // tangential velocity cancel (stops sliding)
 
 // ── State ──
 const START_X = -50, START_Y = -25;
@@ -158,11 +159,17 @@ function resolveBodyTerrain() {
     if (push) {
       body.x += push.nx * push.pen;
       body.y += push.ny * push.pen;
-      // Cancel velocity into surface
+      // Cancel velocity into surface + damp sliding
       const dot = body.vx * push.nx + body.vy * push.ny;
       if (dot < 0) {
+        // Remove normal component
         body.vx -= dot * push.nx * FRICTION;
         body.vy -= dot * push.ny * FRICTION;
+        // Remove most of the tangential (sliding) component
+        const tanVx = body.vx - (body.vx * push.nx) * push.nx;
+        const tanVy = body.vy - (body.vy * push.ny) * push.ny;
+        body.vx -= tanVx * SLIDE;
+        body.vy -= tanVy * SLIDE;
       }
     }
   }
