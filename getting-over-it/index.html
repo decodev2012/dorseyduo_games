@@ -25,8 +25,8 @@ window.addEventListener('resize', () => { W = canvas.width = innerWidth; H = can
 // ── Constants ──
 const GRAVITY = 500;
 const MAX_SPEED = 200;
-const KEY_CURSOR_SPEED = 3000; // px/s for arrow key cursor movement
-const MAX_ARM_RATE = 25;       // rad/s — limits how fast the arm can spin
+const KEY_CURSOR_SPEED = 5000; // px/s for arrow key cursor movement
+const MAX_ARM_RATE = 50;       // rad/s — limits how fast the arm can spin
 const ARM_LEN = 110;       // length of hammer arm
 const ARM_OX = 8, ARM_OY = -10; // shoulder offset from body center
 const BODY_R = 22;         // cauldron radius (collision)
@@ -260,7 +260,14 @@ function update(now) {
     body.vy = (body.y - oldBy) / dt * 0.15;
     const spd = Math.hypot(body.vx, body.vy);
     if (spd > MAX_SPEED) { body.vx = body.vx / spd * MAX_SPEED; body.vy = body.vy / spd * MAX_SPEED; }
+    // Resolve terrain, then sync armAngle to resolved position so pivot
+    // formula stays consistent next frame (stops pivot vs terrain oscillation)
+    const preBx = body.x, preBy = body.y;
     resolveBodyTerrain();
+    if (Math.hypot(body.x - preBx, body.y - preBy) > 0.01) {
+      armAngle = Math.atan2(pivotY - (body.y + ARM_OY), pivotX - (body.x + ARM_OX));
+      body.vx = 0; body.vy = 0;
+    }
   } else {
     // Free fall — sub-stepped to prevent tunneling through terrain
     const N = 5;
