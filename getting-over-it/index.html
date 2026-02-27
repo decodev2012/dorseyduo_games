@@ -36,11 +36,11 @@ const SLIDE = 0.75;        // tangential velocity cancel (stops sliding)
 // ── State ──
 const START_X = -50, START_Y = -25;
 let body = { x: START_X, y: START_Y, vx: 0, vy: 0 };
-let armAngle = Math.PI / 2;
-let prevArmAngle = Math.PI / 2;
+let armAngle = -Math.PI / 2;  // start pointing UP so hammer doesn't auto-plant
+let prevArmAngle = -Math.PI / 2;
 let grounded = false;
 let pivotX = 0, pivotY = 0;
-let prevHammerX = START_X + ARM_OX, prevHammerY = START_Y + ARM_OY + ARM_LEN;
+let prevHammerX = START_X + ARM_OX, prevHammerY = START_Y + ARM_OY - ARM_LEN;
 // Virtual cursor — driven by mouse OR arrow keys
 let cursor = { x: W / 2, y: H / 2 };
 let camX = 0, camY = 0;
@@ -269,6 +269,9 @@ function update(now) {
       body.vy += GRAVITY * sdt;
       body.x += body.vx * sdt;
       body.y += body.vy * sdt;
+      // Cap speed each substep to prevent tunneling at extreme velocities
+      const spd = Math.hypot(body.vx, body.vy);
+      if (spd > MAX_SPEED) { body.vx = body.vx/spd*MAX_SPEED; body.vy = body.vy/spd*MAX_SPEED; }
       resolveBodyTerrain();
     }
     body.vx *= 0.995;
