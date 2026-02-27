@@ -25,7 +25,8 @@ window.addEventListener('resize', () => { W = canvas.width = innerWidth; H = can
 // ── Constants ──
 const GRAVITY = 500;
 const MAX_SPEED = 420;
-const ARM_LEN = 100;       // length of hammer arm
+const ARM_LEN = 110;       // length of hammer arm
+const ARM_OX = 8, ARM_OY = -10; // shoulder offset from body center
 const BODY_R = 22;         // cauldron radius (collision)
 const FRICTION = 0.9;      // normal velocity cancel (stops bouncing)
 const SLIDE = 0.75;        // tangential velocity cancel (stops sliding)
@@ -193,16 +194,17 @@ function update(now) {
   const wx = mouse.x + camX;
   const wy = mouse.y + camY;
 
-  // Arm angle toward mouse
-  const dx = wx - body.x, dy = wy - body.y;
-  const newAngle = Math.atan2(dy, dx);
-  const dθ = angleDiff(newAngle, armAngle);
+  // Shoulder position (arm origin)
+  const sx = body.x + ARM_OX, sy = body.y + ARM_OY;
+
+  // Arm angle from shoulder toward mouse
+  const newAngle = Math.atan2(wy - sy, wx - sx);
   prevArmAngle = armAngle;
   armAngle = newAngle;
 
-  // Hammer head
-  const hx = body.x + ARM_LEN * Math.cos(armAngle);
-  const hy = body.y + ARM_LEN * Math.sin(armAngle);
+  // Hammer head (from shoulder)
+  const hx = sx + ARM_LEN * Math.cos(armAngle);
+  const hy = sy + ARM_LEN * Math.sin(armAngle);
 
   if (hammerInTerrain(hx, hy)) {
     if (!grounded) {
@@ -211,10 +213,10 @@ function update(now) {
       pivotY = hy;
       grounded = true;
     }
-    // Rotate body around pivot
+    // Rotate body around pivot (shoulder stays at pivot - arm direction)
     const oldBx = body.x, oldBy = body.y;
-    body.x = pivotX - ARM_LEN * Math.cos(armAngle);
-    body.y = pivotY - ARM_LEN * Math.sin(armAngle);
+    body.x = pivotX - ARM_LEN * Math.cos(armAngle) - ARM_OX;
+    body.y = pivotY - ARM_LEN * Math.sin(armAngle) - ARM_OY;
     // Derive velocity from movement — scale down so fast flicks don't launch you
     body.vx = (body.x - oldBx) / dt * 0.3;
     body.vy = (body.y - oldBy) / dt * 0.3;
@@ -278,12 +280,12 @@ function drawTerrain() {
 
 function drawCharacter() {
   const bx = body.x, by = body.y;
-  // Compute arm angle relative to body (for drawing)
-  const hx = bx + ARM_LEN * Math.cos(armAngle);
-  const hy = by + ARM_LEN * Math.sin(armAngle);
+  // Shoulder = arm origin (matches physics)
+  const shoulderX = bx + ARM_OX, shoulderY = by + ARM_OY;
+  const hx = shoulderX + ARM_LEN * Math.cos(armAngle);
+  const hy = shoulderY + ARM_LEN * Math.sin(armAngle);
 
-  // Hammer pole (from shoulder, up through body center area)
-  const shoulderX = bx + 8, shoulderY = by - 10;
+  // Hammer pole
   ctx.strokeStyle = '#8b6914';
   ctx.lineWidth = 5;
   ctx.lineCap = 'round';
