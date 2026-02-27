@@ -23,7 +23,8 @@ let H = canvas.height = innerHeight;
 window.addEventListener('resize', () => { W = canvas.width = innerWidth; H = canvas.height = innerHeight; });
 
 // ── Constants ──
-const GRAVITY = 900;
+const GRAVITY = 500;
+const MAX_SPEED = 420;
 const ARM_LEN = 100;       // length of hammer arm
 const BODY_R = 22;         // cauldron radius (collision)
 const FRICTION = 0.55;     // velocity damping on terrain contact
@@ -207,9 +208,11 @@ function update(now) {
     const oldBx = body.x, oldBy = body.y;
     body.x = pivotX - ARM_LEN * Math.cos(armAngle);
     body.y = pivotY - ARM_LEN * Math.sin(armAngle);
-    // Derive velocity from movement
-    body.vx = (body.x - oldBx) / dt;
-    body.vy = (body.y - oldBy) / dt;
+    // Derive velocity from movement — scale down so fast flicks don't launch you
+    body.vx = (body.x - oldBx) / dt * 0.3;
+    body.vy = (body.y - oldBy) / dt * 0.3;
+    const spd = Math.hypot(body.vx, body.vy);
+    if (spd > MAX_SPEED) { body.vx = body.vx / spd * MAX_SPEED; body.vy = body.vy / spd * MAX_SPEED; }
     // Resolve body/terrain overlap
     resolveBodyTerrain();
   } else {
