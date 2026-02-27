@@ -8,15 +8,7 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #050510; overflow: hidden; }
   canvas { display: block; }
-  .back {
-    position: fixed;
-    top: 10px;
-    left: 14px;
-    color: #888;
-    text-decoration: none;
-    font: 14px monospace;
-    z-index: 10;
-  }
+  .back { position: fixed; top: 10px; left: 14px; color: #888; text-decoration: none; font: 14px monospace; z-index: 10; }
   .back:hover { color: #ccc; }
 </style>
 </head>
@@ -24,570 +16,406 @@
 <a class="back" href="../index.html">← Back</a>
 <canvas id="c"></canvas>
 <script>
-// ── Canvas setup ──────────────────────────────────────────────────────────────
+'use strict';
 const canvas = document.getElementById('c');
 const ctx    = canvas.getContext('2d');
-
 let W, H;
 
+// ── Layout (rebuilt on resize) ────────────────────────────────────────────────
+let pw, px, fl, lx, ly, rx, ry, rampTopY;
+let LREST, RREST;
+const LACTIVE = -Math.PI / 4;
+const RACTIVE  = Math.PI + Math.PI / 4;
+const GAP_Y    = 280; // ramp top offset from bottom
+
+function buildLayout() {
+  pw       = Math.min(600, W * 0.92);
+  px       = (W - pw) / 2;
+  fl       = pw * 0.22;
+  // Pivots spread out for wider gap between flipper tips
+  lx       = px + pw * 0.21;
+  rx       = px + pw * 0.79;
+  ly       = H - 115;
+  ry       = H - 115;
+  rampTopY = H - GAP_Y;
+  // Rest angles flush with ramps (but capped so flipper doesn't point straight down)
+  LREST    = Math.min(Math.atan2(ly - rampTopY, lx - px), Math.PI / 4);
+  RREST    = Math.PI - LREST;
+  buildBumpers();
+}
+
+// ── Physics ───────────────────────────────────────────────────────────────────
+const GRAVITY      = 1000;
+const BALL_R       = 10;
+const FLIP_THICK   = 8;
+const FLIP_SPEED   = 22;
+const BOUNCE_WALL  = 0.58;
+const BOUNCE_FLIP  = 0.74;
+const BOUNCE_BUMP  = 0.85;
+const SLING_BOUNCE = 0.80;
+const BUMP_FORCE   = 560;
+const MAX_SPEED    = 1500;
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let state, score, hiScore, lv, mult, multTimer;
+let ball, lAngle, rAngle, lPrev, rPrev;
+const keys = {};
+let bumpers = [], slings = [];
+
+function buildBumpers() {
+  bumpers = [
+    // Top centre — jackpot
+    { x: px + pw * 0.50, y: H * 0.14, r: 26, pts: 500, color: '#ff2255', flash: 0 },
+    // Upper pair
+    { x: px + pw * 0.28, y: H * 0.23, r: 20, pts: 200, color: '#aa22ff', flash: 0 },
+    { x: px + pw * 0.72, y: H * 0.23, r: 20, pts: 200, color: '#aa22ff', flash: 0 },
+    // Mid pair
+    { x: px + pw * 0.22, y: H * 0.35, r: 20, pts: 150, color: '#2277ff', flash: 0 },
+    { x: px + pw * 0.78, y: H * 0.35, r: 20, pts: 150, color: '#2277ff', flash: 0 },
+    // Lower pair
+    { x: px + pw * 0.38, y: H * 0.46, r: 20, pts: 100, color: '#22ffaa', flash: 0 },
+    { x: px + pw * 0.62, y: H * 0.46, r: 20, pts: 100, color: '#22ffaa', flash: 0 },
+  ];
+
+  // Slingshot segments — angled kick-pads above the flippers
+  slings = [
+    // Left slingshot
+    { ax: px + 18, ay: H - 240, bx: lx - 8, by: H - 175, pts: 50, flash: 0 },
+    // Right slingshot
+    { ax: px + pw - 18, ay: H - 240, bx: rx + 8, by: H - 175, pts: 50, flash: 0 },
+  ];
+}
+
+function initGame() {
+  score  = 0; lv = 3; mult = 1; multTimer = 0;
+  lAngle = LREST; rAngle = RREST;
+  lPrev  = lAngle; rPrev  = rAngle;
+  state  = 'play';
+  initBall();
+}
+
+function initBall() {
+  ball = { x: lx + 5, y: ly - 80, vx: 0, vy: 0, ready: true };
+}
+
+// ── Input ─────────────────────────────────────────────────────────────────────
+window.addEventListener('keydown', e => {
+  keys[e.code] = true; keys[e.key] = true;
+  if (e.code === 'Space' || e.key === ' ') { e.preventDefault(); onSpace(); }
+  if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) e.preventDefault();
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; keys[e.key] = false; });
+
+function onSpace() {
+  if (state === 'menu')                     { initGame(); }
+  else if (state === 'play' && ball.ready)  { launch(); }
+  else if (state === 'dead')                { state = 'play'; initBall(); }
+  else if (state === 'over')                { initGame(); }
+}
+
+function launch() {
+  ball.ready = false;
+  ball.vx    = (Math.random() - 0.5) * 300;
+  ball.vy    = -(550 + Math.random() * 400);
+}
+
+function leftActive()  { return keys['z'] || keys['Z'] || keys['ArrowLeft'];  }
+function rightActive() { return keys['x'] || keys['X'] || keys['ArrowRight']; }
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function closestPt(ax, ay, bx, by, px, py) {
+  const dx = bx - ax, dy = by - ay, l2 = dx*dx + dy*dy;
+  const t  = l2 > 0 ? Math.max(0, Math.min(1, ((px-ax)*dx + (py-ay)*dy) / l2)) : 0;
+  return { x: ax + t*dx, y: ay + t*dy, t };
+}
+
+function segCollide(ax, ay, bx, by, radius, bounce) {
+  const cp   = closestPt(ax, ay, bx, by, ball.x, ball.y);
+  const dx   = ball.x - cp.x, dy = ball.y - cp.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist < radius + 0.5 && dist > 0) {
+    const nx = dx / dist, ny = dy / dist;
+    ball.x   = cp.x + nx * (radius + 0.5);
+    ball.y   = cp.y + ny * (radius + 0.5);
+    const dot = ball.vx*nx + ball.vy*ny;
+    if (dot < 0) {
+      ball.vx -= (1 + bounce) * dot * nx;
+      ball.vy -= (1 + bounce) * dot * ny;
+    }
+    return true;
+  }
+  return false;
+}
+
+// ── Collisions ────────────────────────────────────────────────────────────────
+function doWalls() {
+  if (ball.x - BALL_R < px)      { ball.x = px + BALL_R;      ball.vx =  Math.abs(ball.vx) * BOUNCE_WALL; }
+  if (ball.x + BALL_R > px + pw) { ball.x = px + pw - BALL_R; ball.vx = -Math.abs(ball.vx) * BOUNCE_WALL; }
+  if (ball.y - BALL_R < 55)      { ball.y = 55 + BALL_R;      ball.vy =  Math.abs(ball.vy) * BOUNCE_WALL; }
+}
+
+function doBumpers(dt) {
+  for (const b of bumpers) {
+    const dx = ball.x - b.x, dy = ball.y - b.y;
+    const d  = Math.hypot(dx, dy), md = BALL_R + b.r;
+    if (d < md && d > 0) {
+      const nx = dx/d, ny = dy/d;
+      ball.x = b.x + nx * (md + 0.5);
+      ball.y = b.y + ny * (md + 0.5);
+      const dot = ball.vx*nx + ball.vy*ny;
+      ball.vx = (ball.vx - 2*dot*nx) * BOUNCE_BUMP;
+      ball.vy = (ball.vy - 2*dot*ny) * BOUNCE_BUMP;
+      const spd = Math.hypot(ball.vx, ball.vy);
+      if (spd < BUMP_FORCE) { ball.vx = nx*BUMP_FORCE; ball.vy = ny*BUMP_FORCE; }
+      score += b.pts * mult;
+      if (score > hiScore) hiScore = score;
+      b.flash = 0.25;
+      // Build multiplier
+      mult      = Math.min(mult + 0.2, 3);
+      multTimer = 4;
+    }
+    if (b.flash > 0) b.flash -= dt;
+  }
+}
+
+function doSlings(dt) {
+  for (const s of slings) {
+    const cp   = closestPt(s.ax, s.ay, s.bx, s.by, ball.x, ball.y);
+    const dx   = ball.x - cp.x, dy = ball.y - cp.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < BALL_R + 6 && dist > 0) {
+      const nx = dx/dist, ny = dy/dist;
+      ball.x = cp.x + nx * (BALL_R + 7);
+      ball.y = cp.y + ny * (BALL_R + 7);
+      const dot = ball.vx*nx + ball.vy*ny;
+      if (dot < 0) {
+        ball.vx -= (1 + SLING_BOUNCE) * dot * nx;
+        ball.vy -= (1 + SLING_BOUNCE) * dot * ny;
+      }
+      // Kick ball upward
+      ball.vy -= 150;
+      score += s.pts * mult;
+      if (score > hiScore) hiScore = score;
+      s.flash = 0.18;
+    }
+    if (s.flash > 0) s.flash -= dt;
+  }
+}
+
+function doFlipper(pivX, pivY, angle, prevAngle, len, dt, isLeft) {
+  const tipX = pivX + Math.cos(angle) * len;
+  const tipY = pivY + Math.sin(angle) * len;
+  const cp   = closestPt(pivX, pivY, tipX, tipY, ball.x, ball.y);
+  const dx   = ball.x - cp.x, dy = ball.y - cp.y;
+  const dist = Math.hypot(dx, dy);
+  if (dist < BALL_R + FLIP_THICK && dist > 0) {
+    const nx = dx/dist, ny = dy/dist;
+    ball.x = cp.x + nx * (BALL_R + FLIP_THICK + 0.5);
+    ball.y = cp.y + ny * (BALL_R + FLIP_THICK + 0.5);
+    const dot = ball.vx*nx + ball.vy*ny;
+    ball.vx = (ball.vx - 2*dot*nx) * BOUNCE_FLIP;
+    ball.vy = (ball.vy - 2*dot*ny) * BOUNCE_FLIP;
+    const angVel = (angle - prevAngle) / dt;
+    if ((isLeft && angVel < 0) || (!isLeft && angVel > 0)) {
+      const r   = cp.t * len;
+      const fvx = -angVel * r * Math.sin(angle) * 0.75;
+      const fvy =  angVel * r * Math.cos(angle) * 0.75;
+      ball.vx  += fvx;
+      ball.vy  += fvy;
+    }
+  }
+}
+
+function doGuides() {
+  // Guide walls run from upper side walls flush into flipper pivots
+  segCollide(px,      rampTopY, lx, ly, BALL_R, BOUNCE_WALL);
+  segCollide(px + pw, rampTopY, rx, ry, BALL_R, BOUNCE_WALL);
+}
+
+// ── Update ────────────────────────────────────────────────────────────────────
+let last = null;
+function update(ts) {
+  if (!last) last = ts;
+  const dt = Math.min((ts - last) / 1000, 0.05);
+  last = ts;
+
+  // Flippers always animate
+  lPrev = lAngle; rPrev = rAngle;
+  const lTgt = leftActive()  ? LACTIVE : LREST;
+  const rTgt = rightActive() ? RACTIVE : RREST;
+  const maxD = FLIP_SPEED * dt;
+  const ld   = lTgt - lAngle, rd = rTgt - rAngle;
+  lAngle += Math.sign(ld) * Math.min(Math.abs(ld), maxD);
+  rAngle += Math.sign(rd) * Math.min(Math.abs(rd), maxD);
+
+  // Multiplier decay
+  if (multTimer > 0) {
+    multTimer -= dt;
+    if (multTimer <= 0) { mult = 1; multTimer = 0; }
+  }
+
+  if (state !== 'play') {
+    for (const b of bumpers) if (b.flash > 0) b.flash -= dt;
+    return;
+  }
+
+  if (ball.ready) {
+    ball.x = lx + 5;
+    ball.y = ly - 80;
+    return;
+  }
+
+  ball.vy += GRAVITY * dt;
+  ball.x  += ball.vx * dt;
+  ball.y  += ball.vy * dt;
+
+  const spd = Math.hypot(ball.vx, ball.vy);
+  if (spd > MAX_SPEED) { ball.vx = ball.vx/spd*MAX_SPEED; ball.vy = ball.vy/spd*MAX_SPEED; }
+
+  doWalls();
+  doBumpers(dt);
+  doSlings(dt);
+  doGuides();
+  doFlipper(lx, ly, lAngle, lPrev, fl, dt, true);
+  doFlipper(rx, ry, rAngle, rPrev, fl, dt, false);
+
+  if (ball.y > H + 40) {
+    lv--;
+    if (lv <= 0) { state = 'over'; if (score > hiScore) hiScore = score; }
+    else         { state = 'dead'; initBall(); }
+  }
+}
+
+// ── Draw ──────────────────────────────────────────────────────────────────────
 function resize() {
   W = canvas.width  = window.innerWidth;
   H = canvas.height = window.innerHeight;
   buildLayout();
 }
 
-// ── Layout constants (rebuilt on resize) ─────────────────────────────────────
-let pw, px;       // playfield width, playfield left x
-let lx, ly;       // left flipper pivot
-let rx, ry;       // right flipper pivot
-let fl;           // flipper length
-let bumpers;
-
-function buildLayout() {
-  pw = Math.min(440, W * 0.88);
-  px = (W - pw) / 2;
-
-  fl = pw * 0.23;
-
-  lx = px + pw * 0.27;
-  ly = H - 115;
-  rx = px + pw * 0.73;
-  ry = H - 115;
-
-  buildBumpers();
-}
-
-function buildBumpers() {
-  bumpers = [
-    { x: px + pw * 0.50, y: H * 0.18, r: 24, pts: 500, color: '#ff2255', flash: 0 },
-    { x: px + pw * 0.25, y: H * 0.30, r: 20, pts: 150, color: '#2277ff', flash: 0 },
-    { x: px + pw * 0.75, y: H * 0.30, r: 20, pts: 150, color: '#2277ff', flash: 0 },
-    { x: px + pw * 0.38, y: H * 0.43, r: 20, pts: 100, color: '#22ffaa', flash: 0 },
-    { x: px + pw * 0.62, y: H * 0.43, r: 20, pts: 100, color: '#22ffaa', flash: 0 },
-  ];
-}
-
-// ── Physics constants ─────────────────────────────────────────────────────────
-const GRAVITY       = 1000;
-const BALL_R        = 10;
-const FLIP_THICK    = 8;
-const FLIPPER_SPEED = 20;
-const FLIP_ANG      = Math.PI / 6;
-const BOUNCE_WALL   = 0.58;
-const BOUNCE_FLIP   = 0.72;
-const BOUNCE_BUMP   = 0.85;
-const BUMP_FORCE    = 550;
-const MAX_SPEED     = 1400;
-
-// ── Game state ────────────────────────────────────────────────────────────────
-let state;   // 'menu' | 'play' | 'dead' | 'over'
-let score, hiScore, lv;
-let ball;
-let leftAngle,  leftPrev;
-let rightAngle, rightPrev;
-const keys = {};
-
-function initGame() {
-  score      = 0;
-  lv         = 3;
-  state      = 'play';
-  leftAngle  = FLIP_ANG;
-  rightAngle = Math.PI - FLIP_ANG;
-  leftPrev   = leftAngle;
-  rightPrev  = rightAngle;
-  initBall();
-}
-
-function initBall() {
-  ball = {
-    x:  lx,
-    y:  ly - 100,
-    vx: 0,
-    vy: 0,
-    ready: true,
-  };
-}
-
-// ── Input ─────────────────────────────────────────────────────────────────────
-window.addEventListener('keydown', e => {
-  keys[e.code] = true;
-  keys[e.key]  = true;
-
-  if (e.code === 'Space' || e.key === ' ') {
-    e.preventDefault();
-    onSpace();
-  }
-  if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) {
-    e.preventDefault();
-  }
-});
-
-window.addEventListener('keyup', e => {
-  keys[e.code] = false;
-  keys[e.key]  = false;
-});
-
-function onSpace() {
-  if (state === 'menu') {
-    initGame();
-  } else if (state === 'play' && ball.ready) {
-    ball.ready = false;
-    ball.vx    = (Math.random() - 0.5) * 200;
-    ball.vy    = -(500 + Math.random() * 400);
-  } else if (state === 'dead') {
-    state = 'play';
-    initBall();
-  } else if (state === 'over') {
-    initGame();
-  }
-}
-
-function leftActive()  { return keys['z'] || keys['Z'] || keys['ArrowLeft'];  }
-function rightActive() { return keys['x'] || keys['X'] || keys['ArrowRight']; }
-
-// ── Geometry helpers ──────────────────────────────────────────────────────────
-function closestPointOnSegment(ax, ay, bx, by, px, py) {
-  const dx = bx - ax, dy = by - ay;
-  const lenSq = dx * dx + dy * dy;
-  let t = 0;
-  if (lenSq > 0) {
-    t = ((px - ax) * dx + (py - ay) * dy) / lenSq;
-    t = Math.max(0, Math.min(1, t));
-  }
-  return { x: ax + t * dx, y: ay + t * dy, t };
-}
-
-// ── Collision: walls ──────────────────────────────────────────────────────────
-function doWalls() {
-  // Left wall
-  if (ball.x - BALL_R < px) {
-    ball.x  = px + BALL_R;
-    ball.vx = Math.abs(ball.vx) * BOUNCE_WALL;
-  }
-  // Right wall
-  if (ball.x + BALL_R > px + pw) {
-    ball.x  = px + pw - BALL_R;
-    ball.vx = -Math.abs(ball.vx) * BOUNCE_WALL;
-  }
-  // Top wall
-  if (ball.y - BALL_R < 55) {
-    ball.y  = 55 + BALL_R;
-    ball.vy = Math.abs(ball.vy) * BOUNCE_WALL;
-  }
-}
-
-// ── Collision: bumpers ────────────────────────────────────────────────────────
-function doBumpers(dt) {
-  for (const b of bumpers) {
-    const dx   = ball.x - b.x;
-    const dy   = ball.y - b.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const minD = BALL_R + b.r;
-
-    if (dist < minD && dist > 0) {
-      // Push out
-      const nx   = dx / dist;
-      const ny   = dy / dist;
-      ball.x     = b.x + nx * (minD + 0.5);
-      ball.y     = b.y + ny * (minD + 0.5);
-
-      // Reflect
-      const dot  = ball.vx * nx + ball.vy * ny;
-      ball.vx    = (ball.vx - 2 * dot * nx) * BOUNCE_BUMP;
-      ball.vy    = (ball.vy - 2 * dot * ny) * BOUNCE_BUMP;
-
-      // Ensure minimum exit speed
-      const spd  = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
-      if (spd < BUMP_FORCE) {
-        const scale = BUMP_FORCE / spd;
-        ball.vx    *= scale;
-        ball.vy    *= scale;
-      }
-
-      // Score and flash
-      score   += b.pts;
-      if (score > hiScore) hiScore = score;
-      b.flash  = 0.25;
-    }
-
-    // Decay flash
-    if (b.flash > 0) b.flash -= dt;
-  }
-}
-
-// ── Collision: flipper ────────────────────────────────────────────────────────
-function doFlipper(pivX, pivY, angle, prevAngle, length, dt, isLeft) {
-  const tipX = pivX + Math.cos(angle) * length;
-  const tipY = pivY + Math.sin(angle) * length;
-
-  const cp   = closestPointOnSegment(pivX, pivY, tipX, tipY, ball.x, ball.y);
-  const dx   = ball.x - cp.x;
-  const dy   = ball.y - cp.y;
-  const dist = Math.sqrt(dx * dx + dy * dy);
-
-  if (dist < BALL_R + FLIP_THICK && dist > 0) {
-    const nx = dx / dist;
-    const ny = dy / dist;
-
-    // Push out
-    ball.x = cp.x + nx * (BALL_R + FLIP_THICK + 0.5);
-    ball.y = cp.y + ny * (BALL_R + FLIP_THICK + 0.5);
-
-    // Reflect
-    const dot = ball.vx * nx + ball.vy * ny;
-    ball.vx   = (ball.vx - 2 * dot * nx) * BOUNCE_FLIP;
-    ball.vy   = (ball.vy - 2 * dot * ny) * BOUNCE_FLIP;
-
-    // Flipper velocity transfer
-    const angVel = (angle - prevAngle) / dt;
-    if ((isLeft && angVel < 0) || (!isLeft && angVel > 0)) {
-      const r    = cp.t * length;
-      const fvx  = -angVel * r * Math.sin(angle) * 0.7;
-      const fvy  =  angVel * r * Math.cos(angle) * 0.7;
-      ball.vx   += fvx;
-      ball.vy   += fvy;
-    }
-  }
-}
-
-// ── Collision: guide walls ────────────────────────────────────────────────────
-function doGuides() {
-  // Left guide: from (px+3, H-265) to (lx-10, H-110)
-  const lg = {
-    ax: px + 3,      ay: H - 265,
-    bx: lx - 10,    by: H - 110,
-  };
-  // Right guide: from (px+pw-3, H-265) to (rx+10, H-110)
-  const rg = {
-    ax: px + pw - 3, ay: H - 265,
-    bx: rx + 10,     by: H - 110,
-  };
-
-  for (const g of [lg, rg]) {
-    const cp   = closestPointOnSegment(g.ax, g.ay, g.bx, g.by, ball.x, ball.y);
-    const dx   = ball.x - cp.x;
-    const dy   = ball.y - cp.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-
-    if (dist < BALL_R && dist > 0) {
-      const nx   = dx / dist;
-      const ny   = dy / dist;
-      ball.x     = cp.x + nx * (BALL_R + 0.5);
-      ball.y     = cp.y + ny * (BALL_R + 0.5);
-      const dot  = ball.vx * nx + ball.vy * ny;
-      ball.vx    = (ball.vx - 2 * dot * nx) * BOUNCE_WALL;
-      ball.vy    = (ball.vy - 2 * dot * ny) * BOUNCE_WALL;
-    }
-  }
-}
-
-// ── Cap speed ─────────────────────────────────────────────────────────────────
-function capSpeed() {
-  const spd = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
-  if (spd > MAX_SPEED) {
-    ball.vx = ball.vx / spd * MAX_SPEED;
-    ball.vy = ball.vy / spd * MAX_SPEED;
-  }
-}
-
-// ── Update ────────────────────────────────────────────────────────────────────
-let last = null;
-
-function update(ts) {
-  if (!last) last = ts;
-  let dt = Math.min((ts - last) / 1000, 0.05);
-  last = ts;
-
-  if (state === 'play') {
-    // Track prev angles before updating
-    leftPrev  = leftAngle;
-    rightPrev = rightAngle;
-
-    // Update flipper angles
-    const leftTarget  = leftActive()  ? -FLIP_ANG         : FLIP_ANG;
-    const rightTarget = rightActive() ? Math.PI + FLIP_ANG : Math.PI - FLIP_ANG;
-
-    const maxDelta = FLIPPER_SPEED * dt;
-
-    let ldiff = leftTarget - leftAngle;
-    if (Math.abs(ldiff) < maxDelta) leftAngle = leftTarget;
-    else leftAngle += Math.sign(ldiff) * maxDelta;
-
-    let rdiff = rightTarget - rightAngle;
-    if (Math.abs(rdiff) < maxDelta) rightAngle = rightTarget;
-    else rightAngle += Math.sign(rdiff) * maxDelta;
-
-    if (!ball.ready) {
-      // Gravity
-      ball.vy += GRAVITY * dt;
-
-      // Move
-      ball.x += ball.vx * dt;
-      ball.y += ball.vy * dt;
-
-      // Collisions
-      doWalls();
-      doBumpers(dt);
-      doFlipper(lx, ly, leftAngle,  leftPrev,  fl, dt, true);
-      doFlipper(rx, ry, rightAngle, rightPrev, fl, dt, false);
-      doGuides();
-      capSpeed();
-
-      // Drain check
-      if (ball.y > H + 30) {
-        lv--;
-        if (lv <= 0) {
-          state = 'over';
-          if (score > hiScore) hiScore = score;
-        } else {
-          state = 'dead';
-          initBall();
-        }
-      }
-    } else {
-      // Ball sits above left flipper waiting
-      ball.x = lx;
-      ball.y = ly - 100;
-    }
-  } else if (state === 'menu' || state === 'dead' || state === 'over') {
-    // Decay bumper flashes even in overlay states
-    for (const b of bumpers) {
-      if (b.flash > 0) b.flash -= dt;
-    }
-  }
-}
-
-// ── Draw ──────────────────────────────────────────────────────────────────────
-function draw() {
-  ctx.clearRect(0, 0, W, H);
-
-  // Body background
-  ctx.fillStyle = '#050510';
-  ctx.fillRect(0, 0, W, H);
-
-  // Playfield background
-  ctx.fillStyle = '#0b0b22';
-  ctx.fillRect(px, 0, pw, H);
-
-  // Playfield border
-  ctx.strokeStyle = '#223';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(px, 0, pw, H);
-
-  // Guide walls
+function drawFlipper(pivX, pivY, angle, len) {
+  const tipX = pivX + Math.cos(angle) * len;
+  const tipY = pivY + Math.sin(angle) * len;
   ctx.save();
-  ctx.strokeStyle = '#445';
-  ctx.lineWidth   = 4;
-  ctx.lineCap     = 'round';
-  ctx.shadowBlur  = 0;
-
-  // Left guide
-  ctx.beginPath();
-  ctx.moveTo(px + 3,      H - 265);
-  ctx.lineTo(lx - 10,    H - 110);
-  ctx.stroke();
-
-  // Right guide
-  ctx.beginPath();
-  ctx.moveTo(px + pw - 3, H - 265);
-  ctx.lineTo(rx + 10,     H - 110);
-  ctx.stroke();
-  ctx.restore();
-
-  // Bumpers
-  for (const b of bumpers) {
-    const flashing = b.flash > 0;
-    ctx.save();
-    if (flashing) {
-      ctx.shadowBlur  = 25;
-      ctx.shadowColor = b.color;
-    }
-    ctx.beginPath();
-    ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-    ctx.fillStyle   = flashing ? b.color : '#111133';
-    ctx.fill();
-    ctx.strokeStyle = b.color;
-    ctx.lineWidth   = 2;
-    ctx.stroke();
-    ctx.restore();
-
-    // Points label
-    ctx.save();
-    ctx.fillStyle  = flashing ? '#fff' : b.color;
-    ctx.font       = `bold ${b.r < 22 ? 10 : 12}px monospace`;
-    ctx.textAlign  = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(b.pts, b.x, b.y);
-    ctx.restore();
-  }
-
-  // Flippers
-  drawFlipper(lx, ly, leftAngle,  fl);
-  drawFlipper(rx, ry, rightAngle, fl);
-
-  // Ball
-  if (state === 'play') {
-    ctx.save();
-    ctx.shadowBlur  = 18;
-    ctx.shadowColor = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI * 2);
-    ctx.fillStyle = '#ffffff';
-    ctx.fill();
-    ctx.restore();
-  }
-
-  // HUD
-  drawHUD();
-
-  // Overlays
-  if (state === 'menu') {
-    drawOverlay('PINBALL', [
-      'Press SPACE to play',
-      '',
-      'Z / ← = left flipper',
-      'X / → = right flipper',
-    ]);
-  } else if (state === 'dead') {
-    drawOverlay('BALL LOST', [
-      'Lives: ' + lv,
-      '',
-      'Press SPACE to continue',
-    ]);
-  } else if (state === 'over') {
-    drawOverlay('GAME OVER', [
-      'Score: ' + score,
-      'Best: ' + hiScore,
-      '',
-      'Press SPACE to play again',
-    ]);
-  }
-
-  // "SPACE to launch" hint
-  if (state === 'play' && ball.ready) {
-    ctx.save();
-    ctx.fillStyle    = '#aaaacc';
-    ctx.font         = '13px monospace';
-    ctx.textAlign    = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('SPACE to launch', px + pw / 2, ly - 145);
-    ctx.restore();
-  }
-}
-
-function drawFlipper(pivX, pivY, angle, length) {
-  const tipX = pivX + Math.cos(angle) * length;
-  const tipY = pivY + Math.sin(angle) * length;
-
-  ctx.save();
-  ctx.shadowBlur  = 12;
-  ctx.shadowColor = '#88bbff';
-  ctx.strokeStyle = '#bbddff';
-  ctx.lineWidth   = FLIP_THICK * 2;
-  ctx.lineCap     = 'round';
-  ctx.beginPath();
-  ctx.moveTo(pivX, pivY);
-  ctx.lineTo(tipX, tipY);
-  ctx.stroke();
-  ctx.restore();
-}
-
-function drawHUD() {
-  const topY = 28;
-
-  ctx.save();
-  ctx.font         = 'bold 15px monospace';
-  ctx.textBaseline = 'middle';
-
-  // Score left
-  ctx.fillStyle  = '#ccddff';
-  ctx.textAlign  = 'left';
-  ctx.fillText('SCORE ' + score, px + 10, topY);
-
-  // Hi score right
-  ctx.textAlign  = 'right';
-  ctx.fillText('BEST ' + hiScore, px + pw - 10, topY);
-
-  // Life dots centered
-  const dotR    = 6;
-  const spacing = 18;
-  const totalW  = (3 - 1) * spacing;
-  const startX  = px + pw / 2 - totalW / 2;
-  for (let i = 0; i < 3; i++) {
-    const dx = startX + i * spacing;
-    ctx.beginPath();
-    ctx.arc(dx, topY, dotR, 0, Math.PI * 2);
-    if (state === 'play' || state === 'dead') {
-      ctx.fillStyle = i < lv ? '#ff3355' : '#222';
-    } else if (state === 'over') {
-      ctx.fillStyle = '#222';
-    } else {
-      ctx.fillStyle = '#ff3355';
-    }
-    ctx.fill();
-  }
+  ctx.shadowBlur = 14; ctx.shadowColor = '#88bbff';
+  ctx.strokeStyle = '#bbddff'; ctx.lineWidth = FLIP_THICK * 2; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(pivX, pivY); ctx.lineTo(tipX, tipY); ctx.stroke();
   ctx.restore();
 }
 
 function drawOverlay(title, lines) {
-  // Background
-  ctx.fillStyle = 'rgba(5,5,20,0.82)';
+  ctx.fillStyle = 'rgba(5,5,20,0.85)';
   ctx.fillRect(px, 0, pw, H);
-
-  const cx = px + pw / 2;
-  let   cy = H * 0.38;
-
-  // Title
   ctx.save();
-  ctx.fillStyle    = '#ffffff';
-  ctx.font         = 'bold 44px monospace';
-  ctx.textAlign    = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(title, cx, cy);
+  ctx.shadowBlur = 24; ctx.shadowColor = '#ff2255';
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 46px monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(title, px + pw/2, H * 0.38);
+  ctx.restore();
+  ctx.fillStyle = '#aaa'; ctx.font = '18px monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  lines.forEach((ln, i) => { if (ln) ctx.fillText(ln, px + pw/2, H * 0.38 + 60 + i * 32); });
+}
+
+function draw() {
+  ctx.fillStyle = '#050510'; ctx.fillRect(0, 0, W, H);
+
+  // Playfield bg + border
+  ctx.fillStyle = '#0b0b22'; ctx.fillRect(px, 0, pw, H);
+  ctx.strokeStyle = '#1a1a40'; ctx.lineWidth = 3; ctx.strokeRect(px, 0, pw, H);
+
+  // Guide walls — flush into flipper pivots
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.lineWidth = 6; ctx.strokeStyle = '#3a3a6a';
+  ctx.beginPath(); ctx.moveTo(px,      rampTopY); ctx.lineTo(lx, ly); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(px + pw, rampTopY); ctx.lineTo(rx, ry); ctx.stroke();
   ctx.restore();
 
-  // Lines
+  // Slingshots
+  for (const s of slings) {
+    const lit = s.flash > 0;
+    ctx.save();
+    if (lit) { ctx.shadowBlur = 20; ctx.shadowColor = '#ffaa22'; }
+    ctx.strokeStyle = lit ? '#ffcc44' : '#886633';
+    ctx.lineWidth = 8; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(s.ax, s.ay); ctx.lineTo(s.bx, s.by); ctx.stroke();
+    ctx.restore();
+  }
+
+  // Bumpers
+  for (const b of bumpers) {
+    const lit = b.flash > 0;
+    ctx.save();
+    if (lit) { ctx.shadowBlur = 28; ctx.shadowColor = b.color; }
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+    ctx.fillStyle   = lit ? b.color : b.color + '28';
+    ctx.fill();
+    ctx.strokeStyle = b.color; ctx.lineWidth = 2; ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle    = lit ? '#fff' : b.color;
+    ctx.font         = `bold ${b.r < 22 ? 10 : 12}px monospace`;
+    ctx.textAlign    = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(b.pts, b.x, b.y);
+  }
+
+  // Flippers
+  drawFlipper(lx, ly, lAngle, fl);
+  drawFlipper(rx, ry, rAngle, fl);
+
+  // Ball
+  if (state === 'play') {
+    ctx.save();
+    ctx.shadowBlur = 20; ctx.shadowColor = '#fff';
+    ctx.beginPath(); ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.restore();
+  }
+
+  // HUD
   ctx.save();
-  ctx.fillStyle    = '#aaaaaa';
-  ctx.font         = '18px monospace';
-  ctx.textAlign    = 'center';
-  ctx.textBaseline = 'middle';
-  cy += 60;
-  for (const line of lines) {
-    if (line !== '') {
-      ctx.fillText(line, cx, cy);
-    }
-    cy += 30;
+  ctx.font = 'bold 15px monospace'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#ccddff'; ctx.textAlign = 'left';
+  ctx.fillText('SCORE  ' + score, px + 10, 28);
+  ctx.textAlign = 'right';
+  ctx.fillText('BEST  ' + hiScore, px + pw - 10, 28);
+  // Multiplier
+  const multInt = Math.floor(mult);
+  if (multInt >= 2) {
+    ctx.textAlign = 'center';
+    ctx.fillStyle = multInt >= 3 ? '#ff2255' : '#ffaa22';
+    ctx.font = 'bold 16px monospace';
+    ctx.fillText('×' + multInt, px + pw/2, 28);
+  }
+  // Lives
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath(); ctx.arc(px + pw/2 - 20 + i*20, 50, 7, 0, Math.PI * 2);
+    ctx.fillStyle = (state === 'play' || state === 'dead') ? (i < lv ? '#ff3355' : '#222') : '#222';
+    ctx.fill();
   }
   ctx.restore();
+
+  // Launch hint
+  if (state === 'play' && ball.ready) {
+    ctx.fillStyle = '#aaaacc'; ctx.font = '13px monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('SPACE to launch', px + pw/2, ly - 110);
+  }
+
+  // Overlays
+  if (state === 'menu') drawOverlay('PINBALL', ['Press SPACE to play','','Z / ← = left flipper','X / → = right flipper']);
+  if (state === 'dead') drawOverlay('BALL LOST', ['Lives: ' + lv, '', 'Press SPACE to continue']);
+  if (state === 'over') drawOverlay('GAME OVER', ['Score: ' + score, 'Best: ' + hiScore, '', 'Press SPACE to play again']);
 }
 
-// ── Main loop ─────────────────────────────────────────────────────────────────
-function loop(ts) {
-  update(ts);
-  draw();
-  requestAnimationFrame(loop);
-}
+function loop(ts) { update(ts); draw(); requestAnimationFrame(loop); }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-hiScore = 0;
-score   = 0;
-lv      = 3;
-state   = 'menu';
-
-window.addEventListener('resize', () => {
-  resize();
-});
-
+hiScore = 0; score = 0; lv = 3; mult = 1; multTimer = 0; state = 'menu';
+window.addEventListener('resize', resize);
 resize();
-
-// Set up placeholder ball/flippers for menu screen
-leftAngle  = FLIP_ANG;
-rightAngle = Math.PI - FLIP_ANG;
-leftPrev   = leftAngle;
-rightPrev  = rightAngle;
-ball = { x: lx, y: ly - 100, vx: 0, vy: 0, ready: true };
-
+lAngle = LREST; rAngle = RREST; lPrev = lAngle; rPrev = rAngle;
+ball = { x: lx + 5, y: ly - 80, vx: 0, vy: 0, ready: true };
 requestAnimationFrame(loop);
 </script>
 </body>
