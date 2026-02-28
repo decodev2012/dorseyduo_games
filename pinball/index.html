@@ -31,15 +31,15 @@ const GAP_Y    = 280; // ramp top offset from bottom
 function buildLayout() {
   pw       = Math.min(600, W * 0.92);
   px       = (W - pw) / 2;
-  fl       = pw * 0.22;
-  // Pivots spread out for wider gap between flipper tips
-  lx       = px + pw * 0.21;
-  rx       = px + pw * 0.79;
+  fl       = pw * 0.20;
+  // Pivots closer together for ~3 ball gap between tips at rest
+  lx       = px + pw * 0.28;
+  rx       = px + pw * 0.72;
   ly       = H - 115;
   ry       = H - 115;
   rampTopY = H - GAP_Y;
-  // Rest angles flush with ramps (but capped so flipper doesn't point straight down)
-  LREST    = Math.min(Math.atan2(ly - rampTopY, lx - px), Math.PI / 4);
+  // Rest angle: 30° — gentle slope, not too droopy
+  LREST    = Math.PI / 6;
   RREST    = Math.PI - LREST;
   buildBumpers();
 }
