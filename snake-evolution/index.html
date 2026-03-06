@@ -30,21 +30,29 @@ const ctx    = canvas.getContext('2d');
 let W, H, CELL, BX, BY;
 const COLS = 20, ROWS = 20;
 
-// Food type definitions
 const FTYPES = [
-  { id: 'apple',  color: '#e53935', pts: 10,  unlock: 0,   special: false },
-  { id: 'speed',  color: '#fdd835', pts: 25,  unlock: 40,  special: true, name: '⚡ SPEED'    },
-  { id: 'ghost',  color: '#29b6f6', pts: 30,  unlock: 90,  special: true, name: '👻 GHOST'    },
-  { id: 'star',   color: '#ffa726', pts: 35,  unlock: 150, special: true, name: '⭐ 2× SCORE' },
-  { id: 'shrink', color: '#ab47bc', pts: 40,  unlock: 220, special: true, name: '✂ SHRINK'    },
+  { id:'apple',  color:'#e53935', pts:10,  unlock:0,   special:false },
+  { id:'speed',  color:'#fdd835', pts:25,  unlock:40,  special:true, name:'⚡ SPEED'    },
+  { id:'ghost',  color:'#29b6f6', pts:30,  unlock:90,  special:true, name:'👻 GHOST'    },
+  { id:'star',   color:'#ffa726', pts:35,  unlock:150, special:true, name:'⭐ 2× SCORE' },
+  { id:'shrink', color:'#ab47bc', pts:40,  unlock:220, special:true, name:'✂ SHRINK'    },
 ];
 
-// State
-let snake, prevSnake, dir, nextDir, food, sfood, sTimer;
-let score, hi = 0, state;
-let ghost, star, speed;
-let pTimer, pDur;
-let growQ, mInterval, mTimer, lerp, last;
+const PCOLORS = [
+  { main:'#4caf50', dark:'#388e3c', ghost:'#29b6f6', ghostDk:'#0288d1', star:'#ffa726', starDk:'#e65100' },
+  { main:'#f44336', dark:'#b71c1c', ghost:'#ce93d8', ghostDk:'#7b1fa2', star:'#ff8a65', starDk:'#bf360c' },
+];
+
+function makePlayer(sx, sy, dx, dy) {
+  const b = [{ x:sx, y:sy }, { x:sx-dx, y:sy-dy }, { x:sx-2*dx, y:sy-2*dy }];
+  return { body:b, prev:b.map(s=>({...s})), dir:{x:dx,y:dy}, nextDir:{x:dx,y:dy},
+           score:0, ghost:false, star:false, speed:false, pTimer:0, pDur:0, growQ:0, alive:true };
+}
+
+let p1, p2, mode;
+let hi = 0, state;
+let food, sfood, sTimer;
+let mInterval, mTimer, lerp, last;
 
 function resize() {
   W = canvas.width  = window.innerWidth;
@@ -54,9 +62,9 @@ function resize() {
   BY = Math.round((H - CELL * ROWS) / 2) + 18;
 }
 
-function onSnake(x, y, skipLast) {
-  const end = skipLast ? snake.length - 1 : snake.length;
-  for (let i = 0; i < end; i++) if (snake[i].x === x && snake[i].y === y) return true;
+function onBody(x, y, pl, skipLast) {
+  const end = skipLast ? pl.body.length - 1 : pl.body.length;
+  for (let i = 0; i < end; i++) if (pl.body[i].x === x && pl.body[i].y === y) return true;
   return false;
 }
 
@@ -65,7 +73,8 @@ function rndCell() {
   do {
     p = { x: Math.floor(Math.random() * COLS), y: Math.floor(Math.random() * ROWS) };
   } while (
-    onSnake(p.x, p.y, false) ||
+    onBody(p.x, p.y, p1, false) ||
+    (mode === '2p' && onBody(p.x, p.y, p2, false)) ||
     (sfood && sfood.x === p.x && sfood.y === p.y) ||
     (food  && food.x  === p.x && food.y  === p.y)
   );
@@ -74,234 +83,271 @@ function rndCell() {
 
 function mkFood(type) { return { ...rndCell(), type }; }
 
-function newGame() {
-  snake    = [{ x: 10, y: 10 }, { x: 9, y: 10 }, { x: 8, y: 10 }];
-  dir      = { x: 1, y: 0 };
-  nextDir  = { x: 1, y: 0 };
-  score    = 0;
-  ghost    = star = speed = false;
-  pTimer   = pDur = 0;
-  growQ    = 0;
-  mInterval = 150;
-  mTimer   = 0;
-  lerp     = 0;
-  prevSnake = snake.map(s => ({ ...s }));
-  sfood    = null;
-  sTimer   = 0;
-  food     = mkFood(FTYPES[0]);
-  state    = 'play';
+function newGame(m) {
+  mode = m;
+  p1 = makePlayer(5, 10, 1, 0);
+  p2 = makePlayer(14, 10, -1, 0);
+  mInterval = 150; mTimer = lerp = 0;
+  sfood = null; sTimer = 0;
+  food = mkFood(FTYPES[0]);
+  state = 'play';
 }
 
+// ── Input ─────────────────────────────────────────────────────────────────────
 window.addEventListener('keydown', e => {
   const k = e.key;
   if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(k)) e.preventDefault();
-  if (state === 'over'  && k === ' ') { newGame(); return; }
-  if (state === 'menu'  && k === ' ') { newGame(); return; }
-  if (k==='ArrowUp'    || k==='w' || k==='W') { if (dir.y !==  1) nextDir = { x: 0, y: -1 }; }
-  if (k==='ArrowDown'  || k==='s' || k==='S') { if (dir.y !== -1) nextDir = { x: 0, y:  1 }; }
-  if (k==='ArrowLeft'  || k==='a' || k==='A') { if (dir.x !==  1) nextDir = { x: -1, y: 0 }; }
-  if (k==='ArrowRight' || k==='d' || k==='D') { if (dir.x !== -1) nextDir = { x:  1, y: 0 }; }
+
+  if (state === 'menu') {
+    if (k === '1' || k === ' ') { newGame('1p'); return; }
+    if (k === '2')              { newGame('2p'); return; }
+    return;
+  }
+  if ((state === 'over') && k === ' ') { state = 'menu'; return; }
+
+  // P1: WASD + arrows in 1p
+  if (k==='w'||k==='W' || (mode==='1p'&&k==='ArrowUp'))    { if (p1.dir.y !==  1) p1.nextDir={x:0,y:-1}; }
+  if (k==='s'||k==='S' || (mode==='1p'&&k==='ArrowDown'))  { if (p1.dir.y !== -1) p1.nextDir={x:0,y:1};  }
+  if (k==='a'||k==='A' || (mode==='1p'&&k==='ArrowLeft'))  { if (p1.dir.x !==  1) p1.nextDir={x:-1,y:0}; }
+  if (k==='d'||k==='D' || (mode==='1p'&&k==='ArrowRight')) { if (p1.dir.x !== -1) p1.nextDir={x:1,y:0};  }
+
+  // P2: arrow keys only in 2p
+  if (mode === '2p') {
+    if (k==='ArrowUp')    { if (p2.dir.y !==  1) p2.nextDir={x:0,y:-1}; }
+    if (k==='ArrowDown')  { if (p2.dir.y !== -1) p2.nextDir={x:0,y:1};  }
+    if (k==='ArrowLeft')  { if (p2.dir.x !==  1) p2.nextDir={x:-1,y:0}; }
+    if (k==='ArrowRight') { if (p2.dir.x !== -1) p2.nextDir={x:1,y:0};  }
+  }
 });
 
-function applyPower(id) {
-  ghost = star = speed = false;
-  const DUR = { speed: 5000, ghost: 6000, star: 8000 };
-  if (id === 'speed') { speed = true; pDur = pTimer = DUR.speed; }
-  if (id === 'ghost') { ghost = true; pDur = pTimer = DUR.ghost; }
-  if (id === 'star')  { star  = true; pDur = pTimer = DUR.star;  }
+// ── Game logic ────────────────────────────────────────────────────────────────
+function applyPower(pl, id) {
+  pl.ghost = pl.star = pl.speed = false;
+  const DUR = { speed:5000, ghost:6000, star:8000 };
+  if (id==='speed') { pl.speed=true; pl.pDur=pl.pTimer=DUR.speed; }
+  if (id==='ghost') { pl.ghost=true; pl.pDur=pl.pTimer=DUR.ghost; }
+  if (id==='star')  { pl.star=true;  pl.pDur=pl.pTimer=DUR.star;  }
 }
 
-function eat(f) {
-  const pts = star ? f.type.pts * 2 : f.type.pts;
-  score += pts;
-  if (score > hi) hi = score;
-  growQ += Math.max(1, Math.floor(f.type.pts / 10));
-  mInterval = Math.max(65, 150 - Math.floor(score / 60) * 10);
+function eatFood(pl, f) {
+  const pts = pl.star ? f.type.pts * 2 : f.type.pts;
+  pl.score += pts;
+  if (pl.score > hi) hi = pl.score;
+  pl.growQ += Math.max(1, Math.floor(f.type.pts / 10));
+  const top = Math.max(p1.score, mode==='2p' ? p2.score : 0);
+  mInterval = Math.max(65, 150 - Math.floor(top / 60) * 10);
   switch (f.type.id) {
-    case 'speed':  applyPower('speed'); break;
-    case 'ghost':  applyPower('ghost'); break;
-    case 'star':   applyPower('star');  break;
+    case 'speed':  mode==='1p' ? applyPower(pl,'speed') : (pl.score += 10); break;
+    case 'ghost':  applyPower(pl, 'ghost'); break;
+    case 'star':   applyPower(pl, 'star');  break;
     case 'shrink':
-      snake = snake.slice(0, Math.max(3, Math.ceil(snake.length / 2)));
-      growQ = 0;
-      break;
+      pl.body = pl.body.slice(0, Math.max(3, Math.ceil(pl.body.length / 2)));
+      pl.growQ = 0; break;
   }
 }
 
-function tick() {
-  prevSnake = snake.map(s => ({ ...s }));
-  dir = nextDir;
-  let nx = snake[0].x + dir.x;
-  let ny = snake[0].y + dir.y;
+function tickPlayer(pl, other) {
+  if (!pl.alive) return;
+  pl.prev = pl.body.map(s => ({ ...s }));
+  pl.dir  = pl.nextDir;
+  let nx = pl.body[0].x + pl.dir.x;
+  let ny = pl.body[0].y + pl.dir.y;
 
-  if (ghost) {
+  if (pl.ghost) {
     nx = ((nx % COLS) + COLS) % COLS;
     ny = ((ny % ROWS) + ROWS) % ROWS;
   } else if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) {
-    state = 'over'; return;
+    pl.alive = false; return;
   }
 
-  if (!ghost && onSnake(nx, ny, growQ === 0)) { state = 'over'; return; }
+  if (!pl.ghost) {
+    if (onBody(nx, ny, pl, pl.growQ === 0))                       { pl.alive = false; return; }
+    if (other && onBody(nx, ny, other, other.growQ === 0))        { pl.alive = false; return; }
+  }
 
-  snake.unshift({ x: nx, y: ny });
-  if (growQ > 0) growQ--; else snake.pop();
+  pl.body.unshift({ x:nx, y:ny });
+  if (pl.growQ > 0) pl.growQ--; else pl.body.pop();
 
   if (nx === food.x && ny === food.y) {
-    eat(food);
+    eatFood(pl, food);
     food = mkFood(FTYPES[0]);
     if (!sfood && Math.random() < 0.22) {
-      const avail = FTYPES.filter(f => f.special && f.unlock <= score);
-      if (avail.length) {
-        sfood  = mkFood(avail[Math.floor(Math.random() * avail.length)]);
-        sTimer = 9000;
-      }
+      const top = Math.max(p1.score, mode==='2p' ? p2.score : 0);
+      const avail = FTYPES.filter(f => f.special && f.unlock <= top);
+      if (avail.length) { sfood = mkFood(avail[Math.floor(Math.random()*avail.length)]); sTimer = 9000; }
     }
   }
-  if (sfood && nx === sfood.x && ny === sfood.y) { eat(sfood); sfood = null; sTimer = 0; }
+  if (sfood && nx === sfood.x && ny === sfood.y) { eatFood(pl, sfood); sfood = null; sTimer = 0; }
 }
 
-// ── Interpolated position for segment i at current lerp ───────────────────────
-function ipos(i) {
-  const to   = snake[i];
-  const from = prevSnake[Math.min(i, prevSnake.length - 1)];
-  // Don't interpolate across wrap-around gaps (ghost mode)
-  if (Math.abs(to.x - from.x) > 1 || Math.abs(to.y - from.y) > 1) {
-    return { x: BX + to.x * CELL + CELL / 2, y: BY + to.y * CELL + CELL / 2 };
-  }
+function tick() {
+  tickPlayer(p1, mode === '2p' ? p2 : null);
+  if (mode === '2p') tickPlayer(p2, p1);
+  if (!p1.alive || (mode === '2p' && !p2.alive)) state = 'over';
+}
+
+// ── Rendering ─────────────────────────────────────────────────────────────────
+function ipos(pl, i) {
+  const to   = pl.body[i];
+  const from = pl.prev[Math.min(i, pl.prev.length - 1)];
+  if (Math.abs(to.x - from.x) > 1 || Math.abs(to.y - from.y) > 1)
+    return { x: BX + to.x * CELL + CELL/2, y: BY + to.y * CELL + CELL/2 };
   return {
-    x: BX + (from.x + (to.x - from.x) * lerp) * CELL + CELL / 2,
-    y: BY + (from.y + (to.y - from.y) * lerp) * CELL + CELL / 2,
+    x: BX + (from.x + (to.x - from.x) * lerp) * CELL + CELL/2,
+    y: BY + (from.y + (to.y - from.y) * lerp) * CELL + CELL/2,
   };
 }
 
-// ── Draw ──────────────────────────────────────────────────────────────────────
 function drawBoard() {
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
-      ctx.fillStyle = (r + c) % 2 === 0 ? '#aad751' : '#a2d149';
-      ctx.fillRect(BX + c * CELL, BY + r * CELL, CELL, CELL);
-    }
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+    ctx.fillStyle = (r + c) % 2 === 0 ? '#aad751' : '#a2d149';
+    ctx.fillRect(BX + c*CELL, BY + r*CELL, CELL, CELL);
   }
   ctx.strokeStyle = '#8bc34a'; ctx.lineWidth = 3;
-  ctx.strokeRect(BX - 1, BY - 1, COLS * CELL + 2, ROWS * CELL + 2);
+  ctx.strokeRect(BX-1, BY-1, COLS*CELL+2, ROWS*CELL+2);
 }
 
 function drawFood(f, timer) {
-  const cx = BX + f.x * CELL + CELL / 2;
-  const cy = BY + f.y * CELL + CELL / 2;
-  const r  = CELL * 0.36;
-  const pulse = timer > 0 ? 1 + Math.sin(Date.now() / 200) * 0.07 : 1;
+  const cx = BX + f.x*CELL + CELL/2, cy = BY + f.y*CELL + CELL/2, r = CELL*0.36;
+  const pulse = timer > 0 ? 1 + Math.sin(Date.now()/200)*0.07 : 1;
   ctx.save();
   ctx.shadowBlur = 10; ctx.shadowColor = f.type.color;
   ctx.fillStyle = f.type.color;
-  ctx.beginPath(); ctx.arc(cx, cy, r * pulse, 0, Math.PI * 2); ctx.fill();
-  // Shine
+  ctx.beginPath(); ctx.arc(cx, cy, r*pulse, 0, Math.PI*2); ctx.fill();
   ctx.fillStyle = 'rgba(255,255,255,0.28)';
-  ctx.beginPath(); ctx.arc(cx - r * 0.22, cy - r * 0.22, r * 0.3, 0, Math.PI * 2); ctx.fill();
-  // Apple stem
+  ctx.beginPath(); ctx.arc(cx - r*0.22, cy - r*0.22, r*0.3, 0, Math.PI*2); ctx.fill();
   if (f.type.id === 'apple') {
     ctx.strokeStyle = '#558b2f'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(cx, cy - r); ctx.lineTo(cx + r * 0.35, cy - r * 1.45); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, cy-r); ctx.lineTo(cx+r*0.35, cy-r*1.45); ctx.stroke();
   }
-  // Expiry arc
   if (timer > 0 && timer < 4000) {
-    const frac = timer / 4000;
     ctx.strokeStyle = f.type.color; ctx.lineWidth = 2.5; ctx.globalAlpha = 0.55;
-    ctx.beginPath(); ctx.arc(cx, cy, r + 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, cy, r+5, -Math.PI/2, -Math.PI/2 + Math.PI*2*(timer/4000)); ctx.stroke();
   }
   ctx.restore();
 }
 
-function drawSnake() {
-  const hCol = ghost ? '#29b6f6' : star ? '#ffa726' : '#4caf50';
-  const bCol = ghost ? '#0288d1' : star ? '#e65100' : '#388e3c';
-
+function drawSnake(pl, ci) {
+  const c = PCOLORS[ci];
+  const hCol = pl.ghost ? c.ghost : pl.star ? c.star : c.main;
+  const bCol = pl.ghost ? c.ghostDk : pl.star ? c.starDk : c.dark;
   ctx.save();
-  if (ghost) ctx.globalAlpha = 0.72;
+  if (pl.ghost)  ctx.globalAlpha = 0.72;
+  if (!pl.alive) ctx.globalAlpha = 0.25;
 
-  // Body: thick stroked path from tail → head
-  ctx.strokeStyle = hCol;
-  ctx.lineWidth   = CELL * 0.76;
-  ctx.lineCap     = 'round';
-  ctx.lineJoin    = 'round';
+  ctx.strokeStyle = hCol; ctx.lineWidth = CELL*0.76; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   ctx.beginPath();
-  for (let i = snake.length - 1; i >= 0; i--) {
-    const { x: px, y: py } = ipos(i);
-    if (i === snake.length - 1) { ctx.moveTo(px, py); continue; }
-    // Break path at wrap-around gaps (check raw grid positions)
-    if (Math.abs(snake[i].x - snake[i + 1].x) > 1 || Math.abs(snake[i].y - snake[i + 1].y) > 1) {
+  for (let i = pl.body.length-1; i >= 0; i--) {
+    const { x:px, y:py } = ipos(pl, i);
+    if (i === pl.body.length-1) { ctx.moveTo(px, py); continue; }
+    if (Math.abs(pl.body[i].x-pl.body[i+1].x)>1 || Math.abs(pl.body[i].y-pl.body[i+1].y)>1)
       ctx.moveTo(px, py);
-    } else {
-      ctx.lineTo(px, py);
-    }
+    else ctx.lineTo(px, py);
   }
   ctx.stroke();
-
-  // Dark border overlay
-  ctx.strokeStyle = bCol; ctx.lineWidth = CELL * 0.76 + 4;
-  ctx.globalAlpha = (ghost ? 0.72 : 1) * 0.32;
+  ctx.strokeStyle = bCol; ctx.lineWidth = CELL*0.76+4;
+  ctx.globalAlpha = (pl.ghost ? 0.72 : pl.alive ? 1 : 0.25) * 0.32;
   ctx.stroke();
   ctx.restore();
 
-  // Head + eyes
+  if (!pl.alive) return;
   ctx.save();
-  if (ghost) ctx.globalAlpha = 0.72;
-  const { x: hx, y: hy } = ipos(0);
-  const hr = CELL * 0.41;
+  if (pl.ghost) ctx.globalAlpha = 0.72;
+  const { x:hx, y:hy } = ipos(pl, 0);
+  const hr = CELL*0.41;
   ctx.fillStyle = hCol;
-  ctx.beginPath(); ctx.arc(hx, hy, hr, 0, Math.PI * 2); ctx.fill();
-
-  const perp = { x: -dir.y, y: dir.x };
-  const eo = hr * 0.36, er = hr * 0.21;
-  [1, -1].forEach(s => {
-    const ox = hx + dir.x * eo * 0.5 + perp.x * s * eo;
-    const oy = hy + dir.y * eo * 0.5 + perp.y * s * eo;
-    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ox, oy, er, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(ox + dir.x * er * 0.35, oy + dir.y * er * 0.35, er * 0.55, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(hx, hy, hr, 0, Math.PI*2); ctx.fill();
+  const perp = { x:-pl.dir.y, y:pl.dir.x };
+  const eo = hr*0.36, er = hr*0.21;
+  [1,-1].forEach(s => {
+    const ox = hx+pl.dir.x*eo*0.5+perp.x*s*eo, oy = hy+pl.dir.y*eo*0.5+perp.y*s*eo;
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(ox,oy,er,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#111'; ctx.beginPath(); ctx.arc(ox+pl.dir.x*er*0.35,oy+pl.dir.y*er*0.35,er*0.55,0,Math.PI*2); ctx.fill();
   });
   ctx.restore();
 }
 
+function drawPowerBar(pl, ci, x, align) {
+  const pw = pl.ghost ? { name:'👻 GHOST',    color:PCOLORS[ci].ghost  }
+           : pl.speed ? { name:'⚡ SPEED',    color:'#fdd835'          }
+           : pl.star  ? { name:'⭐ 2× SCORE', color:PCOLORS[ci].star   }
+           : null;
+  if (!pw || pl.pDur <= 0) return;
+  ctx.fillStyle = pw.color; ctx.font = 'bold 12px "Segoe UI"';
+  ctx.textAlign = align; ctx.textBaseline = 'middle';
+  ctx.fillText(pw.name, x, BY - 10);
+  const bw = 80, bx = align === 'left' ? x : x - bw;
+  ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(bx, BY-4, bw, 3);
+  ctx.fillStyle = pw.color; ctx.fillRect(bx, BY-4, bw*(pl.pTimer/pl.pDur), 3);
+}
+
 function drawHUD() {
   ctx.fillStyle = 'rgba(0,0,0,0.28)';
-  ctx.fillRect(BX, BY - 44, COLS * CELL, 38);
+  ctx.fillRect(BX, BY-44, COLS*CELL, 38);
   ctx.textBaseline = 'middle';
-  ctx.font = 'bold 16px "Segoe UI"';
-  ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
-  ctx.fillText('Score: ' + score, BX + 10, BY - 25);
-  ctx.fillStyle = '#c8e6c9'; ctx.textAlign = 'right';
-  ctx.fillText('Best: ' + hi, BX + COLS * CELL - 10, BY - 25);
 
-  // Active powerup bar
-  const pw = ghost ? { name: '👻 GHOST',    color: '#29b6f6' }
-           : speed ? { name: '⚡ SPEED',    color: '#fdd835' }
-           : star  ? { name: '⭐ 2× SCORE', color: '#ffa726' }
-           : null;
-  if (pw && pDur > 0) {
-    ctx.fillStyle = pw.color; ctx.font = 'bold 13px "Segoe UI"'; ctx.textAlign = 'center';
-    ctx.fillText(pw.name, BX + COLS * CELL / 2, BY - 25);
-    const bw = COLS * CELL * 0.36, bx = BX + COLS * CELL / 2 - bw / 2;
-    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(bx, BY - 9, bw, 4);
-    ctx.fillStyle = pw.color; ctx.fillRect(bx, BY - 9, bw * (pTimer / pDur), 4);
-  }
-
-  // Next unlock hint
-  const next = FTYPES.find(f => f.special && f.unlock > score);
-  if (next) {
-    ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.font = '11px "Segoe UI"'; ctx.textAlign = 'right';
-    ctx.fillText('Next power at ' + next.unlock + ' pts', BX + COLS * CELL - 8, BY + ROWS * CELL + 18);
+  if (mode === '2p') {
+    ctx.font = 'bold 15px "Segoe UI"';
+    ctx.fillStyle = PCOLORS[0].main; ctx.textAlign = 'left';
+    ctx.fillText('P1: ' + p1.score, BX+10, BY-25);
+    ctx.fillStyle = PCOLORS[1].main; ctx.textAlign = 'right';
+    ctx.fillText('P2: ' + p2.score, BX+COLS*CELL-10, BY-25);
+    ctx.fillStyle = 'rgba(255,255,255,0.45)'; ctx.font = '12px "Segoe UI"'; ctx.textAlign = 'center';
+    ctx.fillText('Best: ' + hi, BX+COLS*CELL/2, BY-25);
+    drawPowerBar(p1, 0, BX+10, 'left');
+    drawPowerBar(p2, 1, BX+COLS*CELL-10, 'right');
+  } else {
+    ctx.font = 'bold 16px "Segoe UI"';
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
+    ctx.fillText('Score: ' + p1.score, BX+10, BY-25);
+    ctx.fillStyle = '#c8e6c9'; ctx.textAlign = 'right';
+    ctx.fillText('Best: ' + hi, BX+COLS*CELL-10, BY-25);
+    drawPowerBar(p1, 0, BX+COLS*CELL/2, 'center');
+    const next = FTYPES.find(f => f.special && f.unlock > p1.score);
+    if (next) {
+      ctx.fillStyle='rgba(255,255,255,0.3)'; ctx.font='11px "Segoe UI"'; ctx.textAlign='right';
+      ctx.fillText('Next power at '+next.unlock+' pts', BX+COLS*CELL-8, BY+ROWS*CELL+18);
+    }
   }
 }
 
 function drawOverlay(title, lines) {
-  ctx.fillStyle = 'rgba(0,0,0,0.6)';
-  ctx.fillRect(BX, BY, COLS * CELL, ROWS * CELL);
-  const cx = BX + COLS * CELL / 2, cy = BY + ROWS * CELL / 2;
+  ctx.fillStyle = 'rgba(0,0,0,0.62)';
+  ctx.fillRect(BX, BY, COLS*CELL, ROWS*CELL);
+  const cx = BX+COLS*CELL/2, cy = BY+ROWS*CELL/2;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillStyle = '#fff'; ctx.font = 'bold 38px "Segoe UI"';
-  ctx.fillText(title, cx, cy - 40);
+  ctx.fillText(title, cx, cy-40);
   ctx.font = '17px "Segoe UI"'; ctx.fillStyle = '#ddd';
-  lines.forEach((l, i) => { if (l !== null) ctx.fillText(l, cx, cy + 10 + i * 28); });
+  lines.forEach((l, i) => { if (l !== null) ctx.fillText(l, cx, cy+10+i*28); });
+}
+
+function drawMenu() {
+  ctx.fillStyle = 'rgba(0,0,0,0.62)';
+  ctx.fillRect(BX, BY, COLS*CELL, ROWS*CELL);
+  const cx = BX+COLS*CELL/2, cy = BY+ROWS*CELL/2;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 40px "Segoe UI"';
+  ctx.fillText('SNAKE EVOLUTION', cx, cy - 100);
+  ctx.fillStyle = '#ccc'; ctx.font = '16px "Segoe UI"';
+  ctx.fillText('Eat special foods to gain powers!', cx, cy - 60);
+
+  // Mode buttons
+  const bw = 130, bh = 48;
+  [['1 Player','1p', cx-bw-16, '#4caf50'], ['2 Players','2p', cx+16, '#f44336']].forEach(([label,m,bx,col])=>{
+    ctx.fillStyle = col+'33';
+    ctx.beginPath(); ctx.roundRect(bx, cy-12, bw, bh, 10); ctx.fill();
+    ctx.strokeStyle = col; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.roundRect(bx, cy-12, bw, bh, 10); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 20px "Segoe UI"';
+    ctx.fillText(label, bx+bw/2, cy+12);
+  });
+
+  ctx.fillStyle = 'rgba(255,255,255,0.45)'; ctx.font = '14px "Segoe UI"';
+  ctx.fillText('Press 1 or 2 to start', cx, cy+58);
+  ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.font = '13px "Segoe UI"';
+  ctx.fillText('P1: WASD  |  P2: Arrow Keys', cx, cy+84);
+  ctx.fillText('(1P: WASD or Arrow Keys)', cx, cy+104);
 }
 
 function draw() {
@@ -309,27 +355,36 @@ function draw() {
   drawBoard();
   if (food)  drawFood(food, 0);
   if (sfood) drawFood(sfood, sTimer);
-  if (state !== 'menu') drawSnake();
+  if (state !== 'menu') {
+    drawSnake(p1, 0);
+    if (mode === '2p') drawSnake(p2, 1);
+  }
   drawHUD();
-  if (state === 'menu') drawOverlay('SNAKE EVOLUTION', [
-    'Arrow keys or WASD to move', null,
-    'Eat special foods to gain powers!', null,
-    'Press SPACE to start',
-  ]);
-  if (state === 'over') drawOverlay('GAME OVER', [
-    'Score: ' + score, 'Best: ' + hi, null, 'Press SPACE to play again',
-  ]);
+  if (state === 'menu') { drawMenu(); return; }
+  if (state === 'over') {
+    let title, lines;
+    if (mode === '2p') {
+      title = (!p1.alive && !p2.alive) ? 'DRAW!'
+            : !p1.alive ? 'PLAYER 2 WINS!'
+            : 'PLAYER 1 WINS!';
+      lines = ['P1: '+p1.score+'   P2: '+p2.score, 'Best: '+hi, null, 'SPACE for menu'];
+    } else {
+      title = 'GAME OVER';
+      lines = ['Score: '+p1.score, 'Best: '+hi, null, 'SPACE for menu'];
+    }
+    drawOverlay(title, lines);
+  }
 }
 
 function loop(ts) {
   if (last !== undefined && state === 'play') {
     const dt = ts - last;
     if (sfood) { sTimer -= dt; if (sTimer <= 0) { sfood = null; sTimer = 0; } }
-    if (pTimer > 0) { pTimer -= dt; if (pTimer <= 0) { pTimer = 0; ghost = star = speed = false; } }
+    if (p1.pTimer > 0) { p1.pTimer -= dt; if (p1.pTimer <= 0) { p1.pTimer=0; p1.ghost=p1.star=p1.speed=false; } }
+    if (mode==='2p' && p2.pTimer > 0) { p2.pTimer -= dt; if (p2.pTimer <= 0) { p2.pTimer=0; p2.ghost=p2.star=p2.speed=false; } }
     mTimer += dt;
-    const eff = speed ? Math.max(55, mInterval * 0.55) : mInterval;
-    while (mTimer >= eff) { mTimer -= eff; if (state === 'play') tick(); }
-    lerp = Math.min(1, mTimer / eff);
+    while (mTimer >= mInterval) { mTimer -= mInterval; if (state === 'play') tick(); }
+    lerp = Math.min(1, mTimer / mInterval);
   }
   last = ts;
   draw();
@@ -338,11 +393,11 @@ function loop(ts) {
 
 window.addEventListener('resize', resize);
 resize();
-state = 'menu'; score = 0;
-food  = { x: 10, y: 8, type: FTYPES[0] };
-snake = [{ x: 10, y: 10 }, { x: 9, y: 10 }, { x: 8, y: 10 }];
-dir   = nextDir = { x: 1, y: 0 };
-sfood = null; ghost = star = speed = false; pTimer = pDur = 0;
+p1 = makePlayer(5, 10, 1, 0);
+p2 = makePlayer(14, 10, -1, 0);
+mode = '1p'; state = 'menu'; hi = 0;
+food = { x:10, y:8, type:FTYPES[0] }; sfood = null;
+lerp = 0; mTimer = 0; mInterval = 150;
 requestAnimationFrame(loop);
 </script>
 </body>
