@@ -40,11 +40,11 @@ const FTYPES = [
 ];
 
 // State
-let snake, dir, nextDir, food, sfood, sTimer;
+let snake, prevSnake, dir, nextDir, food, sfood, sTimer;
 let score, hi = 0, state;
 let ghost, star, speed;
 let pTimer, pDur;
-let growQ, mInterval, mTimer, last;
+let growQ, mInterval, mTimer, lerp, last;
 
 function resize() {
   W = canvas.width  = window.innerWidth;
@@ -84,6 +84,8 @@ function newGame() {
   growQ    = 0;
   mInterval = 150;
   mTimer   = 0;
+  lerp     = 0;
+  prevSnake = snake.map(s => ({ ...s }));
   sfood    = null;
   sTimer   = 0;
   food     = mkFood(FTYPES[0]);
@@ -127,6 +129,7 @@ function eat(f) {
 }
 
 function tick() {
+  prevSnake = snake.map(s => ({ ...s }));
   dir = nextDir;
   let nx = snake[0].x + dir.x;
   let ny = snake[0].y + dir.y;
@@ -155,6 +158,20 @@ function tick() {
     }
   }
   if (sfood && nx === sfood.x && ny === sfood.y) { eat(sfood); sfood = null; sTimer = 0; }
+}
+
+// ── Interpolated position for segment i at current lerp ───────────────────────
+function ipos(i) {
+  const to   = snake[i];
+  const from = prevSnake[Math.min(i, prevSnake.length - 1)];
+  // Don't interpolate across wrap-around gaps (ghost mode)
+  if (Math.abs(to.x - from.x) > 1 || Math.abs(to.y - from.y) > 1) {
+    return { x: BX + to.x * CELL + CELL / 2, y: BY + to.y * CELL + CELL / 2 };
+  }
+  return {
+    x: BX + (from.x + (to.x - from.x) * lerp) * CELL + CELL / 2,
+    y: BY + (from.y + (to.y - from.y) * lerp) * CELL + CELL / 2,
+  };
 }
 
 // ── Draw ──────────────────────────────────────────────────────────────────────
@@ -209,10 +226,9 @@ function drawSnake() {
   ctx.lineJoin    = 'round';
   ctx.beginPath();
   for (let i = snake.length - 1; i >= 0; i--) {
-    const px = BX + snake[i].x * CELL + CELL / 2;
-    const py = BY + snake[i].y * CELL + CELL / 2;
+    const { x: px, y: py } = ipos(i);
     if (i === snake.length - 1) { ctx.moveTo(px, py); continue; }
-    // Break path at wrap-around gaps
+    // Break path at wrap-around gaps (check raw grid positions)
     if (Math.abs(snake[i].x - snake[i + 1].x) > 1 || Math.abs(snake[i].y - snake[i + 1].y) > 1) {
       ctx.moveTo(px, py);
     } else {
@@ -230,8 +246,7 @@ function drawSnake() {
   // Head + eyes
   ctx.save();
   if (ghost) ctx.globalAlpha = 0.72;
-  const hx = BX + snake[0].x * CELL + CELL / 2;
-  const hy = BY + snake[0].y * CELL + CELL / 2;
+  const { x: hx, y: hy } = ipos(0);
   const hr = CELL * 0.41;
   ctx.fillStyle = hCol;
   ctx.beginPath(); ctx.arc(hx, hy, hr, 0, Math.PI * 2); ctx.fill();
@@ -314,6 +329,7 @@ function loop(ts) {
     mTimer += dt;
     const eff = speed ? Math.max(55, mInterval * 0.55) : mInterval;
     while (mTimer >= eff) { mTimer -= eff; if (state === 'play') tick(); }
+    lerp = Math.min(1, mTimer / eff);
   }
   last = ts;
   draw();
