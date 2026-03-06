@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snake Evolution</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #3d7a3d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    user-select: none;
+  }
+  canvas { display: block; }
+  .back { position: fixed; top: 10px; left: 14px; color: #c8e6c9; text-decoration: none; font: 14px monospace; }
+  .back:hover { color: #fff; }
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← Back</a>
+<canvas id="c"></canvas>
+<script>
+'use strict';
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+let W, H, CELL, BX, BY;
+const COLS = 20, ROWS = 20;
+
+// Food type definitions
+const FTYPES = [
+  { id: 'apple',  color: '#e53935', pts: 10,  unlock: 0,   special: false },
+  { id: 'speed',  color: '#fdd835', pts: 25,  unlock: 40,  special: true, name: '⚡ SPEED'    },
+  { id: 'ghost',  color: '#29b6f6', pts: 30,  unlock: 90,  special: true, name: '👻 GHOST'    },
+  { id: 'star',   color: '#ffa726', pts: 35,  unlock: 150, special: true, name: '⭐ 2× SCORE' },
+  { id: 'shrink', color: '#ab47bc', pts: 40,  unlock: 220, special: true, name: '✂ SHRINK'    },
+];
+
+// State
+let snake, dir, nextDir, food, sfood, sTimer;
+let score, hi = 0, state;
+let ghost, star, speed;
+let pTimer, pDur;
+let growQ, mInterval, mTimer, last;
+
+function resize() {
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  CELL = Math.max(16, Math.min(32, Math.floor(Math.min(W * 0.88, H * 0.82) / COLS)));
+  BX = Math.round((W - CELL * COLS) / 2);
+  BY = Math.round((H - CELL * ROWS) / 2) + 18;
+}
+
+function onSnake(x, y, skipLast) {
+  const end = skipLast ? snake.length - 1 : snake.length;
+  for (let i = 0; i < end; i++) if (snake[i].x === x && snake[i].y === y) return true;
+  return false;
+}
+
+function rndCell() {
+  let p;
+  do {
+    p = { x: Math.floor(Math.random() * COLS), y: Math.floor(Math.random() * ROWS) };
+  } while (
+    onSnake(p.x, p.y, false) ||
+    (sfood && sfood.x === p.x && sfood.y === p.y) ||
+    (food  && food.x  === p.x && food.y  === p.y)
+  );
+  return p;
+}
+
+function mkFood(type) { return { ...rndCell(), type }; }
+
+function newGame() {
+  snake    = [{ x: 10, y: 10 }, { x: 9, y: 10 }, { x: 8, y: 10 }];
+  dir      = { x: 1, y: 0 };
+  nextDir  = { x: 1, y: 0 };
+  score    = 0;
+  ghost    = star = speed = false;
+  pTimer   = pDur = 0;
+  growQ    = 0;
+  mInterval = 150;
+  mTimer   = 0;
+  sfood    = null;
+  sTimer   = 0;
+  food     = mkFood(FTYPES[0]);
+  state    = 'play';
+}
+
+window.addEventListener('keydown', e => {
+  const k = e.key;
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(k)) e.preventDefault();
+  if (state === 'over'  && k === ' ') { newGame(); return; }
+  if (state === 'menu'  && k === ' ') { newGame(); return; }
+  if (k==='ArrowUp'    || k==='w' || k==='W') { if (dir.y !==  1) nextDir = { x: 0, y: -1 }; }
+  if (k==='ArrowDown'  || k==='s' || k==='S') { if (dir.y !== -1) nextDir = { x: 0, y:  1 }; }
+  if (k==='ArrowLeft'  || k==='a' || k==='A') { if (dir.x !==  1) nextDir = { x: -1, y: 0 }; }
+  if (k==='ArrowRight' || k==='d' || k==='D') { if (dir.x !== -1) nextDir = { x:  1, y: 0 }; }
+});
+
+function applyPower(id) {
+  ghost = star = speed = false;
+  const DUR = { speed: 5000, ghost: 6000, star: 8000 };
+  if (id === 'speed') { speed = true; pDur = pTimer = DUR.speed; }
+  if (id === 'ghost') { ghost = true; pDur = pTimer = DUR.ghost; }
+  if (id === 'star')  { star  = true; pDur = pTimer = DUR.star;  }
+}
+
+function eat(f) {
+  const pts = star ? f.type.pts * 2 : f.type.pts;
+  score += pts;
+  if (score > hi) hi = score;
+  growQ += Math.max(1, Math.floor(f.type.pts / 10));
+  mInterval = Math.max(65, 150 - Math.floor(score / 60) * 10);
+  switch (f.type.id) {
+    case 'speed':  applyPower('speed'); break;
+    case 'ghost':  applyPower('ghost'); break;
+    case 'star':   applyPower('star');  break;
+    case 'shrink':
+      snake = snake.slice(0, Math.max(3, Math.ceil(snake.length / 2)));
+      growQ = 0;
+      break;
+  }
+}
+
+function tick() {
+  dir = nextDir;
+  let nx = snake[0].x + dir.x;
+  let ny = snake[0].y + dir.y;
+
+  if (ghost) {
+    nx = ((nx % COLS) + COLS) % COLS;
+    ny = ((ny % ROWS) + ROWS) % ROWS;
+  } else if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) {
+    state = 'over'; return;
+  }
+
+  if (!ghost && onSnake(nx, ny, growQ === 0)) { state = 'over'; return; }
+
+  snake.unshift({ x: nx, y: ny });
+  if (growQ > 0) growQ--; else snake.pop();
+
+  if (nx === food.x && ny === food.y) {
+    eat(food);
+    food = mkFood(FTYPES[0]);
+    if (!sfood && Math.random() < 0.22) {
+      const avail = FTYPES.filter(f => f.special && f.unlock <= score);
+      if (avail.length) {
+        sfood  = mkFood(avail[Math.floor(Math.random() * avail.length)]);
+        sTimer = 9000;
+      }
+    }
+  }
+  if (sfood && nx === sfood.x && ny === sfood.y) { eat(sfood); sfood = null; sTimer = 0; }
+}
+
+// ── Draw ──────────────────────────────────────────────────────────────────────
+function drawBoard() {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      ctx.fillStyle = (r + c) % 2 === 0 ? '#aad751' : '#a2d149';
+      ctx.fillRect(BX + c * CELL, BY + r * CELL, CELL, CELL);
+    }
+  }
+  ctx.strokeStyle = '#8bc34a'; ctx.lineWidth = 3;
+  ctx.strokeRect(BX - 1, BY - 1, COLS * CELL + 2, ROWS * CELL + 2);
+}
+
+function drawFood(f, timer) {
+  const cx = BX + f.x * CELL + CELL / 2;
+  const cy = BY + f.y * CELL + CELL / 2;
+  const r  = CELL * 0.36;
+  const pulse = timer > 0 ? 1 + Math.sin(Date.now() / 200) * 0.07 : 1;
+  ctx.save();
+  ctx.shadowBlur = 10; ctx.shadowColor = f.type.color;
+  ctx.fillStyle = f.type.color;
+  ctx.beginPath(); ctx.arc(cx, cy, r * pulse, 0, Math.PI * 2); ctx.fill();
+  // Shine
+  ctx.fillStyle = 'rgba(255,255,255,0.28)';
+  ctx.beginPath(); ctx.arc(cx - r * 0.22, cy - r * 0.22, r * 0.3, 0, Math.PI * 2); ctx.fill();
+  // Apple stem
+  if (f.type.id === 'apple') {
+    ctx.strokeStyle = '#558b2f'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(cx, cy - r); ctx.lineTo(cx + r * 0.35, cy - r * 1.45); ctx.stroke();
+  }
+  // Expiry arc
+  if (timer > 0 && timer < 4000) {
+    const frac = timer / 4000;
+    ctx.strokeStyle = f.type.color; ctx.lineWidth = 2.5; ctx.globalAlpha = 0.55;
+    ctx.beginPath(); ctx.arc(cx, cy, r + 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawSnake() {
+  const hCol = ghost ? '#29b6f6' : star ? '#ffa726' : '#4caf50';
+  const bCol = ghost ? '#0288d1' : star ? '#e65100' : '#388e3c';
+
+  ctx.save();
+  if (ghost) ctx.globalAlpha = 0.72;
+
+  // Body: thick stroked path from tail → head
+  ctx.strokeStyle = hCol;
+  ctx.lineWidth   = CELL * 0.76;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+  ctx.beginPath();
+  for (let i = snake.length - 1; i >= 0; i--) {
+    const px = BX + snake[i].x * CELL + CELL / 2;
+    const py = BY + snake[i].y * CELL + CELL / 2;
+    if (i === snake.length - 1) { ctx.moveTo(px, py); continue; }
+    // Break path at wrap-around gaps
+    if (Math.abs(snake[i].x - snake[i + 1].x) > 1 || Math.abs(snake[i].y - snake[i + 1].y) > 1) {
+      ctx.moveTo(px, py);
+    } else {
+      ctx.lineTo(px, py);
+    }
+  }
+  ctx.stroke();
+
+  // Dark border overlay
+  ctx.strokeStyle = bCol; ctx.lineWidth = CELL * 0.76 + 4;
+  ctx.globalAlpha = (ghost ? 0.72 : 1) * 0.32;
+  ctx.stroke();
+  ctx.restore();
+
+  // Head + eyes
+  ctx.save();
+  if (ghost) ctx.globalAlpha = 0.72;
+  const hx = BX + snake[0].x * CELL + CELL / 2;
+  const hy = BY + snake[0].y * CELL + CELL / 2;
+  const hr = CELL * 0.41;
+  ctx.fillStyle = hCol;
+  ctx.beginPath(); ctx.arc(hx, hy, hr, 0, Math.PI * 2); ctx.fill();
+
+  const perp = { x: -dir.y, y: dir.x };
+  const eo = hr * 0.36, er = hr * 0.21;
+  [1, -1].forEach(s => {
+    const ox = hx + dir.x * eo * 0.5 + perp.x * s * eo;
+    const oy = hy + dir.y * eo * 0.5 + perp.y * s * eo;
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ox, oy, er, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(ox + dir.x * er * 0.35, oy + dir.y * er * 0.35, er * 0.55, 0, Math.PI * 2); ctx.fill();
+  });
+  ctx.restore();
+}
+
+function drawHUD() {
+  ctx.fillStyle = 'rgba(0,0,0,0.28)';
+  ctx.fillRect(BX, BY - 44, COLS * CELL, 38);
+  ctx.textBaseline = 'middle';
+  ctx.font = 'bold 16px "Segoe UI"';
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
+  ctx.fillText('Score: ' + score, BX + 10, BY - 25);
+  ctx.fillStyle = '#c8e6c9'; ctx.textAlign = 'right';
+  ctx.fillText('Best: ' + hi, BX + COLS * CELL - 10, BY - 25);
+
+  // Active powerup bar
+  const pw = ghost ? { name: '👻 GHOST',    color: '#29b6f6' }
+           : speed ? { name: '⚡ SPEED',    color: '#fdd835' }
+           : star  ? { name: '⭐ 2× SCORE', color: '#ffa726' }
+           : null;
+  if (pw && pDur > 0) {
+    ctx.fillStyle = pw.color; ctx.font = 'bold 13px "Segoe UI"'; ctx.textAlign = 'center';
+    ctx.fillText(pw.name, BX + COLS * CELL / 2, BY - 25);
+    const bw = COLS * CELL * 0.36, bx = BX + COLS * CELL / 2 - bw / 2;
+    ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(bx, BY - 9, bw, 4);
+    ctx.fillStyle = pw.color; ctx.fillRect(bx, BY - 9, bw * (pTimer / pDur), 4);
+  }
+
+  // Next unlock hint
+  const next = FTYPES.find(f => f.special && f.unlock > score);
+  if (next) {
+    ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.font = '11px "Segoe UI"'; ctx.textAlign = 'right';
+    ctx.fillText('Next power at ' + next.unlock + ' pts', BX + COLS * CELL - 8, BY + ROWS * CELL + 18);
+  }
+}
+
+function drawOverlay(title, lines) {
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(BX, BY, COLS * CELL, ROWS * CELL);
+  const cx = BX + COLS * CELL / 2, cy = BY + ROWS * CELL / 2;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 38px "Segoe UI"';
+  ctx.fillText(title, cx, cy - 40);
+  ctx.font = '17px "Segoe UI"'; ctx.fillStyle = '#ddd';
+  lines.forEach((l, i) => { if (l !== null) ctx.fillText(l, cx, cy + 10 + i * 28); });
+}
+
+function draw() {
+  ctx.fillStyle = '#3d7a3d'; ctx.fillRect(0, 0, W, H);
+  drawBoard();
+  if (food)  drawFood(food, 0);
+  if (sfood) drawFood(sfood, sTimer);
+  if (state !== 'menu') drawSnake();
+  drawHUD();
+  if (state === 'menu') drawOverlay('SNAKE EVOLUTION', [
+    'Arrow keys or WASD to move', null,
+    'Eat special foods to gain powers!', null,
+    'Press SPACE to start',
+  ]);
+  if (state === 'over') drawOverlay('GAME OVER', [
+    'Score: ' + score, 'Best: ' + hi, null, 'Press SPACE to play again',
+  ]);
+}
+
+function loop(ts) {
+  if (last !== undefined && state === 'play') {
+    const dt = ts - last;
+    if (sfood) { sTimer -= dt; if (sTimer <= 0) { sfood = null; sTimer = 0; } }
+    if (pTimer > 0) { pTimer -= dt; if (pTimer <= 0) { pTimer = 0; ghost = star = speed = false; } }
+    mTimer += dt;
+    const eff = speed ? Math.max(55, mInterval * 0.55) : mInterval;
+    while (mTimer >= eff) { mTimer -= eff; if (state === 'play') tick(); }
+  }
+  last = ts;
+  draw();
+  requestAnimationFrame(loop);
+}
+
+window.addEventListener('resize', resize);
+resize();
+state = 'menu'; score = 0;
+food  = { x: 10, y: 8, type: FTYPES[0] };
+snake = [{ x: 10, y: 10 }, { x: 9, y: 10 }, { x: 8, y: 10 }];
+dir   = nextDir = { x: 1, y: 0 };
+sfood = null; ghost = star = speed = false; pTimer = pDur = 0;
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
