@@ -101,6 +101,9 @@ textarea:focus { border-color: #334455; }
   <canvas id="c"></canvas>
   <div id="sidebar">
     <div class="side-section">
+      <button class="btn" style="border-color:#00ffcc;color:#00ffcc;background:#001e14;font-size:13px;padding:9px" onclick="testLevel()">&#9654; Test Level</button>
+    </div>
+    <div class="side-section">
       <h3>Export</h3>
       <textarea id="exportArea" rows="9" readonly></textarea>
       <button class="btn go" onclick="copyExport()">Copy to Clipboard</button>
@@ -384,6 +387,17 @@ function updateStats() {
   const maxTx = keys.length ? Math.max(...keys.map(k => parseInt(k.split('_')[0]))) : 0;
   document.getElementById('statCount').textContent = `Obstacles: ${keys.length}`;
   document.getElementById('statLen').textContent   = `Level length: ~${maxTx + 6} tiles`;
+}
+
+function testLevel() {
+  const sorted = Object.entries(tiles)
+    .map(([key, type]) => {
+      const [txStr, rowStr] = key.split('_');
+      return [parseInt(txStr), type, parseInt(rowStr)];
+    })
+    .sort((a, b) => a[0] - b[0] || a[2] - b[2]);
+  localStorage.setItem('cubeRunTestLevel', JSON.stringify(sorted));
+  window.open('index.html', '_blank');
 }
 
 function copyExport() {

@@ -74,10 +74,18 @@ const levelRaw = [
   [217,'S'],[218,'S'],
 ];
 
+// Check for a test level from the editor
+const _saved = localStorage.getItem('cubeRunTestLevel');
+const testMode = !!_saved;
+if (_saved) {
+  try { levelRaw.length = 0; JSON.parse(_saved).forEach(e => levelRaw.push(e)); } catch(e) {}
+  localStorage.removeItem('cubeRunTestLevel');
+}
+
 function buildObs() {
   const list = [];
   for (const entry of levelRaw) {
-    const tx = entry[0], type = entry[1], h = entry[2] ?? 0; // h = stack height (0=ground)
+    const tx = entry[0], type = entry[1], h = entry[2] ?? 0;
     const wx = tx * TILE;
     if (type === 'S') {
       list.push({ wx, wy: GY - TILE * (h + 1), type: 'S' });
@@ -370,6 +378,12 @@ function drawHUD() {
   ctx.fillStyle = '#556677';
   ctx.font = '12px monospace';
   ctx.fillText('attempt ' + attempts, W - 15, H - 12);
+  if (testMode) {
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#ffaa00';
+    ctx.font = 'bold 11px monospace';
+    ctx.fillText('TEST MODE', 15, H - 12);
+  }
 }
 
 function drawOverlay() {
