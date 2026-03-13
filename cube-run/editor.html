@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cube Run – Level Editor</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #020510; display: flex; flex-direction: column; height: 100vh; overflow: hidden; font-family: monospace; color: #ccc; }
+#toolbar {
+  background: #070e1c;
+  border-bottom: 1px solid #1a2236;
+  padding: 7px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+#toolbar span.logo { color: #00ffcc; font-size: 13px; font-weight: bold; margin-right: 6px; }
+.tool-btn {
+  padding: 5px 13px;
+  border: 1px solid #2a3a4a;
+  background: #0d1828;
+  color: #889aaa;
+  cursor: pointer;
+  font-family: monospace;
+  font-size: 12px;
+  border-radius: 3px;
+  user-select: none;
+}
+.tool-btn:hover { border-color: #446; color: #ccc; }
+.tool-btn.active { border-color: #00ffcc; color: #00ffcc; background: #002a1e; }
+.tool-btn.danger { border-color: #442; color: #ff6655; }
+.tool-btn.danger:hover { border-color: #ff6655; }
+.sep { width: 1px; background: #1a2236; height: 20px; flex-shrink: 0; }
+#tileinfo { color: #445566; font-size: 11px; margin-left: auto; }
+#layout { display: flex; flex: 1; overflow: hidden; }
+canvas { display: block; cursor: crosshair; flex: 1; }
+#sidebar {
+  width: 250px;
+  background: #060d1a;
+  border-left: 1px solid #1a2236;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+.side-section h3 {
+  color: #445566;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+textarea {
+  width: 100%;
+  background: #040b18;
+  border: 1px solid #1a2236;
+  color: #88aabb;
+  font-family: monospace;
+  font-size: 10px;
+  padding: 6px;
+  resize: none;
+  outline: none;
+  border-radius: 2px;
+}
+textarea:focus { border-color: #334455; }
+.btn {
+  padding: 6px 10px;
+  border: 1px solid #2a3a4a;
+  background: #0d1828;
+  color: #aabbcc;
+  cursor: pointer;
+  font-family: monospace;
+  font-size: 11px;
+  border-radius: 3px;
+  width: 100%;
+  text-align: center;
+  margin-top: 5px;
+}
+.btn:hover { border-color: #00ffcc; color: #00ffcc; }
+.btn.go { border-color: #00cc88; color: #00ffcc; background: #001e14; }
+.hint { font-size: 10px; color: #334455; line-height: 1.7; }
+.stat { font-size: 11px; color: #445566; }
+</style>
+</head>
+<body>
+<div id="toolbar">
+  <span class="logo">CUBE RUN EDITOR</span>
+  <div class="sep"></div>
+  <button class="tool-btn active" id="tool-S"  onclick="setTool('S')" >▲ Spike &nbsp;<kbd>1</kbd></button>
+  <button class="tool-btn"        id="tool-B"  onclick="setTool('B')" >■ Block &nbsp;<kbd>2</kbd></button>
+  <button class="tool-btn"        id="tool-BS" onclick="setTool('BS')">▲■ Block+Spike &nbsp;<kbd>3</kbd></button>
+  <button class="tool-btn"        id="tool-E"  onclick="setTool('E')" >✕ Erase &nbsp;<kbd>4</kbd></button>
+  <div class="sep"></div>
+  <button class="tool-btn danger" onclick="clearLevel()">Clear All</button>
+  <span id="tileinfo">hover over canvas</span>
+</div>
+<div id="layout">
+  <canvas id="c"></canvas>
+  <div id="sidebar">
+    <div class="side-section">
+      <h3>Export</h3>
+      <textarea id="exportArea" rows="9" readonly></textarea>
+      <button class="btn go" onclick="copyExport()">Copy to Clipboard</button>
+    </div>
+    <div class="side-section">
+      <h3>Import</h3>
+      <textarea id="importArea" rows="4" placeholder="Paste levelRaw array here…"></textarea>
+      <button class="btn" onclick="importLevel()">Load</button>
+    </div>
+    <div class="side-section">
+      <h3>Stats</h3>
+      <div class="stat" id="statCount">Obstacles: 0</div>
+      <div class="stat" id="statLen">Level length: 0 tiles</div>
+    </div>
+    <div class="side-section">
+      <h3>Controls</h3>
+      <div class="hint">
+        Left-click — place tile<br>
+        Right-click — erase tile<br>
+        Click &amp; drag — draw/erase run<br>
+        Scroll wheel — pan left/right<br>
+        ← → arrow keys — pan<br>
+        1 / 2 / 3 / 4 — switch tool
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+const TILE = 40;
+const MAX_TILES = 300;
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+function resize() {
+  const layout = document.getElementById('layout');
+  const sidebar = document.getElementById('sidebar');
+  canvas.width = layout.clientWidth - sidebar.offsetWidth;
+  canvas.height = layout.clientHeight;
+  draw();
+}
+window.addEventListener('resize', resize);
+
+// State
+let tiles = {}; // tileX -> 'S'|'B'|'BS'
+let tool = 'S';
+let scrollX = 0; // camera world x (pixels)
+let hoverTile = -1;
+let isDrawing = false;
+let drawMode = null; // 'place' or 'erase'
+
+function groundY() { return canvas.height - 80; }
+
+// ── Tool selection ──────────────────────────────────────────────────────────
+function setTool(t) {
+  tool = t;
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+  const el = document.getElementById('tool-' + t);
+  if (el) el.classList.add('active');
+}
+
+// ── Tile manipulation ───────────────────────────────────────────────────────
+function applyTool(tx) {
+  if (tx < 0 || tx >= MAX_TILES) return;
+  if (drawMode === 'erase') { delete tiles[tx]; }
+  else if (tool !== 'E')    { tiles[tx] = tool; }
+  else                       { delete tiles[tx]; }
+  updateExport();
+  draw();
+}
+
+// ── Mouse events ────────────────────────────────────────────────────────────
+function mouseToTile(e) {
+  const rect = canvas.getBoundingClientRect();
+  return Math.floor((e.clientX - rect.left + scrollX) / TILE);
+}
+
+canvas.addEventListener('mousedown', e => {
+  e.preventDefault();
+  const tx = mouseToTile(e);
+  if (e.button === 2) { drawMode = 'erase'; }
+  else if (e.button === 0) { drawMode = tool === 'E' ? 'erase' : 'place'; }
+  else return;
+  isDrawing = true;
+  applyTool(tx);
+});
+
+canvas.addEventListener('mousemove', e => {
+  const tx = mouseToTile(e);
+  hoverTile = tx;
+  if (isDrawing) applyTool(tx);
+  else draw();
+  document.getElementById('tileinfo').textContent = `tile ${tx}  |  scroll ${Math.floor(scrollX / TILE)}`;
+});
+
+canvas.addEventListener('mouseup',    () => { isDrawing = false; drawMode = null; });
+canvas.addEventListener('mouseleave', () => { isDrawing = false; drawMode = null; hoverTile = -1; draw(); });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  scrollX = Math.max(0, scrollX + (e.deltaX || e.deltaY) * 1.2);
+  draw();
+}, { passive: false });
+
+window.addEventListener('keydown', e => {
+  if (e.target.tagName === 'TEXTAREA') return;
+  if (e.key === '1') setTool('S');
+  if (e.key === '2') setTool('B');
+  if (e.key === '3') setTool('BS');
+  if (e.key === '4') setTool('E');
+  if (e.key === 'ArrowRight') { e.preventDefault(); scrollX += TILE * 4; draw(); }
+  if (e.key === 'ArrowLeft')  { e.preventDefault(); scrollX = Math.max(0, scrollX - TILE * 4); draw(); }
+});
+
+// ── Draw helpers ─────────────────────────────────────────────────────────────
+function drawBlock(sx, sy) {
+  ctx.save();
+  ctx.fillStyle = '#1155bb';
+  ctx.shadowColor = '#3388ff'; ctx.shadowBlur = 6;
+  ctx.fillRect(sx, sy, TILE, TILE);
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = '#66aaff'; ctx.lineWidth = 1.5;
+  ctx.strokeRect(sx + 1, sy + 1, TILE - 2, TILE - 2);
+  ctx.strokeStyle = 'rgba(100,180,255,0.3)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(sx + 4, sy + 4);       ctx.lineTo(sx + TILE - 4, sy + TILE - 4);
+  ctx.moveTo(sx + TILE - 4, sy + 4); ctx.lineTo(sx + 4, sy + TILE - 4);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawSpike(sx, sy) {
+  ctx.save();
+  ctx.fillStyle = '#ffdd00';
+  ctx.shadowColor = '#ffaa00'; ctx.shadowBlur = 8;
+  ctx.beginPath();
+  ctx.moveTo(sx + TILE / 2, sy);
+  ctx.lineTo(sx + TILE, sy + TILE);
+  ctx.lineTo(sx, sy + TILE);
+  ctx.closePath(); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function renderTile(tx, alpha) {
+  const sx = tx * TILE - scrollX;
+  const gy = groundY();
+  ctx.globalAlpha = alpha;
+  const type = tiles[tx] || tool;
+  if (type === 'S')  { drawSpike(sx, gy - TILE); }
+  if (type === 'B')  { drawBlock(sx, gy - TILE); }
+  if (type === 'BS') { drawBlock(sx, gy - TILE); drawSpike(sx, gy - 2 * TILE); }
+  ctx.globalAlpha = 1;
+}
+
+// ── Main draw ─────────────────────────────────────────────────────────────────
+function draw() {
+  const W = canvas.width, H = canvas.height;
+  const gy = groundY();
+
+  // Background
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#020510'); bg.addColorStop(1, '#081028');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+  // Background parallax grid
+  ctx.save();
+  ctx.strokeStyle = 'rgba(0,150,255,0.04)'; ctx.lineWidth = 1;
+  const pox = -(scrollX * 0.3) % 50;
+  for (let x = pox; x < W; x += 50) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for (let y = 0; y < H; y += 50)   { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  ctx.restore();
+
+  // Ground fill
+  ctx.fillStyle = '#070e20'; ctx.fillRect(0, gy, W, H - gy);
+
+  // Tile grid (play area)
+  ctx.save();
+  const tox = (-scrollX % TILE + TILE) % TILE;
+  ctx.strokeStyle = 'rgba(50,90,160,0.15)'; ctx.lineWidth = 1;
+  for (let x = tox; x < W; x += TILE) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,gy); ctx.stroke(); }
+  for (let y = gy % TILE; y < gy; y += TILE) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  // Ground tile grid
+  ctx.strokeStyle = 'rgba(0,200,120,0.1)';
+  for (let x = tox; x < W; x += TILE) { ctx.beginPath(); ctx.moveTo(x,gy); ctx.lineTo(x,H); ctx.stroke(); }
+  ctx.restore();
+
+  // Ground glow line
+  ctx.save();
+  ctx.strokeStyle = '#00cc88'; ctx.lineWidth = 2;
+  ctx.shadowColor = '#00cc88'; ctx.shadowBlur = 10;
+  ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke();
+  ctx.restore();
+
+  // Tile number labels
+  ctx.save();
+  ctx.fillStyle = 'rgba(70,90,120,0.65)'; ctx.font = '9px monospace'; ctx.textAlign = 'center';
+  const first = Math.floor(scrollX / TILE);
+  const last  = Math.ceil((scrollX + W) / TILE);
+  for (let tx = first; tx <= last; tx++) {
+    if (tx % 5 === 0) {
+      const sx = tx * TILE - scrollX + TILE / 2;
+      ctx.fillText(tx, sx, gy + 14);
+      // tick
+      ctx.fillStyle = 'rgba(70,90,120,0.4)';
+      ctx.fillRect(sx - 0.5, gy + 1, 1, 4);
+      ctx.fillStyle = 'rgba(70,90,120,0.65)';
+    }
+  }
+  ctx.restore();
+
+  // Placed tiles
+  for (const txStr of Object.keys(tiles)) {
+    const tx = parseInt(txStr);
+    const sx = tx * TILE - scrollX;
+    if (sx + TILE * 2 < -5 || sx > W + 5) continue;
+    renderTile(tx, 1);
+  }
+
+  // Hover preview
+  if (hoverTile >= 0 && hoverTile < MAX_TILES && !isDrawing) {
+    const sx = hoverTile * TILE - scrollX;
+    // ghost preview
+    if (tool !== 'E' && !tiles[hoverTile]) renderTile(hoverTile, 0.35);
+    // outline
+    ctx.save();
+    ctx.strokeStyle = tool === 'E' ? 'rgba(255,80,60,0.7)' : 'rgba(0,255,200,0.55)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]);
+    ctx.strokeRect(sx + 1, gy - TILE + 1, TILE - 2, TILE - 2);
+    if (tool === 'BS') ctx.strokeRect(sx + 1, gy - 2*TILE + 1, TILE - 2, TILE - 2);
+    ctx.restore();
+  }
+
+  updateStats();
+}
+
+// ── Export / Import ───────────────────────────────────────────────────────────
+function updateExport() {
+  const sorted = Object.entries(tiles)
+    .map(([tx, t]) => [parseInt(tx), t])
+    .sort((a, b) => a[0] - b[0]);
+  const lines = sorted.map(([tx, t]) => `  [${tx},'${t}'],`);
+  document.getElementById('exportArea').value =
+    'const levelRaw = [\n' + lines.join('\n') + (lines.length ? '\n' : '') + '];';
+}
+
+function updateStats() {
+  const keys = Object.keys(tiles);
+  const max = keys.length ? Math.max(...keys.map(Number)) : 0;
+  document.getElementById('statCount').textContent = `Obstacles: ${keys.length}`;
+  document.getElementById('statLen').textContent   = `Level length: ~${max + 6} tiles`;
+}
+
+function copyExport() {
+  const ta = document.getElementById('exportArea');
+  ta.select(); document.execCommand('copy');
+  const btn = event.currentTarget;
+  btn.textContent = 'Copied!';
+  setTimeout(() => { btn.textContent = 'Copy to Clipboard'; }, 1500);
+}
+
+function clearLevel() {
+  if (!confirm('Clear all tiles?')) return;
+  tiles = {}; updateExport(); draw();
+}
+
+function importLevel() {
+  const text = document.getElementById('importArea').value.trim();
+  try {
+    const match = text.match(/\[[\s\S]*\]/);
+    if (!match) throw new Error('No array found');
+    const arr = JSON.parse(match[0].replace(/'/g, '"'));
+    tiles = {};
+    for (const [tx, type] of arr) tiles[tx] = type;
+    updateExport(); draw();
+    document.getElementById('importArea').value = '';
+  } catch(e) {
+    alert('Could not parse level data:\n' + e.message);
+  }
+}
+
+// ── Preload current game level ────────────────────────────────────────────────
+const currentLevel = [
+  [15,'S'],[19,'S'],[20,'S'],[21,'S'],[26,'B'],[30,'S'],[34,'S'],[35,'S'],
+  [40,'B'],[41,'B'],[46,'S'],[50,'S'],[51,'S'],[56,'BS'],[61,'S'],[65,'S'],[66,'S'],
+  [72,'B'],[73,'B'],[77,'S'],[78,'S'],[83,'BS'],[88,'S'],[89,'S'],[90,'S'],
+  [95,'B'],[99,'S'],[100,'S'],[104,'BS'],[105,'S'],[110,'B'],[111,'B'],
+  [116,'S'],[117,'S'],[118,'S'],[123,'BS'],[128,'S'],[129,'S'],[133,'B'],[134,'B'],[135,'B'],
+  [140,'S'],[141,'S'],[142,'S'],[147,'BS'],[152,'S'],[153,'S'],
+  [157,'BS'],[158,'BS'],[163,'S'],[164,'S'],[165,'S'],[170,'B'],[171,'B'],
+  [175,'S'],[176,'S'],[177,'S'],[182,'BS'],[187,'S'],[188,'S'],
+  [193,'B'],[194,'B'],[195,'B'],[200,'BS'],[201,'S'],[206,'S'],[207,'S'],[208,'S'],
+  [213,'BS'],[217,'S'],[218,'S'],
+];
+for (const [tx, type] of currentLevel) tiles[tx] = type;
+
+resize(); // sets canvas size and calls draw()
+updateExport();
+</script>
+</body>
+</html>
