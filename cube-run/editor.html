@@ -403,9 +403,9 @@ function testLevel() {
       return [parseInt(txStr), type, parseInt(rowStr)];
     })
     .sort((a, b) => a[0] - b[0] || a[2] - b[2]);
-  // Pass level via URL hash — works reliably with file:// URLs
-  const hash = btoa(JSON.stringify(sorted));
-  window.open('index.html#' + hash, '_blank');
+  // Store on this window so the game tab can read it via window.opener
+  window._cubeRunTestLevel = sorted;
+  window.open('index.html', '_blank');
 }
 
 function copyExport() {

@@ -74,16 +74,17 @@ const levelRaw = [
   [217,'S'],[218,'S'],
 ];
 
-// Check for a test level passed via URL hash from the editor
+// Check for a test level passed from the editor via window.opener
 let testMode = false;
-if (location.hash.length > 1) {
-  try {
-    const data = JSON.parse(atob(location.hash.slice(1)));
+try {
+  const data = window.opener && window.opener._cubeRunTestLevel;
+  if (data && data.length) {
     levelRaw.length = 0;
     data.forEach(e => levelRaw.push(e));
     testMode = true;
-  } catch(e) {}
-}
+    delete window.opener._cubeRunTestLevel;
+  }
+} catch(e) {}
 
 function buildObs() {
   const list = [];
