@@ -18,9 +18,9 @@ const ctx = canvas.getContext('2d');
 canvas.width = W; canvas.height = H;
 
 const TILE = 40;
-const GRAV = 2600;
-const JUMP_V = -850;
-const SCROLL = 300;
+const GRAV = 4000;   // GD-accurate: 2-block peak height
+const JUMP_V = -800; // GD-accurate: sqrt(2 * 4000 * 80)
+const SCROLL = 450;  // GD-accurate: ~11.2 blocks/sec * 40px/block
 const GY = 440;   // ground y (top surface)
 const PX = 140;   // player fixed screen x
 const CS = 36;    // cube size
@@ -31,8 +31,8 @@ const WIN_CAM = LEVEL_TILES * TILE - PX - 100; // camX at which player wins
 // S=spike, B=block, BS=block with spike on top
 const levelRaw = [
   // Intro – easy singles
-  [12,'S'],
-  [16,'S'],
+  [15,'S'],
+  [19,'S'],
   [20,'S'],[21,'S'],
   [26,'B'],
   [30,'S'],
@@ -94,12 +94,12 @@ const obs = buildObs();
 // Game state
 let state = 'menu';
 let attempts = 0;
-let camX, py, vy, angle, onGround, deadTimer, pct, particles, trail;
+let camX, py, vy, angle, onGround, deadTimer, pct, particles, trail, jumpBuffer;
 
 function init() {
   camX = 0; py = GY - CS; vy = 0; angle = 0;
   onGround = true; deadTimer = 0; pct = 0;
-  particles = []; trail = [];
+  particles = []; trail = []; jumpBuffer = 0;
 }
 init();
 
@@ -110,8 +110,9 @@ function tryJump() {
     if (deadTimer > 0.65) { state = 'play'; attempts++; init(); }
   } else if (state === 'win') {
     state = 'menu';
-  } else if (state === 'play' && onGround) {
-    vy = JUMP_V; onGround = false;
+  } else if (state === 'play') {
+    if (onGround) { vy = JUMP_V; onGround = false; }
+    else jumpBuffer = 0.1; // buffer: fire jump within 100ms of landing
   }
 }
 
@@ -175,6 +176,12 @@ function update(dt) {
     py = GY - CS; vy = 0; onGround = true;
   } else {
     onGround = false;
+  }
+
+  // Jump buffer: if player pressed jump just before landing, fire it now
+  if (jumpBuffer > 0) {
+    jumpBuffer -= dt;
+    if (onGround) { vy = JUMP_V; onGround = false; jumpBuffer = 0; }
   }
 
   // Rotation
