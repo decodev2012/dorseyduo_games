@@ -74,12 +74,15 @@ const levelRaw = [
   [217,'S'],[218,'S'],
 ];
 
-// Check for a test level from the editor
-const _saved = localStorage.getItem('cubeRunTestLevel');
-const testMode = !!_saved;
-if (_saved) {
-  try { levelRaw.length = 0; JSON.parse(_saved).forEach(e => levelRaw.push(e)); } catch(e) {}
-  localStorage.removeItem('cubeRunTestLevel');
+// Check for a test level passed via URL hash from the editor
+let testMode = false;
+if (location.hash.length > 1) {
+  try {
+    const data = JSON.parse(atob(location.hash.slice(1)));
+    levelRaw.length = 0;
+    data.forEach(e => levelRaw.push(e));
+    testMode = true;
+  } catch(e) {}
 }
 
 function buildObs() {
