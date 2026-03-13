@@ -215,9 +215,9 @@ function update(dt) {
   if (!onGround) angle += 350 * dt;
   else angle = Math.round(angle / 90) * 90;
 
-  // Trail
-  trail.push({ x: PX + CS / 2, y: py + CS / 2, a: 1 });
-  for (const t of trail) t.a -= dt * 6;
+  // Trail — stored in world coords so ghosts drift left as camera scrolls
+  trail.push({ wx: camX + PX, wy: py, ang: angle, a: 1 });
+  for (const t of trail) t.a -= dt * 5;
   while (trail.length > 0 && trail[0].a <= 0) trail.shift();
 
   // Spike collision only — blocks no longer kill
@@ -316,16 +316,29 @@ function drawObs() {
 
 function drawPlayer() {
   if (state === 'dead') return;
-  // Trail
+  // Trail — convert world x back to screen x each frame so ghosts stream behind
   for (const t of trail) {
     if (t.a <= 0) continue;
+    const sx = t.wx - camX + CS / 2; // world → screen x (drifts left as camX grows)
+    const sy = t.wy + CS / 2;
+    if (sx < -CS || sx > W + CS) continue;
+    const s = CS * (0.3 + t.a * 0.65); // shrink as it fades
     ctx.save();
-    ctx.globalAlpha = t.a * 0.35;
+    ctx.globalAlpha = t.a * 0.55;
+    ctx.translate(sx, sy);
+    ctx.rotate(t.ang * Math.PI / 180);
     ctx.fillStyle = '#00ffcc';
     ctx.shadowColor = '#00ffcc';
-    ctx.shadowBlur = 6;
-    const s = CS * t.a * 0.75;
-    ctx.fillRect(t.x - s / 2, t.y - s / 2, s, s);
+    ctx.shadowBlur = 12 * t.a;
+    ctx.fillRect(-s / 2, -s / 2, s, s);
+    // inner decoration matches cube
+    if (t.a > 0.3) {
+      ctx.strokeStyle = 'rgba(0,60,40,' + t.a + ')';
+      ctx.lineWidth = 1.5;
+      ctx.shadowBlur = 0;
+      const m = s * 0.2;
+      ctx.strokeRect(-s / 2 + m, -s / 2 + m, s - 2 * m, s - 2 * m);
+    }
     ctx.restore();
   }
   // Cube body
