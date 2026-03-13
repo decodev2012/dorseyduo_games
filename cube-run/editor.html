@@ -368,6 +368,8 @@ function draw() {
 }
 
 // ── Export / Import ───────────────────────────────────────────────────────────
+let saveTimer = null;
+
 function updateExport() {
   const sorted = Object.entries(tiles)
     .map(([key, type]) => {
@@ -380,6 +382,13 @@ function updateExport() {
   );
   document.getElementById('exportArea').value =
     'const levelRaw = [\n' + lines.join('\n') + (lines.length ? '\n' : '') + '];';
+
+  // Auto-save to localStorage
+  localStorage.setItem('cubeRunEditorLevel', JSON.stringify(sorted));
+  const info = document.getElementById('tileinfo');
+  clearTimeout(saveTimer);
+  info.textContent = 'saved';
+  saveTimer = setTimeout(() => { info.textContent = ''; }, 1200);
 }
 
 function updateStats() {
@@ -431,22 +440,34 @@ function importLevel() {
   }
 }
 
-// ── Preload current game level ────────────────────────────────────────────────
-const currentLevel = [
-  [15,'S'],[19,'S'],[20,'S'],[21,'S'],[26,'B'],[30,'S'],[34,'S'],[35,'S'],
-  [40,'B'],[41,'B'],[46,'S'],[50,'S'],[51,'S'],[56,'BS'],[61,'S'],[65,'S'],[66,'S'],
-  [72,'B'],[73,'B'],[77,'S'],[78,'S'],[83,'BS'],[88,'S'],[89,'S'],[90,'S'],
-  [95,'B'],[99,'S'],[100,'S'],[104,'BS'],[105,'S'],[110,'B'],[111,'B'],
-  [116,'S'],[117,'S'],[118,'S'],[123,'BS'],[128,'S'],[129,'S'],[133,'B'],[134,'B'],[135,'B'],
-  [140,'S'],[141,'S'],[142,'S'],[147,'BS'],[152,'S'],[153,'S'],
-  [157,'BS'],[158,'BS'],[163,'S'],[164,'S'],[165,'S'],[170,'B'],[171,'B'],
-  [175,'S'],[176,'S'],[177,'S'],[182,'BS'],[187,'S'],[188,'S'],
-  [193,'B'],[194,'B'],[195,'B'],[200,'BS'],[201,'S'],[206,'S'],[207,'S'],[208,'S'],
-  [213,'BS'],[217,'S'],[218,'S'],
-];
-for (const entry of currentLevel) {
-  const tx = entry[0], type = entry[1], h = entry[2] ?? 0;
-  tiles[tileKey(tx, h)] = type;
+// ── Load level: saved state → built-in fallback ───────────────────────────────
+const _savedLevel = localStorage.getItem('cubeRunEditorLevel');
+if (_savedLevel) {
+  try {
+    JSON.parse(_savedLevel).forEach(entry => {
+      const tx = entry[0], type = entry[1], h = entry[2] ?? 0;
+      tiles[tileKey(tx, h)] = type;
+    });
+  } catch(e) { /* fall through to default */ }
+}
+if (Object.keys(tiles).length === 0) {
+  // Default level
+  const defaultLevel = [
+    [15,'S'],[19,'S'],[20,'S'],[21,'S'],[26,'B'],[30,'S'],[34,'S'],[35,'S'],
+    [40,'B'],[41,'B'],[46,'S'],[50,'S'],[51,'S'],[56,'BS'],[61,'S'],[65,'S'],[66,'S'],
+    [72,'B'],[73,'B'],[77,'S'],[78,'S'],[83,'BS'],[88,'S'],[89,'S'],[90,'S'],
+    [95,'B'],[99,'S'],[100,'S'],[104,'BS'],[105,'S'],[110,'B'],[111,'B'],
+    [116,'S'],[117,'S'],[118,'S'],[123,'BS'],[128,'S'],[129,'S'],[133,'B'],[134,'B'],[135,'B'],
+    [140,'S'],[141,'S'],[142,'S'],[147,'BS'],[152,'S'],[153,'S'],
+    [157,'BS'],[158,'BS'],[163,'S'],[164,'S'],[165,'S'],[170,'B'],[171,'B'],
+    [175,'S'],[176,'S'],[177,'S'],[182,'BS'],[187,'S'],[188,'S'],
+    [193,'B'],[194,'B'],[195,'B'],[200,'BS'],[201,'S'],[206,'S'],[207,'S'],[208,'S'],
+    [213,'BS'],[217,'S'],[218,'S'],
+  ];
+  for (const entry of defaultLevel) {
+    const tx = entry[0], type = entry[1], h = entry[2] ?? 0;
+    tiles[tileKey(tx, h)] = type;
+  }
 }
 
 resize(); // sets canvas size and calls draw()
