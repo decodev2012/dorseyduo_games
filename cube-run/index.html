@@ -76,15 +76,16 @@ const levelRaw = [
 
 function buildObs() {
   const list = [];
-  for (const [tx, type] of levelRaw) {
+  for (const entry of levelRaw) {
+    const tx = entry[0], type = entry[1], h = entry[2] ?? 0; // h = stack height (0=ground)
     const wx = tx * TILE;
     if (type === 'S') {
-      list.push({ wx, wy: GY - TILE, type: 'S' });
+      list.push({ wx, wy: GY - TILE * (h + 1), type: 'S' });
     } else if (type === 'B') {
-      list.push({ wx, wy: GY - TILE, type: 'B' });
+      list.push({ wx, wy: GY - TILE * (h + 1), type: 'B' });
     } else if (type === 'BS') {
-      list.push({ wx, wy: GY - TILE, type: 'B' });
-      list.push({ wx, wy: GY - 2 * TILE, type: 'S' });
+      list.push({ wx, wy: GY - TILE * (h + 1), type: 'B' });
+      list.push({ wx, wy: GY - TILE * (h + 2), type: 'S' });
     }
   }
   return list;
@@ -168,6 +169,8 @@ function update(dt) {
   pct = Math.min(camX / WIN_CAM, 1);
   if (camX >= WIN_CAM) { state = 'win'; return; }
 
+  const prevPy = py; // save before physics update
+
   vy += GRAV * dt;
   py += vy * dt;
 
@@ -176,6 +179,18 @@ function update(dt) {
     py = GY - CS; vy = 0; onGround = true;
   } else {
     onGround = false;
+  }
+
+  // Block top landing — blocks are platforms, not killers
+  const pwL = camX + PX + 3;
+  const pwR = camX + PX + CS - 3;
+  for (const ob of obs) {
+    if (ob.type !== 'B') continue;
+    if (pwR <= ob.wx || pwL >= ob.wx + TILE) continue; // no horizontal overlap
+    // Player was above block top last frame and crosses it this frame going down
+    if (prevPy + CS <= ob.wy + 2 && py + CS >= ob.wy && vy >= 0) {
+      py = ob.wy - CS; vy = 0; onGround = true;
+    }
   }
 
   // Jump buffer: if player pressed jump just before landing, fire it now
@@ -193,12 +208,11 @@ function update(dt) {
   for (const t of trail) t.a -= dt * 6;
   while (trail.length > 0 && trail[0].a <= 0) trail.shift();
 
-  // Obstacle collision
+  // Spike collision only — blocks no longer kill
   for (const ob of obs) {
     const sx = ob.wx - camX;
     if (sx > W + 10 || sx + TILE < -10) continue;
-    const inset = ob.type === 'S' ? 7 : 2;
-    if (overlaps(ob, inset)) { die(); return; }
+    if (ob.type === 'S' && overlaps(ob, 7)) { die(); return; }
   }
 }
 

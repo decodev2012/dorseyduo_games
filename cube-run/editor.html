@@ -118,12 +118,13 @@ textarea:focus { border-color: #334455; }
     <div class="side-section">
       <h3>Controls</h3>
       <div class="hint">
-        Left-click — place tile<br>
+        Left-click — place tile at height<br>
         Right-click — erase tile<br>
         Click &amp; drag — draw/erase run<br>
         Scroll wheel — pan left/right<br>
         ← → arrow keys — pan<br>
-        1 / 2 / 3 / 4 — switch tool
+        1 / 2 / 3 / 4 — switch tool<br>
+        <b>Blocks</b> stack: click higher rows to place blocks at different heights
       </div>
     </div>
   </div>
@@ -145,12 +146,16 @@ function resize() {
 window.addEventListener('resize', resize);
 
 // State
-let tiles = {}; // tileX -> 'S'|'B'|'BS'
+// tiles key = "${tileX}_${row}" where row=0 is ground level, row=1 is one block up, etc.
+let tiles = {};
 let tool = 'S';
-let scrollX = 0; // camera world x (pixels)
+let scrollX = 0;
 let hoverTile = -1;
+let hoverRow = 0;
 let isDrawing = false;
-let drawMode = null; // 'place' or 'erase'
+let drawMode = null;
+
+const MAX_ROW = 5;
 
 function groundY() { return canvas.height - 80; }
 
@@ -163,37 +168,55 @@ function setTool(t) {
 }
 
 // ── Tile manipulation ───────────────────────────────────────────────────────
-function applyTool(tx) {
+function tileKey(tx, row) { return `${tx}_${row}`; }
+
+function applyTool(tx, row) {
   if (tx < 0 || tx >= MAX_TILES) return;
-  if (drawMode === 'erase') { delete tiles[tx]; }
-  else if (tool !== 'E')    { tiles[tx] = tool; }
-  else                       { delete tiles[tx]; }
+  const key = tileKey(tx, row);
+  if (drawMode === 'erase') {
+    // Erase all rows at this tile X
+    for (let r = 0; r <= MAX_ROW; r++) delete tiles[tileKey(tx, r)];
+  } else if (tool !== 'E') {
+    tiles[key] = tool;
+  } else {
+    for (let r = 0; r <= MAX_ROW; r++) delete tiles[tileKey(tx, r)];
+  }
   updateExport();
   draw();
 }
 
-// ── Mouse events ────────────────────────────────────────────────────────────
+// ── Mouse helpers ────────────────────────────────────────────────────────────
 function mouseToTile(e) {
   const rect = canvas.getBoundingClientRect();
   return Math.floor((e.clientX - rect.left + scrollX) / TILE);
 }
 
+function mouseToRow(e) {
+  const rect = canvas.getBoundingClientRect();
+  const my = e.clientY - rect.top;
+  const gy = groundY();
+  const row = Math.floor((gy - my) / TILE);
+  return Math.max(0, Math.min(MAX_ROW, row));
+}
+
 canvas.addEventListener('mousedown', e => {
   e.preventDefault();
   const tx = mouseToTile(e);
+  const row = mouseToRow(e);
   if (e.button === 2) { drawMode = 'erase'; }
   else if (e.button === 0) { drawMode = tool === 'E' ? 'erase' : 'place'; }
   else return;
   isDrawing = true;
-  applyTool(tx);
+  applyTool(tx, row);
 });
 
 canvas.addEventListener('mousemove', e => {
-  const tx = mouseToTile(e);
-  hoverTile = tx;
-  if (isDrawing) applyTool(tx);
+  hoverTile = mouseToTile(e);
+  hoverRow  = mouseToRow(e);
+  if (isDrawing) applyTool(hoverTile, hoverRow);
   else draw();
-  document.getElementById('tileinfo').textContent = `tile ${tx}  |  scroll ${Math.floor(scrollX / TILE)}`;
+  document.getElementById('tileinfo').textContent =
+    `tile ${hoverTile}  row ${hoverRow}  |  scroll ${Math.floor(scrollX / TILE)}`;
 });
 
 canvas.addEventListener('mouseup',    () => { isDrawing = false; drawMode = null; });
@@ -248,14 +271,12 @@ function drawSpike(sx, sy) {
   ctx.restore();
 }
 
-function renderTile(tx, alpha) {
-  const sx = tx * TILE - scrollX;
-  const gy = groundY();
+function renderTileAt(sx, type, row, alpha, gy) {
   ctx.globalAlpha = alpha;
-  const type = tiles[tx] || tool;
-  if (type === 'S')  { drawSpike(sx, gy - TILE); }
-  if (type === 'B')  { drawBlock(sx, gy - TILE); }
-  if (type === 'BS') { drawBlock(sx, gy - TILE); drawSpike(sx, gy - 2 * TILE); }
+  const by = gy - TILE * (row + 1); // block bottom-aligned y
+  if (type === 'S')  { drawSpike(sx, by); }
+  if (type === 'B')  { drawBlock(sx, by); }
+  if (type === 'BS') { drawBlock(sx, by); drawSpike(sx, by - TILE); }
   ctx.globalAlpha = 1;
 }
 
@@ -316,25 +337,27 @@ function draw() {
   ctx.restore();
 
   // Placed tiles
-  for (const txStr of Object.keys(tiles)) {
-    const tx = parseInt(txStr);
+  for (const key of Object.keys(tiles)) {
+    const [txStr, rowStr] = key.split('_');
+    const tx = parseInt(txStr), row = parseInt(rowStr);
     const sx = tx * TILE - scrollX;
     if (sx + TILE * 2 < -5 || sx > W + 5) continue;
-    renderTile(tx, 1);
+    renderTileAt(sx, tiles[key], row, 1, gy);
   }
 
   // Hover preview
   if (hoverTile >= 0 && hoverTile < MAX_TILES && !isDrawing) {
     const sx = hoverTile * TILE - scrollX;
-    // ghost preview
-    if (tool !== 'E' && !tiles[hoverTile]) renderTile(hoverTile, 0.35);
-    // outline
+    const key = tileKey(hoverTile, hoverRow);
+    if (tool !== 'E' && !tiles[key]) renderTileAt(sx, tool, hoverRow, 0.35, gy);
+    // row highlight line
     ctx.save();
-    ctx.strokeStyle = tool === 'E' ? 'rgba(255,80,60,0.7)' : 'rgba(0,255,200,0.55)';
+    ctx.strokeStyle = tool === 'E' ? 'rgba(255,80,60,0.6)' : 'rgba(0,255,200,0.5)';
     ctx.lineWidth = 1.5;
     ctx.setLineDash([4, 3]);
-    ctx.strokeRect(sx + 1, gy - TILE + 1, TILE - 2, TILE - 2);
-    if (tool === 'BS') ctx.strokeRect(sx + 1, gy - 2*TILE + 1, TILE - 2, TILE - 2);
+    const previewY = gy - TILE * (hoverRow + 1);
+    ctx.strokeRect(sx + 1, previewY + 1, TILE - 2, TILE - 2);
+    if (tool === 'BS') ctx.strokeRect(sx + 1, previewY - TILE + 1, TILE - 2, TILE - 2);
     ctx.restore();
   }
 
@@ -344,18 +367,23 @@ function draw() {
 // ── Export / Import ───────────────────────────────────────────────────────────
 function updateExport() {
   const sorted = Object.entries(tiles)
-    .map(([tx, t]) => [parseInt(tx), t])
-    .sort((a, b) => a[0] - b[0]);
-  const lines = sorted.map(([tx, t]) => `  [${tx},'${t}'],`);
+    .map(([key, type]) => {
+      const [txStr, rowStr] = key.split('_');
+      return [parseInt(txStr), type, parseInt(rowStr)];
+    })
+    .sort((a, b) => a[0] - b[0] || a[2] - b[2]);
+  const lines = sorted.map(([tx, t, h]) =>
+    h === 0 ? `  [${tx},'${t}'],` : `  [${tx},'${t}',${h}],`
+  );
   document.getElementById('exportArea').value =
     'const levelRaw = [\n' + lines.join('\n') + (lines.length ? '\n' : '') + '];';
 }
 
 function updateStats() {
   const keys = Object.keys(tiles);
-  const max = keys.length ? Math.max(...keys.map(Number)) : 0;
+  const maxTx = keys.length ? Math.max(...keys.map(k => parseInt(k.split('_')[0]))) : 0;
   document.getElementById('statCount').textContent = `Obstacles: ${keys.length}`;
-  document.getElementById('statLen').textContent   = `Level length: ~${max + 6} tiles`;
+  document.getElementById('statLen').textContent   = `Level length: ~${maxTx + 6} tiles`;
 }
 
 function copyExport() {
@@ -378,7 +406,10 @@ function importLevel() {
     if (!match) throw new Error('No array found');
     const arr = JSON.parse(match[0].replace(/'/g, '"'));
     tiles = {};
-    for (const [tx, type] of arr) tiles[tx] = type;
+    for (const entry of arr) {
+      const tx = entry[0], type = entry[1], h = entry[2] ?? 0;
+      tiles[tileKey(tx, h)] = type;
+    }
     updateExport(); draw();
     document.getElementById('importArea').value = '';
   } catch(e) {
@@ -399,7 +430,10 @@ const currentLevel = [
   [193,'B'],[194,'B'],[195,'B'],[200,'BS'],[201,'S'],[206,'S'],[207,'S'],[208,'S'],
   [213,'BS'],[217,'S'],[218,'S'],
 ];
-for (const [tx, type] of currentLevel) tiles[tx] = type;
+for (const entry of currentLevel) {
+  const tx = entry[0], type = entry[1], h = entry[2] ?? 0;
+  tiles[tileKey(tx, h)] = type;
+}
 
 resize(); // sets canvas size and calls draw()
 updateExport();
