@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cube Run</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #020510;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px;
+  font-family: monospace;
+  color: #ccc;
+}
+h1 {
+  font-size: 52px;
+  color: #00ffcc;
+  text-shadow: 0 0 30px #00ffcc, 0 0 60px #00ffcc44;
+  letter-spacing: 4px;
+  margin-bottom: 6px;
+}
+.subtitle { color: #445566; font-size: 13px; margin-bottom: 40px; }
+.section { width: 100%; max-width: 600px; margin-bottom: 32px; }
+.section h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: #445566;
+  border-bottom: 1px solid #1a2236;
+  padding-bottom: 6px;
+  margin-bottom: 12px;
+}
+.btn {
+  padding: 10px 20px;
+  border: 1px solid #2a3a4a;
+  background: #0d1828;
+  color: #aabbcc;
+  cursor: pointer;
+  font-family: monospace;
+  font-size: 13px;
+  border-radius: 3px;
+  text-decoration: none;
+  display: inline-block;
+  transition: border-color 0.15s, color 0.15s;
+}
+.btn:hover { border-color: #00ffcc; color: #00ffcc; }
+.btn.primary { border-color: #00cc88; color: #00ffcc; background: #001e14; font-size: 14px; padding: 12px 28px; }
+.btn.primary:hover { border-color: #00ffcc; box-shadow: 0 0 16px #00ffcc33; }
+.btn.danger  { border-color: #442; color: #ff6655; }
+.btn.danger:hover  { border-color: #ff6655; }
+.default-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.level-list { display: flex; flex-direction: column; gap: 8px; }
+.level-row {
+  background: #070e1c;
+  border: 1px solid #1a2236;
+  border-radius: 4px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.level-row:hover { border-color: #2a3a5a; }
+.level-name { flex: 1; font-size: 15px; color: #ddeeff; }
+.level-date { font-size: 10px; color: #334455; margin-right: auto; }
+.empty { color: #334455; font-size: 13px; padding: 16px 0; }
+#newName {
+  background: #040b18;
+  border: 1px solid #2a3a4a;
+  color: #aabbcc;
+  font-family: monospace;
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 3px;
+  outline: none;
+  width: 220px;
+}
+#newName:focus { border-color: #00ffcc; }
+.new-row { display: flex; gap: 8px; align-items: center; }
+</style>
+</head>
+<body>
+<h1>CUBE RUN</h1>
+<p class="subtitle">jump over spikes · land on blocks · reach the end</p>
+
+<div class="section">
+  <h2>Quick Play</h2>
+  <div class="default-row">
+    <a href="index.html" class="btn primary">&#9654; Play Default Level</a>
+    <a href="editor.html" class="btn">+ New Level</a>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Your Levels</h2>
+  <div class="new-row" style="margin-bottom:12px">
+    <input id="newName" type="text" placeholder="Level name…" maxlength="32" />
+    <button class="btn primary" onclick="createLevel()">Create</button>
+  </div>
+  <div class="level-list" id="levelList"></div>
+</div>
+
+<script>
+const LEVELS_KEY = 'cubeRunLevels';
+
+function getLevels() {
+  try { return JSON.parse(localStorage.getItem(LEVELS_KEY) || '[]'); }
+  catch(e) { return []; }
+}
+
+function saveLevels(arr) {
+  localStorage.setItem(LEVELS_KEY, JSON.stringify(arr));
+}
+
+function formatDate(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function render() {
+  const list = document.getElementById('levelList');
+  const levels = getLevels();
+  if (!levels.length) {
+    list.innerHTML = '<div class="empty">No saved levels yet. Create one above.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  levels.slice().reverse().forEach((lvl, ri) => {
+    const i = levels.length - 1 - ri;
+    const row = document.createElement('div');
+    row.className = 'level-row';
+    row.innerHTML = `
+      <span class="level-name">${escHtml(lvl.name)}</span>
+      <span class="level-date">${formatDate(lvl.modified)}</span>
+      <a href="index.html?level=${encodeURIComponent(lvl.name)}" class="btn" style="padding:5px 12px;font-size:12px">&#9654; Play</a>
+      <a href="editor.html?level=${encodeURIComponent(lvl.name)}" class="btn" style="padding:5px 12px;font-size:12px">&#9998; Edit</a>
+      <button class="btn danger" style="padding:5px 10px;font-size:12px" onclick="deleteLevel(${i})">&#10005;</button>
+    `;
+    list.appendChild(row);
+  });
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function createLevel() {
+  const input = document.getElementById('newName');
+  const name = input.value.trim();
+  if (!name) { input.focus(); return; }
+  const levels = getLevels();
+  if (levels.find(l => l.name === name)) {
+    if (!confirm(`"${name}" already exists. Open editor for it?`)) return;
+    location.href = 'editor.html?level=' + encodeURIComponent(name);
+    return;
+  }
+  // Create empty level entry
+  levels.push({ name, data: '[]', modified: Date.now() });
+  saveLevels(levels);
+  input.value = '';
+  location.href = 'editor.html?level=' + encodeURIComponent(name);
+}
+
+function deleteLevel(i) {
+  const levels = getLevels();
+  if (!confirm(`Delete "${levels[i].name}"?`)) return;
+  levels.splice(i, 1);
+  saveLevels(levels);
+  render();
+}
+
+document.getElementById('newName').addEventListener('keydown', e => {
+  if (e.key === 'Enter') createLevel();
+});
+
+render();
+</script>
+</body>
+</html>

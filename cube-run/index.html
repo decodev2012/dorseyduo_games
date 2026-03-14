@@ -74,17 +74,34 @@ const levelRaw = [
   [217,'S'],[218,'S'],
 ];
 
-// Check for a test level passed from the editor via window.opener
 let testMode = false;
-try {
-  const data = window.opener && window.opener._cubeRunTestLevel;
-  if (data && data.length) {
-    levelRaw.length = 0;
-    data.forEach(e => levelRaw.push(e));
-    testMode = true;
-    delete window.opener._cubeRunTestLevel;
-  }
-} catch(e) {}
+const _p = new URLSearchParams(location.search);
+
+if (_p.has('test')) {
+  // Load test level written by editor
+  try {
+    const raw = localStorage.getItem('cubeRunTest');
+    if (raw) {
+      const data = JSON.parse(raw);
+      if (data.length) {
+        levelRaw.length = 0;
+        data.forEach(e => levelRaw.push(e));
+        testMode = true;
+      }
+      localStorage.removeItem('cubeRunTest');
+    }
+  } catch(e) {}
+} else if (_p.has('level')) {
+  // Load a named saved level
+  try {
+    const levels = JSON.parse(localStorage.getItem('cubeRunLevels') || '[]');
+    const found = levels.find(l => l.name === _p.get('level'));
+    if (found) {
+      const data = JSON.parse(found.data);
+      if (data.length) { levelRaw.length = 0; data.forEach(e => levelRaw.push(e)); }
+    }
+  } catch(e) {}
+}
 
 function buildObs() {
   const list = [];

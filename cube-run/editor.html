@@ -87,7 +87,9 @@ textarea:focus { border-color: #334455; }
 </head>
 <body>
 <div id="toolbar">
-  <span class="logo">CUBE RUN EDITOR</span>
+  <a href="menu.html" class="tool-btn" style="text-decoration:none">&#8592; Menu</a>
+  <div class="sep"></div>
+  <span class="logo" id="levelLabel">CUBE RUN EDITOR</span>
   <div class="sep"></div>
   <button class="tool-btn active" id="tool-S"  onclick="setTool('S')" >▲ Spike &nbsp;<kbd>1</kbd></button>
   <button class="tool-btn"        id="tool-B"  onclick="setTool('B')" >■ Block &nbsp;<kbd>2</kbd></button>
@@ -102,6 +104,7 @@ textarea:focus { border-color: #334455; }
   <div id="sidebar">
     <div class="side-section">
       <button class="btn" style="border-color:#00ffcc;color:#00ffcc;background:#001e14;font-size:13px;padding:9px" onclick="testLevel()">&#9654; Test Level</button>
+      <button class="btn go" style="margin-top:6px" onclick="saveLevel()">&#128190; Save Level</button>
     </div>
     <div class="side-section">
       <h3>Export</h3>
@@ -396,16 +399,51 @@ function updateStats() {
   document.getElementById('statLen').textContent   = `Level length: ~${maxTx + 6} tiles`;
 }
 
-function testLevel() {
-  const sorted = Object.entries(tiles)
+function getSortedLevel() {
+  return Object.entries(tiles)
     .map(([key, type]) => {
       const [txStr, rowStr] = key.split('_');
       return [parseInt(txStr), type, parseInt(rowStr)];
     })
     .sort((a, b) => a[0] - b[0] || a[2] - b[2]);
-  // Store on this window so the game tab can read it via window.opener
-  window._cubeRunTestLevel = sorted;
-  window.open('index.html', '_blank');
+}
+
+function testLevel() {
+  const sorted = getSortedLevel();
+  // Write to localStorage then open with a ?t= cache-buster so the page always reloads fresh
+  localStorage.setItem('cubeRunTest', JSON.stringify(sorted));
+  window.open('index.html?test=1&t=' + Date.now(), '_blank');
+}
+
+// ── Save / Load named levels ──────────────────────────────────────────────────
+const LEVELS_KEY = 'cubeRunLevels';
+let currentLevelName = null;
+
+function getAllLevels() {
+  try { return JSON.parse(localStorage.getItem(LEVELS_KEY) || '[]'); }
+  catch(e) { return []; }
+}
+
+function saveLevel() {
+  const sorted = getSortedLevel();
+  let name = currentLevelName;
+  if (!name) {
+    name = prompt('Save level as:');
+    if (!name || !name.trim()) return;
+    name = name.trim();
+  }
+  const levels = getAllLevels();
+  const idx = levels.findIndex(l => l.name === name);
+  const entry = { name, data: JSON.stringify(sorted), modified: Date.now() };
+  if (idx >= 0) levels[idx] = entry;
+  else levels.push(entry);
+  localStorage.setItem(LEVELS_KEY, JSON.stringify(levels));
+  currentLevelName = name;
+  document.getElementById('levelLabel').textContent = name;
+  const info = document.getElementById('tileinfo');
+  info.textContent = 'saved "' + name + '"';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { info.textContent = ''; }, 1800);
 }
 
 function copyExport() {
@@ -439,19 +477,39 @@ function importLevel() {
   }
 }
 
-// ── Load level: saved state → built-in fallback ───────────────────────────────
-const _savedLevel = localStorage.getItem('cubeRunEditorLevel');
-if (_savedLevel) {
-  try {
-    JSON.parse(_savedLevel).forEach(entry => {
-      const tx = entry[0], type = entry[1], h = entry[2] ?? 0;
-      tiles[tileKey(tx, h)] = type;
-    });
-  } catch(e) { /* fall through to default */ }
+// ── Startup: load named level from URL param, else auto-save, else default ────
+function loadLevelEntries(entries) {
+  tiles = {};
+  entries.forEach(entry => {
+    const tx = entry[0], type = entry[1], h = entry[2] ?? 0;
+    tiles[tileKey(tx, h)] = type;
+  });
 }
+
+const _urlParams = new URLSearchParams(location.search);
+const _levelName = _urlParams.get('level');
+
+if (_levelName) {
+  // Load specific saved level
+  const _all = getAllLevels();
+  const _found = _all.find(l => l.name === _levelName);
+  if (_found) {
+    try {
+      loadLevelEntries(JSON.parse(_found.data));
+      currentLevelName = _levelName;
+      document.getElementById('levelLabel').textContent = _levelName;
+    } catch(e) {}
+  }
+} else {
+  // Load auto-saved work-in-progress
+  const _savedLevel = localStorage.getItem('cubeRunEditorLevel');
+  if (_savedLevel) {
+    try { loadLevelEntries(JSON.parse(_savedLevel)); } catch(e) {}
+  }
+}
+
 if (Object.keys(tiles).length === 0) {
-  // Default level
-  const defaultLevel = [
+  loadLevelEntries([
     [15,'S'],[19,'S'],[20,'S'],[21,'S'],[26,'B'],[30,'S'],[34,'S'],[35,'S'],
     [40,'B'],[41,'B'],[46,'S'],[50,'S'],[51,'S'],[56,'BS'],[61,'S'],[65,'S'],[66,'S'],
     [72,'B'],[73,'B'],[77,'S'],[78,'S'],[83,'BS'],[88,'S'],[89,'S'],[90,'S'],
@@ -462,14 +520,10 @@ if (Object.keys(tiles).length === 0) {
     [175,'S'],[176,'S'],[177,'S'],[182,'BS'],[187,'S'],[188,'S'],
     [193,'B'],[194,'B'],[195,'B'],[200,'BS'],[201,'S'],[206,'S'],[207,'S'],[208,'S'],
     [213,'BS'],[217,'S'],[218,'S'],
-  ];
-  for (const entry of defaultLevel) {
-    const tx = entry[0], type = entry[1], h = entry[2] ?? 0;
-    tiles[tileKey(tx, h)] = type;
-  }
+  ]);
 }
 
-resize(); // sets canvas size and calls draw()
+resize();
 updateExport();
 </script>
 </body>
