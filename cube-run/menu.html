@@ -154,7 +154,13 @@ function escHtml(s) {
 function createLevel() {
   const input = document.getElementById('newName');
   const name = input.value.trim();
-  if (!name) { input.focus(); return; }
+  if (!name) {
+    input.focus();
+    input.style.borderColor = '#ff6655';
+    input.placeholder = 'Enter a name first!';
+    setTimeout(() => { input.style.borderColor = ''; input.placeholder = 'Level name…'; }, 1500);
+    return;
+  }
   const levels = getLevels();
   if (levels.find(l => l.name === name)) {
     if (!confirm(`"${name}" already exists. Open editor for it?`)) return;
