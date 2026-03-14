@@ -216,8 +216,12 @@ function update(dt) {
   for (const ob of obs) {
     if (ob.type !== 'B') continue;
     if (pwR <= ob.wx || pwL >= ob.wx + TILE) continue; // no horizontal overlap
-    // Player was above block top last frame and crosses it this frame going down
-    if (prevPy + CS <= ob.wy + 2 && py + CS >= ob.wy && vy >= 0) {
+    // Snap to block top if:
+    //   - player bottom reached or crossed block top surface (py+CS >= ob.wy)
+    //   - player top is above block bottom, so they're not fully below it (py < ob.wy+TILE)
+    //   - player was within one tile of the block top last frame (catches side approach)
+    //   - not jumping upward (vy >= 0), so jumping through the bottom is still allowed
+    if (py + CS >= ob.wy && py < ob.wy + TILE && prevPy + CS <= ob.wy + TILE && vy >= 0) {
       py = ob.wy - CS; vy = 0; onGround = true;
     }
   }
