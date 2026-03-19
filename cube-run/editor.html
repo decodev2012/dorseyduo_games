@@ -502,6 +502,11 @@ if (_levelName) {
     _skipDefault = true; // even an empty named level should stay empty
   }
 } else {
+  // Clear stale auto-save if it's from before the default level was fixed
+  if (localStorage.getItem('cubeRunEditorVersion') !== '2') {
+    localStorage.removeItem('cubeRunEditorLevel');
+    localStorage.setItem('cubeRunEditorVersion', '2');
+  }
   // Load auto-saved work-in-progress
   const _savedLevel = localStorage.getItem('cubeRunEditorLevel');
   if (_savedLevel) {
