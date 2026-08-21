@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Card Classics — Texas Hold'em</title>
+  <style>
+    :root { color-scheme: dark; --felt:#075538; --felt-deep:#043020; --gold:#f6c654; --cream:#fff8e8; --muted:#b8d4c5; }
+    * { box-sizing:border-box; }
+    body { min-height:100vh; margin:0; color:var(--cream); font-family:ui-rounded,"Avenir Next",system-ui,sans-serif; background:radial-gradient(circle at 50% -15%,#15815a 0,transparent 45%),linear-gradient(150deg,#071a15,#020d0a 70%); }
+    button { font:inherit; }
+    .page { width:min(1120px,calc(100% - 28px)); margin:0 auto; padding:20px 0 38px; }
+    .topbar { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:12px; }
+    .back { color:var(--cream); text-decoration:none; font-weight:800; opacity:.9; }
+    .back:hover { color:var(--gold); }
+    h1 { margin:0; text-align:center; font-size:clamp(1.55rem,4vw,2.4rem); letter-spacing:.03em; }
+    .tag { margin:6px 0 18px; text-align:center; color:var(--muted); font-size:.93rem; }
+    .scoreboard { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:0 auto 14px; max-width:860px; }
+    .stack { padding:10px 12px; border:1px solid rgba(255,255,255,.17); border-radius:15px; background:rgba(3,32,22,.72); text-align:center; box-shadow:inset 0 1px rgba(255,255,255,.08); }
+    .stack.is-turn { border-color:var(--gold); box-shadow:0 0 18px rgba(246,198,84,.23),inset 0 1px rgba(255,255,255,.08); }
+    .stack-name { display:block; color:var(--muted); font-size:.76rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+    .stack-chips { display:block; margin-top:2px; font-size:1.12rem; font-weight:900; color:var(--gold); }
+    .table-wrap { padding:12px; border-radius:28px; background:linear-gradient(145deg,#80542c,#301d11 55%,#8c5d2c); box-shadow:0 18px 45px rgba(0,0,0,.38),inset 0 1px rgba(255,239,190,.5); }
+    .table { position:relative; overflow:hidden; min-height:560px; padding:24px 18px 18px; border:5px solid #20140b; border-radius:22px; background:radial-gradient(ellipse at center,rgba(71,171,113,.28),transparent 58%),repeating-radial-gradient(ellipse at center,rgba(255,255,255,.022) 0 1px,transparent 1px 8px),linear-gradient(135deg,var(--felt),var(--felt-deep)); box-shadow:inset 0 0 0 2px rgba(255,255,255,.12),inset 0 0 44px rgba(0,0,0,.45); }
+    .table::before,.table::after { content:""; position:absolute; pointer-events:none; border-radius:50%; opacity:.22; }
+    .table::before { width:410px; height:410px; left:50%; top:49%; transform:translate(-50%,-50%); border:2px solid var(--gold); box-shadow:0 0 0 12px rgba(246,198,84,.1),0 0 0 24px rgba(246,198,84,.06); }
+    .table::after { width:620px; height:160px; left:50%; bottom:-88px; transform:translateX(-50%); border:2px solid rgba(255,255,255,.3); }
+    .bot-row { position:relative; z-index:1; display:grid; grid-template-columns:1fr 1fr; gap:clamp(12px,5vw,90px); width:min(630px,100%); margin:0 auto; }
+    .seat { min-width:0; text-align:center; transition:transform .2s ease,opacity .2s ease; }
+    .seat.folded { opacity:.48; filter:saturate(.35); }
+    .seat.is-turn { transform:translateY(-3px); }
+    .seat-label { min-height:22px; font-size:.86rem; font-weight:900; letter-spacing:.05em; }
+    .seat-label .badge { display:inline-block; margin-left:4px; padding:2px 6px; border-radius:99px; color:#3a2807; background:var(--gold); font-size:.62rem; vertical-align:1px; }
+    .cards { display:flex; justify-content:center; gap:7px; min-height:93px; }
+    .card { position:relative; display:flex; flex-direction:column; justify-content:space-between; width:58px; height:82px; padding:6px 7px; flex:0 0 auto; border:2px solid rgba(25,25,25,.92); border-radius:8px; color:#141414; background:linear-gradient(145deg,#fff,#dfdccf); box-shadow:0 5px 8px rgba(0,0,0,.32),inset 0 0 0 1px rgba(255,255,255,.85); font-family:Georgia,serif; font-size:1.05rem; font-weight:900; line-height:1; text-align:left; transform-origin:50% 105%; }
+    .card.dealt { animation:deal .7s cubic-bezier(.2,.9,.25,1.15) both; }
+    .card.red { color:#c81734; }
+    .card .corner-suit { font-size:.85rem; }
+    .card .pip { align-self:center; font-size:1.76rem; line-height:.75; }
+    .card .flip-suit { align-self:flex-end; transform:rotate(180deg); font-size:.85rem; }
+    .card.hidden { border-color:#d8b856; background:repeating-linear-gradient(45deg,rgba(255,255,255,.11) 0 3px,transparent 3px 7px),repeating-linear-gradient(-45deg,rgba(255,255,255,.08) 0 3px,transparent 3px 7px),#263e91; box-shadow:0 5px 8px rgba(0,0,0,.32),inset 0 0 0 4px #dde9ff,inset 0 0 0 6px #1c2d74; }
+    .card.hidden::after { content:"★"; position:absolute; inset:0; display:grid; place-items:center; color:#f5d45b; font-size:1.6rem; text-shadow:0 1px #192866; }
+    @keyframes deal { from { transform:translateY(-22px) rotate(-5deg) scale(.88); opacity:0; } to { transform:translateY(0) rotate(0) scale(1); opacity:1; } }
+    .center { position:relative; z-index:1; width:min(720px,100%); margin:15px auto 0; text-align:center; }
+    .pot { display:inline-flex; align-items:center; gap:8px; padding:7px 16px; border:1px solid rgba(255,240,187,.52); border-radius:99px; color:#2d2107; background:linear-gradient(#ffe89b,#eeb943); box-shadow:0 3px 0 #9b661a,0 8px 16px rgba(0,0,0,.2); font-weight:950; }
+    .street { margin:15px 0 7px; color:#dbefe1; font-size:.78rem; font-weight:900; letter-spacing:.16em; text-transform:uppercase; }
+    .community { min-height:87px; display:flex; justify-content:center; align-items:center; gap:8px; }
+    .empty-community { color:rgba(255,255,255,.65); font-size:.9rem; font-style:italic; }
+    .message { min-height:25px; margin:16px auto 8px; padding:4px 10px; color:#fff5ce; font-weight:800; text-shadow:0 1px #152118; }
+    .player-seat { position:absolute; z-index:1; right:18px; bottom:18px; left:18px; text-align:center; }
+    .player-seat .cards { min-height:92px; }
+    .controls { position:relative; z-index:2; display:flex; flex-wrap:wrap; justify-content:center; gap:10px; margin-top:8px; transition:opacity .22s ease,transform .22s ease,visibility .22s ease; }
+    .controls.is-hidden { visibility:hidden; opacity:0; pointer-events:none; transform:translateY(8px); }
+    .action { min-width:112px; padding:11px 15px; border:0; border-radius:13px; cursor:pointer; color:#102115; background:#eaf9ed; box-shadow:0 4px 0 #93bfa0,0 8px 18px rgba(0,0,0,.2); font-weight:950; transition:transform .12s ease,filter .12s ease,box-shadow .12s ease; }
+    .action:hover:not(:disabled) { filter:brightness(1.08); transform:translateY(-2px); }
+    .action:active:not(:disabled) { transform:translateY(3px) scale(.98); box-shadow:0 1px 0 #93bfa0; }
+    .action:focus-visible { outline:3px solid #fff; outline-offset:3px; }
+    .action.fold { color:white; background:#bd3f4c; box-shadow:0 4px 0 #75212c,0 8px 18px rgba(0,0,0,.2); }
+    .action.call { background:#6dd594; box-shadow:0 4px 0 #338755,0 8px 18px rgba(0,0,0,.2); }
+    .action.raise { color:#3b2704; background:#f6c654; box-shadow:0 4px 0 #ad7b1c,0 8px 18px rgba(0,0,0,.2); }
+    .action.new { color:#dcecff; background:#315daf; box-shadow:0 4px 0 #183463,0 8px 18px rgba(0,0,0,.2); }
+    .action:disabled { cursor:not-allowed; opacity:.43; filter:grayscale(.4); }
+    .raise-field { display:flex; align-items:center; gap:6px; min-height:44px; padding:5px 9px; border:1px solid rgba(255,255,255,.3); border-radius:13px; color:#fff4ce; background:rgba(3,35,24,.72); font-size:.82rem; font-weight:850; }
+    .raise-field input { width:72px; padding:6px 5px; border:1px solid #f6c654; border-radius:8px; color:#2c2108; background:#fff6d4; font:inherit; font-weight:950; text-align:center; }
+    .raise-field input:disabled { cursor:not-allowed; opacity:.55; }
+    .footnote { margin:16px 0 0; color:#a9c8b8; text-align:center; font-size:.8rem; }
+    @media (max-width:560px) { .page { width:min(100% - 18px,1120px); padding-top:10px; } .table-wrap { padding:7px; border-radius:20px; } .table { min-height:540px; padding:18px 8px; } .scoreboard { gap:5px; } .stack { padding:8px 4px; } .stack-name { font-size:.63rem; } .stack-chips { font-size:.96rem; } .card { width:50px; height:72px; padding:5px 6px; font-size:.93rem; } .card .pip { font-size:1.5rem; } .cards,.community { gap:4px; } .player-seat { right:7px; bottom:12px; left:7px; } .action { min-width:96px; padding:10px 8px; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="topbar"><a class="back" href="../index.html">← All games</a><span aria-hidden="true"></span></div>
+    <h1>Texas Hold'em</h1>
+    <p class="tag">Play for fictional table credits only — no real-money betting.</p>
+    <section class="scoreboard" aria-label="Credit stacks">
+      <div class="stack" id="stack-0"><span class="stack-name">You</span><span class="stack-chips" id="chips-0">200 credits</span></div>
+      <div class="stack" id="stack-1"><span class="stack-name">Nova</span><span class="stack-chips" id="chips-1">200 credits</span></div>
+      <div class="stack" id="stack-2"><span class="stack-name">Ace</span><span class="stack-chips" id="chips-2">200 credits</span></div>
+    </section>
+    <section class="table-wrap"><div class="table">
+      <div class="bot-row">
+        <section class="seat" id="seat-1"><div class="seat-label">Nova <span id="turn-1"></span></div><div class="cards" id="cards-1" aria-label="Nova's cards"></div></section>
+        <section class="seat" id="seat-2"><div class="seat-label">Ace <span id="turn-2"></span></div><div class="cards" id="cards-2" aria-label="Ace's cards"></div></section>
+      </div>
+      <div class="center">
+        <div class="pot" id="pot">Pot: 0 credits</div>
+        <div class="street" id="street">Ready to deal</div>
+        <div class="community" id="community" aria-label="Community cards"><span class="empty-community">Community cards will appear here</span></div>
+        <p class="message" id="message" aria-live="polite">Press Deal a new hand to start.</p>
+      </div>
+      <section class="seat player-seat" id="seat-0"><div class="seat-label">You <span id="turn-0"></span></div><div class="cards" id="cards-0" aria-label="Your hole cards"></div></section>
+    </div></section>
+    <div class="controls" id="controls" aria-label="Poker actions">
+      <button class="action fold" id="fold" type="button">Fold</button>
+      <button class="action call" id="call" type="button">Check</button>
+      <label class="raise-field" for="raise-amount">Raise by <input id="raise-amount" type="number" min="10" step="5" value="10" inputmode="numeric"> credits</label>
+      <button class="action raise" id="raise" type="button">Raise +10</button>
+    </div>
+    <p class="footnote">Texas Hold'em: your two cards + the five community cards make your best five-card hand.</p>
+  </main>
+  <script>
+    (() => {
+      'use strict';
+      const SMALL_BLIND = 5, BIG_BLIND = 10, RAISE_SIZE = 10;
+      const CARD_PACE = 800, BOT_PACE = 950;
+      const NAMES = ['You', 'Nova', 'Ace'];
+      const RANKS = '23456789TJQKA'.split('');
+      const SUITS = [{symbol:'♠',color:'black'},{symbol:'♥',color:'red'},{symbol:'♦',color:'red'},{symbol:'♣',color:'black'}];
+      const rankValue = rank => RANKS.indexOf(rank) + 2;
+      const ui = {
+        chips:[0,1,2].map(seat => document.getElementById(`chips-${seat}`)),
+        stacks:[0,1,2].map(seat => document.getElementById(`stack-${seat}`)),
+        seats:[0,1,2].map(seat => document.getElementById(`seat-${seat}`)),
+        cardAreas:[0,1,2].map(seat => document.getElementById(`cards-${seat}`)),
+        turnBadges:[0,1,2].map(seat => document.getElementById(`turn-${seat}`)),
+        pot:document.getElementById('pot'), street:document.getElementById('street'), community:document.getElementById('community'), message:document.getElementById('message'), controls:document.getElementById('controls'),
+        fold:document.getElementById('fold'), call:document.getElementById('call'), raise:document.getElementById('raise'), raiseAmount:document.getElementById('raise-amount')
+      };
+      const state = { chips:[200,200,200], deck:[], hands:[[],[],[]], community:[], pot:0, currentBet:0, roundContribution:[0,0,0], folded:[false,false,false], pending:[false,false,false], activeSeat:null, street:'idle', raisesThisStreet:0, revealBots:false, handNumber:0, token:0, message:'Press Deal a new hand to start.', dealing:false, cardAnimation:'', communityRevealFrom:0 };
+
+      function makeDeck() {
+        const deck = [];
+        for (const suit of SUITS) for (const rank of RANKS) deck.push({rank,suit:suit.symbol,color:suit.color,value:rankValue(rank)});
+        for (let i = deck.length - 1; i > 0; i -= 1) { const j = Math.floor(Math.random() * (i + 1)); [deck[i],deck[j]] = [deck[j],deck[i]]; }
+        return deck;
+      }
+      function drawCard() { return state.deck.pop(); }
+      function setMessage(message) { state.message = message; ui.message.textContent = message; }
+      function cardElement(card, hidden, delay = 0, animate = false) {
+        const baseClass = hidden ? 'card hidden' : `card ${card.color}`;
+        const node = document.createElement('div'); node.className = animate ? `${baseClass} dealt` : baseClass; if (animate) node.style.animationDelay = `${delay}ms`;
+        if (hidden) { node.setAttribute('aria-label','Face-down card'); return node; }
+        const shownRank = displayRank(card.rank);
+        node.setAttribute('aria-label',`${shownRank} of ${card.suit}`);
+        const top = document.createElement('span'); top.textContent = shownRank;
+        const topSuit = document.createElement('span'); topSuit.className = 'corner-suit'; topSuit.textContent = card.suit; top.appendChild(topSuit);
+        const pip = document.createElement('span'); pip.className = 'pip'; pip.textContent = card.suit;
+        const bottom = document.createElement('span'); bottom.className = 'flip-suit'; bottom.textContent = shownRank + card.suit;
+        node.append(top,pip,bottom); return node;
+      }
+      function renderCards(area, cards, hidden, animate = false) { area.replaceChildren(); cards.forEach((card,index) => area.appendChild(cardElement(card,hidden,index * CARD_PACE,animate))); }
+      function availableRaiseCredits(seat = 0) { return Math.max(0,state.chips[seat] - Math.max(0,state.currentBet - state.roundContribution[seat])); }
+      function selectedRaiseAmount() { const entered = Math.floor(Number(ui.raiseAmount.value)); const requested = Number.isFinite(entered) ? Math.max(BIG_BLIND,entered) : RAISE_SIZE; return Math.min(requested,availableRaiseCredits(0)); }
+      function displayRank(rank) { return rank === 'T' ? '10' : rank; }
+      function displayStreet() { return state.street === 'idle' ? 'Ready to deal' : state.street === 'roundOver' ? 'Hand complete' : state.street.charAt(0).toUpperCase() + state.street.slice(1); }
+      function render() {
+        for (let seat = 0; seat < 3; seat += 1) {
+          ui.chips[seat].textContent = `${state.chips[seat]} credits`;
+          ui.stacks[seat].classList.toggle('is-turn',state.activeSeat === seat); ui.seats[seat].classList.toggle('is-turn',state.activeSeat === seat); ui.seats[seat].classList.toggle('folded',state.folded[seat]);
+          ui.turnBadges[seat].replaceChildren();
+          if (state.activeSeat === seat || state.folded[seat]) { const badge = document.createElement('span'); badge.className = 'badge'; badge.textContent = state.activeSeat === seat ? 'TURN' : 'FOLDED'; ui.turnBadges[seat].appendChild(badge); }
+          const animateHoleCards = state.cardAnimation === 'hole';
+          const animateBotReveal = state.cardAnimation === 'showdown' && seat !== 0;
+          renderCards(ui.cardAreas[seat],state.hands[seat],seat !== 0 && !state.revealBots,animateHoleCards || animateBotReveal);
+        }
+        ui.community.replaceChildren();
+        if (state.community.length === 0) { const empty = document.createElement('span'); empty.className = 'empty-community'; empty.textContent = 'Community cards will appear here'; ui.community.appendChild(empty); }
+        else state.community.forEach((card,index) => ui.community.appendChild(cardElement(card,false,(index - state.communityRevealFrom) * CARD_PACE,state.cardAnimation === 'community' && index >= state.communityRevealFrom)));
+        ui.pot.textContent = `Pot: ${state.pot} credits`; ui.street.textContent = displayStreet(); ui.message.textContent = state.message; ui.controls.classList.toggle('is-hidden',state.folded[0]);
+        const playerTurn = state.activeSeat === 0 && state.street !== 'roundOver' && !state.dealing;
+        const toCall = Math.max(0,state.currentBet - state.roundContribution[0]);
+        const maxRaise = availableRaiseCredits(0), raiseBy = selectedRaiseAmount(), allIn = raiseBy > 0 && raiseBy === maxRaise;
+        ui.raiseAmount.max = String(maxRaise); ui.raiseAmount.disabled = !playerTurn || maxRaise < BIG_BLIND;
+        ui.fold.disabled = !playerTurn; ui.call.disabled = !playerTurn; ui.raise.disabled = !playerTurn || state.raisesThisStreet >= 3 || maxRaise <= 0;
+        ui.call.textContent = toCall === 0 ? 'Check' : toCall >= state.chips[0] ? `All in ${state.chips[0]}` : `Call ${toCall}`;
+        ui.raise.textContent = state.raisesThisStreet >= 3 ? 'Raise capped' : allIn ? `All in ${raiseBy}` : `Raise +${raiseBy}`;
+      }
+      function activeSeats() { return [0,1,2].filter(seat => !state.folded[seat]); }
+      function addToPot(seat, amount) { const paid = Math.min(amount,state.chips[seat]); state.chips[seat] -= paid; state.pot += paid; state.roundContribution[seat] += paid; return paid; }
+      function postBlind(seat, amount) { addToPot(seat,amount); }
+      function setPendingAfterRaise(raiser) { for (let seat = 0; seat < 3; seat += 1) state.pending[seat] = !state.folded[seat] && state.chips[seat] > 0 && seat !== raiser; }
+      function nextPendingSeat(afterSeat) { for (let step = 1; step <= 3; step += 1) { const seat = (afterSeat + step) % 3; if (state.pending[seat] && !state.folded[seat]) return seat; } return null; }
+      function scheduleBotTurn(seat) { const token = state.token; window.setTimeout(() => { if (token !== state.token || state.activeSeat !== seat || state.street === 'roundOver') return; takeAction(seat,botChoice(seat)); },BOT_PACE); }
+      function continueBetting(afterSeat) {
+        const stillIn = activeSeats(); if (stillIn.length === 1) { finishByFolds(stillIn[0]); return; }
+        const next = nextPendingSeat(afterSeat); if (next === null) { advanceStreet(); return; }
+        state.activeSeat = next;
+        setMessage(next !== 0 ? `${NAMES[next]} is thinking…` : `Your turn — ${Math.max(0,state.currentBet - state.roundContribution[0]) ? 'match the bet or fold.' : 'you can check or raise.'}`);
+        render();
+        if (next !== 0) scheduleBotTurn(next);
+      }
+      function confidenceForBot(seat) {
+        const [first,second] = state.hands[seat]; let score = (first.value + second.value) / 30;
+        if (first.value === second.value) score += .35; if (first.suit === second.suit) score += .08;
+        if (state.community.length >= 3) score += state.community.filter(card => card.value === first.value || card.value === second.value).length * .12;
+        return Math.min(.98,score + (Math.random() - .5) * .2);
+      }
+      function botChoice(seat) {
+        const toCall = Math.max(0,state.currentBet - state.roundContribution[seat]), confidence = confidenceForBot(seat);
+        const canRaise = state.raisesThisStreet < 3 && state.chips[seat] > toCall + RAISE_SIZE;
+        if (toCall > state.chips[seat]) return 'fold'; if (toCall > 0 && confidence < .33 && Math.random() < .6) return 'fold'; if (canRaise && confidence > .68 && Math.random() < .34) return 'raise'; return 'call';
+      }
+      function actionVerb(seat, verb) { return seat === 0 ? verb : `${verb}s`; }
+      function takeAction(seat, action, requestedRaise = RAISE_SIZE) {
+        if (state.activeSeat !== seat || state.street === 'idle' || state.street === 'roundOver') return;
+        const label = NAMES[seat], toCall = Math.max(0,state.currentBet - state.roundContribution[seat]), requested = Math.max(BIG_BLIND,Math.floor(Number(requestedRaise) || RAISE_SIZE)), raiseBy = Math.min(requested,availableRaiseCredits(seat)); state.pending[seat] = false;
+        if (action === 'fold') { state.folded[seat] = true; setMessage(`${label} ${actionVerb(seat,'fold')}.`); }
+        else if (action === 'raise' && state.raisesThisStreet < 3 && raiseBy > 0) {
+          const target = state.currentBet + raiseBy, payment = target - state.roundContribution[seat];
+          const isAllIn = payment >= state.chips[seat];
+          addToPot(seat,payment); state.currentBet = state.roundContribution[seat]; state.raisesThisStreet += 1; setPendingAfterRaise(seat);
+          setMessage(isAllIn ? `${label} ${seat === 0 ? 'go' : 'goes'} all in for ${payment} credits.` : `${label} raises by ${raiseBy} to ${state.currentBet}.`);
+        } else { const paid = addToPot(seat,toCall); setMessage(toCall ? `${label} ${actionVerb(seat,'call')} ${paid}.` : `${label} ${actionVerb(seat,'check')}.`); }
+        continueBetting(seat);
+      }
+      function dealCommunity(count) { drawCard(); for (let i = 0; i < count; i += 1) state.community.push(drawCard()); }
+      function resumePlayerAfterDeal(message, delay) {
+        const token = state.token;
+        window.setTimeout(() => {
+          if (token !== state.token || state.street === 'roundOver') return;
+          state.dealing = false; state.cardAnimation = '';
+          const next = nextPendingSeat(2);
+          if (next === null) { advanceStreet(); return; }
+          state.activeSeat = next;
+          setMessage(next === 0 ? message : `${NAMES[next]} is thinking…`); render();
+          if (next !== 0) scheduleBotTurn(next);
+        },delay);
+      }
+      function startStreet(street, cardCount) {
+        state.street = street; state.currentBet = 0; state.roundContribution = [0,0,0]; state.raisesThisStreet = 0; state.pending = state.folded.map((folded,seat) => !folded && state.chips[seat] > 0); state.activeSeat = null; state.dealing = true; state.cardAnimation = 'community'; state.communityRevealFrom = state.community.length - cardCount;
+        setMessage(`Dealing the ${street}…`); render();
+        resumePlayerAfterDeal('Your turn — check or raise.',CARD_PACE * cardCount + 250);
+      }
+      function advanceStreet() { if (state.street === 'preflop') { dealCommunity(3); startStreet('flop',3); } else if (state.street === 'flop') { dealCommunity(1); startStreet('turn',1); } else if (state.street === 'turn') { dealCommunity(1); startStreet('river',1); } else if (state.street === 'river') showdown(); }
+      function straightHigh(values) { const unique = [...new Set(values)].sort((a,b) => b - a); if (unique.length !== 5) return 0; if (unique[0] - unique[4] === 4) return unique[0]; return unique.join(',') === '14,5,4,3,2' ? 5 : 0; }
+      function scoreFive(cards) {
+        const values = cards.map(card => card.value).sort((a,b) => b - a), counts = new Map(); for (const value of values) counts.set(value,(counts.get(value) || 0) + 1);
+        const groups = [...counts.entries()].map(([value,count]) => ({value,count})).sort((a,b) => b.count - a.count || b.value - a.value), flush = cards.every(card => card.suit === cards[0].suit), straight = straightHigh(values);
+        if (flush && straight) return [8,straight]; if (groups[0].count === 4) return [7,groups[0].value,groups[1].value]; if (groups[0].count === 3 && groups[1].count === 2) return [6,groups[0].value,groups[1].value]; if (flush) return [5,...values]; if (straight) return [4,straight]; if (groups[0].count === 3) return [3,groups[0].value,...groups.slice(1).map(group => group.value).sort((a,b) => b - a)]; if (groups[0].count === 2 && groups[1].count === 2) return [2,Math.max(groups[0].value,groups[1].value),Math.min(groups[0].value,groups[1].value),groups[2].value]; if (groups[0].count === 2) return [1,groups[0].value,...groups.slice(1).map(group => group.value).sort((a,b) => b - a)]; return [0,...values];
+      }
+      function compareScores(first,second) { const length = Math.max(first.length,second.length); for (let index = 0; index < length; index += 1) { const difference = (first[index] || 0) - (second[index] || 0); if (difference !== 0) return Math.sign(difference); } return 0; }
+      function bestScore(cards) { let best = null; for (let a = 0; a < cards.length - 4; a += 1) for (let b = a + 1; b < cards.length - 3; b += 1) for (let c = b + 1; c < cards.length - 2; c += 1) for (let d = c + 1; d < cards.length - 1; d += 1) for (let e = d + 1; e < cards.length; e += 1) { const score = scoreFive([cards[a],cards[b],cards[c],cards[d],cards[e]]); if (!best || compareScores(score,best) > 0) best = score; } return best; }
+      function scoreName(score) { return ['high card','one pair','two pair','three of a kind','straight','flush','full house','four of a kind','straight flush'][score[0]]; }
+      function awardPot(winners) { const share = Math.floor(state.pot / winners.length); let remainder = state.pot % winners.length; for (const winner of winners) { state.chips[winner] += share + (remainder > 0 ? 1 : 0); remainder -= 1; } state.pot = 0; }
+      function scheduleNextHand(delay) { const token = state.token; window.setTimeout(() => { if (token === state.token) newHand(); },delay); }
+      function finishByFolds(winner) {
+        const won = state.pot; state.chips[winner] += won; state.pot = 0; state.activeSeat = null; state.dealing = false; state.cardAnimation = ''; state.street = 'roundOver';
+        setMessage(`${NAMES[winner]} ${winner === 0 ? 'win' : 'wins'} ${won} credits after everyone else folded.`); render(); scheduleNextHand(3000);
+      }
+      function showdown() {
+        const contenders = activeSeats(), scores = contenders.map(seat => ({seat,score:bestScore([...state.hands[seat],...state.community])})); let best = scores[0].score; for (const result of scores.slice(1)) if (compareScores(result.score,best) > 0) best = result.score;
+        const winners = scores.filter(result => compareScores(result.score,best) === 0).map(result => result.seat), won = state.pot, names = winners.map(seat => NAMES[seat]).join(' and ');
+        awardPot(winners); state.activeSeat = null; state.revealBots = true; state.dealing = true; state.cardAnimation = 'showdown'; state.street = 'roundOver'; setMessage('Showdown — revealing the bot cards…'); render();
+        const token = state.token, result = `${names} ${winners.length > 1 || winners[0] === 0 ? 'win' : 'wins'} ${won} credits with ${scoreName(best)}.`;
+        window.setTimeout(() => { if (token !== state.token) return; state.dealing = false; state.cardAnimation = ''; setMessage(result); render(); },CARD_PACE * 2 + 180);
+        scheduleNextHand(CARD_PACE * 2 + 2600);
+      }
+      function newHand() {
+        state.token += 1; if (state.chips.some(chips => chips < BIG_BLIND)) { state.chips = [200,200,200]; setMessage('Fresh point stacks issued.'); }
+        state.deck = makeDeck(); state.hands = [[],[],[]]; state.community = []; state.pot = 0; state.currentBet = BIG_BLIND; state.roundContribution = [0,0,0]; state.folded = [false,false,false]; state.pending = [true,true,true]; state.raisesThisStreet = 0; state.revealBots = false; state.dealing = true; state.cardAnimation = 'hole'; state.communityRevealFrom = 0; state.street = 'preflop'; state.handNumber += 1;
+        for (let card = 0; card < 2; card += 1) for (let seat = 0; seat < 3; seat += 1) state.hands[seat].push(drawCard());
+        postBlind(0,SMALL_BLIND); postBlind(1,BIG_BLIND); state.activeSeat = null; setMessage(`Hand ${state.handNumber}: dealing hole cards…`); render();
+        resumePlayerAfterDeal(`Hand ${state.handNumber}: you posted ${SMALL_BLIND}; Nova posted ${BIG_BLIND}. Your turn.`,CARD_PACE * 2);
+      }
+      ui.fold.addEventListener('click',() => takeAction(0,'fold')); ui.call.addEventListener('click',() => takeAction(0,'call')); ui.raise.addEventListener('click',() => takeAction(0,'raise',selectedRaiseAmount())); ui.raiseAmount.addEventListener('input',render); render(); window.setTimeout(newHand,700);
+    })();
+  </script>
+</body>
+</html>
