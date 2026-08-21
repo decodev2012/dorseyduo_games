@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sky Clash</title>
+  <style>
+    :root { color-scheme: dark; --ink:#08111f; --paper:#e8f3ff; --gold:#ffd76b; --cyan:#5ee8ff; --pink:#ff7297; }
+    * { box-sizing:border-box; }
+    body { min-height:100vh; margin:0; display:grid; place-items:center; padding:18px; overflow-x:hidden; color:var(--paper); background:radial-gradient(circle at 50% -20%,#344e92 0,transparent 38%),linear-gradient(135deg,#071222,#101737 62%,#1e1138); font-family:ui-rounded,"Avenir Next",system-ui,sans-serif; }
+    #app { position:relative; isolation:isolate; width:min(1120px,100%); overflow:hidden; border:2px solid #a9c8ff6b; border-radius:25px; background:#101b37; box-shadow:0 30px 100px #000c,inset 0 1px #fff4; }
+    canvas { display:block; width:100%; aspect-ratio:16/9; touch-action:none; }
+    .topbar { position:absolute; z-index:5; inset:0 0 auto; display:flex; justify-content:space-between; align-items:center; padding:14px 17px; pointer-events:none; }
+    .topbar a,.topbar button { pointer-events:auto; color:#eaf4ff; font:800 13px/1 ui-rounded,system-ui,sans-serif; text-decoration:none; text-shadow:0 2px 2px #0008; }
+    .topbar button { cursor:pointer; border:1px solid #d9ecff73; border-radius:10px; padding:8px 11px; background:#101d3bca; transition:transform .14s ease,filter .14s ease; }
+    .topbar button:hover { transform:translateY(-2px); filter:brightness(1.17); }
+    #hud { position:absolute; z-index:4; top:14px; left:50%; display:flex; gap:clamp(78px,14vw,175px); transform:translateX(-50%); width:max-content; pointer-events:none; text-align:center; text-shadow:0 3px 3px #000a; }
+    .fighter-hud { min-width:108px; font-weight:950; }
+    .fighter-hud .name { display:block; min-height:15px; color:#dceaff; font-size:10px; letter-spacing:1.1px; }
+    .fighter-hud .percent { display:block; font-size:clamp(23px,3.3vw,37px); letter-spacing:-2px; }
+    .fighter-hud .stocks { display:block; min-height:12px; color:#f7d875; font-size:12px; letter-spacing:2px; }
+    #hud .p1 .percent { color:var(--cyan); } #hud .p2 .percent { color:var(--pink); }
+    .overlay { position:absolute; z-index:7; inset:0; display:grid; place-items:center; padding:clamp(14px,4vw,36px); overflow:auto; background:linear-gradient(155deg,#07122ae8,#11103ddd 58%,#25113ee0); }
+    .overlay.hidden { display:none; }
+    .sheet { width:min(955px,100%); margin:auto; padding:clamp(20px,3.7vw,37px); border:1px solid #d3e6ff63; border-radius:25px; background:linear-gradient(145deg,#1c3262ee,#151b44ee 58%,#26154add); box-shadow:0 25px 70px #000b,inset 0 1px #fff4; }
+    .eyebrow { margin:0 0 7px; color:#a4caff; font-size:11px; font-weight:950; letter-spacing:2.1px; text-align:center; }
+    h1 { margin:0; color:var(--gold); font-size:clamp(38px,8vw,78px); font-style:italic; letter-spacing:-4px; line-height:.82; text-align:center; text-shadow:5px 5px #6b3f86,0 0 28px #ffe07058; }
+    .tagline { max-width:650px; margin:15px auto 21px; color:#d9e7ff; line-height:1.42; text-align:center; }
+    .subhead { margin:18px 0 8px; color:#b8cef7; font-size:11px; font-weight:950; letter-spacing:1.7px; }
+    .pick-columns { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .picker { min-width:0; padding:11px; border:1px solid #c4d6ff30; border-radius:16px; background:#080f2c70; }
+    .picker h2 { margin:0 0 8px; font-size:13px; letter-spacing:1.2px; }
+    .picker.p1 h2 { color:var(--cyan); }.picker.p2 h2 { color:var(--pink); }
+    .fighter-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:7px; }
+    .fighter-pick { min-width:0; min-height:64px; padding:6px 3px; cursor:pointer; border:1px solid #b8d0ff35; border-radius:10px; color:#eaf3ff; background:linear-gradient(145deg,#23396d,#17234f); font:800 11px/1.1 ui-rounded,system-ui,sans-serif; transition:transform .13s ease,filter .13s ease,border-color .13s ease,box-shadow .13s ease; }
+    .fighter-pick .dot { display:block; width:21px; height:21px; margin:0 auto 4px; border:2px solid #ffffffaa; border-radius:50%; box-shadow:0 2px 7px #0009,inset -4px -3px #0003; }
+    .fighter-pick:hover,.stage-pick:hover { transform:translateY(-2px); filter:brightness(1.16); }
+    .fighter-pick.selected { border-color:var(--gold); box-shadow:0 0 0 2px #ffd76b3f,0 7px 16px #0005; background:linear-gradient(145deg,#4a4d83,#26245b); }
+    .stage-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+    .stage-pick { min-height:80px; cursor:pointer; border:1px solid #c3d8ff40; border-radius:13px; color:#eef5ff; background:linear-gradient(145deg,#243d71,#151f48); font:800 12px/1.15 ui-rounded,system-ui,sans-serif; transition:transform .13s ease,filter .13s ease,border-color .13s ease,box-shadow .13s ease; }
+    .stage-pick span { display:block; margin-top:5px; color:#b6cbef; font-size:10px; font-weight:700; }
+    .stage-pick.selected { color:#fff3bc; border-color:var(--gold); box-shadow:0 0 0 2px #ffd76b3f,0 7px 16px #0005; }
+    .bottom-row { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top:19px; }
+    .help { max-width:550px; margin:0; color:#bcd0f4; font-size:12px; line-height:1.42; }
+    .primary,.secondary { cursor:pointer; border:0; border-radius:13px; font:950 15px ui-rounded,system-ui,sans-serif; transition:transform .12s ease,filter .12s ease,box-shadow .12s ease; }
+    .primary { flex:none; padding:14px 21px; color:#18214c; background:linear-gradient(#fff2a8,#ffd660); box-shadow:0 5px 0 #a97830,0 13px 22px #0007; }
+    .primary:hover,.secondary:hover { transform:translateY(-2px); filter:brightness(1.08); }.primary:active,.secondary:active { transform:translateY(3px); }
+    .secondary { padding:11px 17px; color:#eef5ff; background:#31497c; box-shadow:0 4px 0 #152244; }
+    #result .sheet { width:min(530px,100%); text-align:center; }
+    #result h2 { margin:0; color:var(--gold); font-size:clamp(31px,6vw,53px); line-height:.94; text-shadow:4px 4px #633b80; }
+    #result p { margin:13px 0 20px; color:#dae7ff; }.result-buttons { display:flex; justify-content:center; gap:10px; flex-wrap:wrap; }
+    @media (max-width:680px) { body { padding:0; } #app { border-radius:0; } .overlay { padding:11px; } .sheet { border-radius:19px; } .pick-columns { grid-template-columns:1fr; gap:9px; }.fighter-grid { grid-template-columns:repeat(7,minmax(0,1fr)); }.fighter-pick { min-height:55px; font-size:9px; }.stage-grid { gap:6px; }.stage-pick { min-height:64px; font-size:10px; }.bottom-row { flex-direction:column; align-items:stretch; }.primary { width:100%; }.help { text-align:center; }.topbar { padding:10px 12px; }.topbar a,.topbar button { font-size:11px; } #hud { top:10px; gap:17vw; }.fighter-hud .percent { font-size:22px; } }
+  </style>
+</head>
+<body>
+  <main id="app">
+    <div class="topbar"><a href="../index.html">← GAMES</a><button id="menuButton" type="button">☰ MENU</button></div>
+    <div id="hud" aria-live="polite">
+      <div class="fighter-hud p1"><span class="name" id="p1Name">PLAYER 1</span><span class="percent" id="p1Percent">0%</span><span class="stocks" id="p1Stocks">● ● ●</span></div>
+      <div class="fighter-hud p2"><span class="name" id="p2Name">PLAYER 2</span><span class="percent" id="p2Percent">0%</span><span class="stocks" id="p2Stocks">● ● ●</span></div>
+    </div>
+    <canvas id="arena" width="1280" height="720" aria-label="Sky Clash game arena"></canvas>
+
+    <section class="overlay" id="menuOverlay" aria-label="Sky Clash menu">
+      <div class="sheet">
+        <p class="eyebrow">ORIGINAL PLATFORM FIGHTER</p>
+        <h1>SKY CLASH</h1>
+        <p class="tagline">Pick a fighter, own the platforms, and send your rival beyond the sky. Every fighter is tuned for the same core power level—just with a different rhythm.</p>
+        <div class="pick-columns">
+          <section class="picker p1"><h2>PLAYER 1 · A / D / W · F STRIKE · G DASH</h2><div class="fighter-grid" id="p1Picker"></div></section>
+          <section class="picker p2"><h2>PLAYER 2 · ← / → / ↑ · / STRIKE · . DASH</h2><div class="fighter-grid" id="p2Picker"></div></section>
+        </div>
+        <p class="subhead">CHOOSE A STAGE</p>
+        <div class="stage-grid" id="stagePicker"></div>
+        <div class="bottom-row"><p class="help">3 stocks each. Build percentage with strikes—higher percentage means bigger launches. Jump twice, use platforms, and dash through danger.</p><button class="primary" id="startButton" type="button">START SKY CLASH</button></div>
+      </div>
+    </section>
+
+    <section class="overlay hidden" id="result" aria-label="Match result">
+      <div class="sheet"><p class="eyebrow">MATCH COMPLETE</p><h2 id="resultTitle">PLAYER 1 WINS!</h2><p id="resultText">A clean knockout.</p><div class="result-buttons"><button class="primary" id="rematchButton" type="button">REMATCH</button><button class="secondary" id="resultMenuButton" type="button">CHARACTER MENU</button></div></div>
+    </section>
+  </main>
+
+  <script>
+    'use strict';
+    const canvas = document.getElementById('arena');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const menuOverlay = document.getElementById('menuOverlay');
+    const resultOverlay = document.getElementById('result');
+    const ui = {
+      p1Name:document.getElementById('p1Name'), p2Name:document.getElementById('p2Name'),
+      p1Percent:document.getElementById('p1Percent'), p2Percent:document.getElementById('p2Percent'),
+      p1Stocks:document.getElementById('p1Stocks'), p2Stocks:document.getElementById('p2Stocks'),
+      resultTitle:document.getElementById('resultTitle'), resultText:document.getElementById('resultText')
+    };
+
+    const FIGHTERS = [
+      {id:'nova',name:'NOVA',role:'All-rounder',color:'#58d8ff',accent:'#dff9ff',speed:282,jump:565,weight:1.00,power:1.00,range:62,shape:'star'},
+      {id:'bram',name:'BRAM',role:'Heavy hitter',color:'#ff9e58',accent:'#fff0b3',speed:238,jump:505,weight:1.27,power:1.18,range:69,shape:'horn'},
+      {id:'luma',name:'LUMA',role:'Air dancer',color:'#bd89ff',accent:'#f9ecff',speed:270,jump:595,weight:.88,power:.93,range:64,shape:'halo'},
+      {id:'moss',name:'MOSS',role:'Ground control',color:'#6ee391',accent:'#e5ffd9',speed:258,jump:535,weight:1.12,power:1.08,range:67,shape:'leaf'},
+      {id:'zip',name:'ZIP',role:'Speedster',color:'#ff6f9c',accent:'#ffe6ef',speed:314,jump:552,weight:.87,power:.89,range:58,shape:'bolt'},
+      {id:'orbit',name:'ORBIT',role:'Reach fighter',color:'#ffd45e',accent:'#fff9d6',speed:250,jump:548,weight:1.04,power:1.02,range:78,shape:'ring'},
+      {id:'skye',name:'SKYE',role:'Trick jumper',color:'#77a7ff',accent:'#e8f0ff',speed:275,jump:575,weight:.96,power:.98,range:65,shape:'cloud'}
+    ];
+    const STAGES = [
+      {id:'cloudrail',name:'Cloudrail',detail:'Wide platforms · steady footing',theme:'sky',spawn:[460,820],platforms:[{x:255,y:590,w:770,h:36},{x:360,y:450,w:190,h:24},{x:730,y:450,w:190,h:24},{x:555,y:345,w:170,h:23}]},
+      {id:'neonwell',name:'Neon Well',detail:'Tight center · fast crossups',theme:'neon',spawn:[420,860],platforms:[{x:315,y:605,w:650,h:36},{x:245,y:480,w:178,h:24},{x:857,y:480,w:178,h:24},{x:553,y:405,w:174,h:23},{x:430,y:300,w:145,h:21},{x:705,y:300,w:145,h:21}]},
+      {id:'wildspire',name:'Wild Spire',detail:'Tall lanes · risky edges',theme:'wild',spawn:[390,890],platforms:[{x:280,y:615,w:720,h:36},{x:350,y:486,w:165,h:24},{x:765,y:486,w:165,h:24},{x:555,y:385,w:170,h:23},{x:518,y:264,w:244,h:21}]}
+    ];
+    const CONTROLS = [
+      {left:'a',right:'d',jump:'w',attack:'f',dash:'g'},
+      {left:'arrowleft',right:'arrowright',jump:'arrowup',attack:'/',dash:'.'}
+    ];
+    const pick = {p1:0,p2:3,stage:0};
+    const held = new Set(), tapped = new Set();
+    const game = {mode:'menu',players:[],stage:STAGES[0],last:0,shake:0,hitStop:0,particles:[],banner:'',bannerTime:0,matchSerial:0};
+
+    function element(tag, props = {}) { const node=document.createElement(tag); Object.assign(node,props); return node; }
+    function buildMenu() {
+      const p1Box=document.getElementById('p1Picker'), p2Box=document.getElementById('p2Picker'), stageBox=document.getElementById('stagePicker');
+      function buttonFor(side,index,f) {
+        const b=element('button',{type:'button',className:'fighter-pick',title:`${f.name}: ${f.role}`});
+        b.dataset.side=side; b.dataset.index=index;
+        b.innerHTML=`<span class="dot" style="background:${f.color}"></span>${f.name}`;
+        b.addEventListener('click',()=>{ pick[side]=index; refreshMenu(); }); return b;
+      }
+      FIGHTERS.forEach((f,i)=>{p1Box.append(buttonFor('p1',i,f)); p2Box.append(buttonFor('p2',i,f));});
+      STAGES.forEach((stage,i)=>{const b=element('button',{type:'button',className:'stage-pick'});b.dataset.index=i;b.innerHTML=`${stage.name}<span>${stage.detail}</span>`;b.addEventListener('click',()=>{pick.stage=i;refreshMenu();});stageBox.append(b);});
+      refreshMenu();
+    }
+    function refreshMenu() {
+      document.querySelectorAll('.fighter-pick').forEach(b=>b.classList.toggle('selected',Number(b.dataset.index)===pick[b.dataset.side]));
+      document.querySelectorAll('.stage-pick').forEach(b=>b.classList.toggle('selected',Number(b.dataset.index)===pick.stage));
+    }
+    function clamp(n,min,max) { return Math.max(min,Math.min(max,n)); }
+    function key(k) { return held.has(k); }
+    function tap(k) { return tapped.has(k); }
+    function safeText(str) { return String(str); }
+    function newPlayer(slot, fighterIndex, spawnX) {
+      const spec=FIGHTERS[fighterIndex];
+      return {slot,spec,x:spawnX,y:230,px:spawnX,py:230,vx:0,vy:0,w:42,h:70,facing:slot===0?1:-1,damage:0,stocks:3,jumps:2,onGround:false,attack:null,attackCooldown:0,hitstun:0,invincible:.92,dash:0,dashCooldown:0,flash:0,run:0,dead:false,trail:[]};
+    }
+    function beginMatch() {
+      game.stage=STAGES[pick.stage]; game.players=[newPlayer(0,pick.p1,game.stage.spawn[0]),newPlayer(1,pick.p2,game.stage.spawn[1])];
+      game.mode='playing'; game.matchSerial+=1; game.particles=[]; game.banner='READY?'; game.bannerTime=.75; game.shake=0; game.hitStop=0;
+      menuOverlay.classList.add('hidden'); resultOverlay.classList.add('hidden'); updateHud();
+    }
+    function openMenu() { game.mode='menu'; menuOverlay.classList.remove('hidden'); resultOverlay.classList.add('hidden'); }
+    function updateHud() {
+      const [a,b]=game.players;
+      if (!a || !b) return;
+      ui.p1Name.textContent=safeText(a.spec.name);ui.p2Name.textContent=safeText(b.spec.name);
+      ui.p1Percent.textContent=`${Math.round(a.damage)}%`;ui.p2Percent.textContent=`${Math.round(b.damage)}%`;
+      ui.p1Stocks.textContent='● '.repeat(Math.max(0,a.stocks)).trim() || '—';ui.p2Stocks.textContent='● '.repeat(Math.max(0,b.stocks)).trim() || '—';
+    }
+    function burst(x,y,color,count=12,spread=1) {
+      for(let i=0;i<count;i+=1) { const a=Math.random()*Math.PI*2, s=(45+Math.random()*160)*spread; game.particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-40,life:.30+Math.random()*.45,size:2+Math.random()*4,color}); }
+    }
+    function startAttack(p) {
+      if (p.attack || p.attackCooldown>0 || p.hitstun>0 || p.dash>0) return;
+      p.attack={time:0,hasHit:false}; p.attackCooldown=.42; p.vx+=p.facing*22;
+    }
+    function startDash(p) {
+      if (p.dashCooldown>0 || p.hitstun>0 || p.attack) return;
+      p.dash=.145; p.dashCooldown=.55; p.invincible=Math.max(p.invincible,.10); p.vx=p.facing*590; p.vy*=.45; burst(p.x,p.y+21,p.spec.accent,8,.55);
+    }
+    function hitBox(p) { const reach=p.spec.range+(p.attack&&p.attack.time>.1?9:0); return {x:p.x+p.facing*(p.w*.5+reach*.5),y:p.y-16,w:reach,h:42}; }
+    function rectHit(a,b) { return Math.abs(a.x-b.x)<(a.w+b.w)*.5 && Math.abs(a.y-b.y)<(a.h+b.h)*.5; }
+    function playerRect(p) { return {x:p.x,y:p.y-10,w:p.w,h:p.h}; }
+    function impact(attacker,target) {
+      const damage=8.5*attacker.spec.power;
+      target.damage=clamp(target.damage+damage,0,999);
+      const launch=(190+target.damage*3.05)*attacker.spec.power/target.spec.weight;
+      target.vx=attacker.facing*launch; target.vy=-(228+target.damage*.76); target.hitstun=.17+target.damage/640; target.onGround=false; target.invincible=.105; target.flash=.16;
+      attacker.vx-=attacker.facing*58; game.shake=Math.min(13,5+target.damage*.035); game.hitStop=.045; burst(target.x,target.y-22,attacker.spec.accent,19,1.2);
+    }
+    function land(p) {
+      const plats=game.stage.platforms; const previousBottom=p.py+p.h*.5; const bottom=p.y+p.h*.5;
+      p.onGround=false; let landing=null;
+      if (p.vy>=0) {
+        for (const platform of plats) {
+          if (previousBottom<=platform.y+4 && bottom>=platform.y && p.x+p.w*.42>platform.x && p.x-p.w*.42<platform.x+platform.w) {
+            if (!landing || platform.y<landing.y) landing=platform;
+          }
+        }
+      }
+      if (landing) { p.y=landing.y-p.h*.5; p.vy=0; p.onGround=true; p.jumps=2; }
+    }
+    function updatePlayer(p,other,dt) {
+      const c=CONTROLS[p.slot]; p.px=p.x;p.py=p.y;
+      p.invincible=Math.max(0,p.invincible-dt); p.flash=Math.max(0,p.flash-dt); p.attackCooldown=Math.max(0,p.attackCooldown-dt);p.dashCooldown=Math.max(0,p.dashCooldown-dt); p.hitstun=Math.max(0,p.hitstun-dt);
+      if (p.dash>0) {p.dash-=dt; p.vx*=Math.pow(.965,dt*60);} else if (p.hitstun<=0) {
+        const dir=(key(c.right)?1:0)-(key(c.left)?1:0);
+        if (dir) { p.vx+=dir*(p.spec.speed*8.4)*dt; p.facing=dir; p.run+=Math.abs(p.vx)*dt*.035; } else p.vx*=Math.pow(.79,dt*60);
+        const max=p.spec.speed*(p.onGround?1:0.83); p.vx=clamp(p.vx,-max,max);
+        if (tap(c.jump) && p.jumps>0) { p.vy=-p.spec.jump; p.jumps-=1; p.onGround=false; burst(p.x,p.y+p.h*.42,p.spec.accent,7,.45); }
+        if (tap(c.attack)) startAttack(p); if (tap(c.dash)) startDash(p);
+      } else p.vx*=Math.pow(.985,dt*60);
+      if (p.attack) {
+        p.attack.time+=dt;
+        if (p.attack.time>.09 && p.attack.time<.225 && !p.attack.hasHit && rectHit(hitBox(p),playerRect(other)) && other.invincible<=0) { p.attack.hasHit=true; impact(p,other); }
+        if (p.attack.time>.34) p.attack=null;
+      }
+      p.vy+=1420*dt; p.vy=Math.min(p.vy,1000); p.x+=p.vx*dt;p.y+=p.vy*dt;
+      land(p);
+      p.trail.unshift({x:p.x,y:p.y}); if (p.trail.length>7) p.trail.pop();
+      if (p.x<-135 || p.x>W+135 || p.y>H+180 || p.y<-230) loseStock(p);
+    }
+    function loseStock(p) {
+      if (p.dead || game.mode!=='playing') return;
+      p.stocks-=1; p.dead=true; burst(clamp(p.x,0,W),clamp(p.y,0,H),p.spec.color,38,1.8); game.shake=18; updateHud();
+      if (p.stocks<=0) { finishMatch(1-p.slot); return; }
+      game.banner=`${p.spec.name} LOST A STOCK!`; game.bannerTime=1.15;
+      window.setTimeout(()=>{
+        if(game.mode!=='playing') return; const spawn=game.stage.spawn[p.slot]; const fresh=newPlayer(p.slot,FIGHTERS.indexOf(p.spec),spawn); fresh.stocks=p.stocks; game.players[p.slot]=fresh; updateHud();
+      },720);
+    }
+    function finishMatch(winner) {
+      game.mode='finished'; const win=game.players[winner], lose=game.players[1-winner];
+      ui.resultTitle.textContent=`${winner===0?'PLAYER 1':'PLAYER 2'} WINS!`; ui.resultText.textContent=`${win.spec.name} takes the sky from ${lose.spec.name}.`; window.setTimeout(()=>resultOverlay.classList.remove('hidden'),600);
+    }
+    function updateParticles(dt) { game.particles=game.particles.filter(p=>{p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=340*dt;return p.life>0;}); }
+    function update(dt) {
+      if (game.mode==='playing') {
+        if (game.hitStop>0) game.hitStop=Math.max(0,game.hitStop-dt); else { const [a,b]=game.players; if(a&&!a.dead) updatePlayer(a,b,dt); if(b&&!b.dead) updatePlayer(b,a,dt); }
+        game.bannerTime=Math.max(0,game.bannerTime-dt); updateHud();
+      }
+      updateParticles(dt); game.shake=Math.max(0,game.shake-dt*27);
+    }
+    function drawRoundedRect(x,y,w,h,r,fill,stroke) { ctx.beginPath();ctx.roundRect(x,y,w,h,r);if(fill){ctx.fillStyle=fill;ctx.fill();}if(stroke){ctx.strokeStyle=stroke;ctx.stroke();} }
+    function drawBackground(stage,t) {
+      const theme=stage.theme; let top='#213d86',bottom='#93d4ff';
+      if(theme==='neon'){top='#170e3e';bottom='#071d42';}if(theme==='wild'){top='#214e51';bottom='#a4d77d';}
+      const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,top);g.addColorStop(1,bottom);ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+      if(theme==='sky'){
+        ctx.fillStyle='#fff8'; for(let i=0;i<8;i+=1){const x=(i*211+t*9)%1500-150,y=120+(i%3)*88;ctx.beginPath();ctx.arc(x,y,38,0,Math.PI*2);ctx.arc(x+52,y+9,31,0,Math.PI*2);ctx.arc(x-37,y+13,24,0,Math.PI*2);ctx.fill();}
+        ctx.fillStyle='#2d5fa4a0'; for(let i=0;i<12;i+=1){const x=i*125-10;ctx.beginPath();ctx.moveTo(x,H);ctx.lineTo(x+90,310+(i%3)*70);ctx.lineTo(x+178,H);ctx.fill();}
+      } else if(theme==='neon') {
+        ctx.fillStyle='#7b4cff20';for(let i=0;i<100;i+=1){const x=(i*109)%W,y=(i*53)%530;ctx.fillRect(x,y,2+(i%3),2+(i%3));}
+        ctx.strokeStyle='#36e8ff32';ctx.lineWidth=2;for(let i=-8;i<12;i+=1){ctx.beginPath();ctx.moveTo(0,430+i*45);ctx.lineTo(W,540+i*45);ctx.stroke();}
+        ctx.fillStyle='#ff64da35';ctx.fillRect(0,590,W,130);
+      } else {
+        ctx.fillStyle='#10373796';for(let i=0;i<20;i+=1){const x=i*72;ctx.beginPath();ctx.moveTo(x,H);ctx.lineTo(x+35,190+(i%4)*53);ctx.lineTo(x+73,H);ctx.fill();}
+        ctx.fillStyle='#d9ff9a3d'; for(let i=0;i<70;i+=1){const x=(i*89)%W,y=(i*131)%510;ctx.beginPath();ctx.arc(x,y,1+(i%3),0,7);ctx.fill();}
+      }
+      const shade=ctx.createLinearGradient(0,H*.45,0,H);shade.addColorStop(0,'#0000');shade.addColorStop(1,'#080d1e77');ctx.fillStyle=shade;ctx.fillRect(0,0,W,H);
+    }
+    function drawPlatform(p,theme) {
+      const palette=theme==='neon'?['#b946ea','#32156b','#ffbdff']:theme==='wild'?['#5fb364','#234d41','#cdf69b']:['#76d9ff','#2f5798','#d9f8ff'];
+      ctx.save();ctx.shadowColor=palette[0];ctx.shadowBlur=theme==='neon'?18:7;drawRoundedRect(p.x,p.y,p.w,p.h,10,palette[1],'#d7eeff88');ctx.shadowBlur=0;
+      drawRoundedRect(p.x+4,p.y+3,p.w-8,8,5,palette[0]);ctx.fillStyle=palette[2];ctx.globalAlpha=.7;ctx.fillRect(p.x+16,p.y+p.h-5,p.w-32,2);ctx.restore();
+    }
+    function drawFighter(p,t) {
+      if(!p || p.dead) return; const f=p.spec, bob=p.onGround?Math.sin(p.run*6)*2:0, pulse=p.attack?Math.sin(p.attack.time*18)*.16:0;
+      ctx.save();ctx.globalAlpha=p.invincible>0&&Math.floor(t*15)%2?0.5:1;
+      ctx.translate(p.x,p.y+bob);ctx.rotate(clamp(p.vx*.00075,-.16,.16)+(p.attack? p.facing*(-.18+pulse):0));
+      // shadowy trail makes the dash and knockback readable.
+      if(p.dash>0){ctx.strokeStyle=f.accent;ctx.globalAlpha=.35;ctx.lineWidth=18;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(-p.facing*62,10);ctx.lineTo(-p.facing*18,10);ctx.stroke();ctx.globalAlpha=1;}
+      // legs
+      const step=Math.sin(p.run*5.2)*8;ctx.lineWidth=11;ctx.lineCap='round';ctx.strokeStyle='#12203f';ctx.beginPath();ctx.moveTo(-8,19);ctx.lineTo(-13-step,37);ctx.moveTo(8,19);ctx.lineTo(13+step,37);ctx.stroke();
+      // rounded body
+      const body=ctx.createRadialGradient(-9,-20,3,0,-10,40);body.addColorStop(0,f.accent);body.addColorStop(.32,f.color);body.addColorStop(1,'#172348');ctx.fillStyle=body;ctx.beginPath();ctx.ellipse(0,-9,27,33,0,0,Math.PI*2);ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='#eef7ffb0';ctx.stroke();
+      // head and face
+      ctx.fillStyle=f.color;ctx.beginPath();ctx.arc(0,-48,23,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#eff8ffbd';ctx.stroke();ctx.fillStyle='#14213f';ctx.fillRect(-12,-51,24,8);ctx.fillStyle=f.accent;ctx.fillRect(p.facing>0?4:-10,-49,6,3);
+      // custom silhouettes, one per fighter
+      ctx.strokeStyle=f.accent;ctx.fillStyle=f.accent;ctx.lineWidth=3;ctx.lineCap='round';
+      if(f.shape==='star'){ctx.beginPath();ctx.moveTo(0,-76);ctx.lineTo(5,-66);ctx.lineTo(16,-66);ctx.lineTo(7,-59);ctx.lineTo(10,-48);ctx.lineTo(0,-55);ctx.lineTo(-10,-48);ctx.lineTo(-7,-59);ctx.lineTo(-16,-66);ctx.lineTo(-5,-66);ctx.closePath();ctx.fill();}
+      if(f.shape==='horn'){ctx.beginPath();ctx.moveTo(-17,-66);ctx.lineTo(-26,-83);ctx.lineTo(-7,-70);ctx.moveTo(17,-66);ctx.lineTo(26,-83);ctx.lineTo(7,-70);ctx.stroke();}
+      if(f.shape==='halo'){ctx.beginPath();ctx.ellipse(0,-77,20,5,0,0,7);ctx.stroke();}
+      if(f.shape==='leaf'){ctx.beginPath();ctx.ellipse(0,-76,8,18,.35,0,7);ctx.fill();}
+      if(f.shape==='bolt'){ctx.beginPath();ctx.moveTo(2,-80);ctx.lineTo(-8,-65);ctx.lineTo(2,-65);ctx.lineTo(-2,-53);ctx.lineTo(13,-70);ctx.lineTo(3,-70);ctx.closePath();ctx.fill();}
+      if(f.shape==='ring'){ctx.beginPath();ctx.arc(0,-75,16,0,7);ctx.stroke();}
+      if(f.shape==='cloud'){ctx.beginPath();ctx.arc(-9,-73,7,0,7);ctx.arc(0,-78,8,0,7);ctx.arc(10,-73,7,0,7);ctx.fill();}
+      // arms, with a bright fist on the attack side
+      const armReach=p.attack?43+Math.sin(Math.min(p.attack.time/.34,1)*Math.PI)*30:31;ctx.strokeStyle='#15203d';ctx.lineWidth=12;ctx.beginPath();ctx.moveTo(p.facing*18,-17);ctx.lineTo(p.facing*armReach,-10);ctx.stroke();ctx.fillStyle=f.accent;ctx.beginPath();ctx.arc(p.facing*armReach,-10,8+(p.attack?3:0),0,7);ctx.fill();
+      ctx.restore();
+      if(p.attack){const b=hitBox(p);ctx.save();ctx.globalAlpha=.16;ctx.fillStyle=f.accent;drawRoundedRect(b.x-b.w/2,b.y-b.h/2,b.w,b.h,18);ctx.restore();}
+    }
+    function drawParticles() { for(const p of game.particles){ctx.save();ctx.globalAlpha=clamp(p.life/.72,0,1);ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,7);ctx.fill();ctx.restore();} }
+    function drawBanner() { if(game.bannerTime<=0) return; ctx.save();ctx.globalAlpha=Math.min(1,game.bannerTime*2.5);ctx.textAlign='center';ctx.font='900 36px ui-rounded,system-ui';ctx.fillStyle='#fff3ad';ctx.strokeStyle='#2a174a';ctx.lineWidth=8;ctx.strokeText(game.banner,W/2,130);ctx.fillText(game.banner,W/2,130);ctx.restore(); }
+    function render(t) {
+      const stage=game.stage; drawBackground(stage,t);ctx.save();const s=game.shake; if(s>0)ctx.translate((Math.random()-.5)*s,(Math.random()-.5)*s);
+      for(const p of stage.platforms) drawPlatform(p,stage.theme);
+      const ps=[...game.players].sort((a,b)=>a.y-b.y);for(const p of ps)drawFighter(p,t); drawParticles();ctx.restore();drawBanner();
+      if(game.mode==='menu'){ctx.save();ctx.fillStyle='#07122866';ctx.fillRect(0,0,W,H);ctx.textAlign='center';ctx.font='900 28px ui-rounded,system-ui';ctx.fillStyle='#fff0a7';ctx.fillText('PICK YOUR SKY FIGHTERS',W/2,H-48);ctx.restore();}
+    }
+    function frame(now) { const t=now*.001,dt=Math.min(.033,(now-game.last||16.7)*.001);game.last=now;update(dt);render(t);tapped.clear();requestAnimationFrame(frame); }
+
+    window.addEventListener('keydown',(event)=>{const k=event.key.toLowerCase();if(['a','d','w','f','g','arrowleft','arrowright','arrowup','/','.','r','escape'].includes(k)) event.preventDefault();if(!held.has(k))tapped.add(k);held.add(k);if(k==='escape')openMenu();if(k==='r'&&game.mode==='playing')beginMatch();});
+    window.addEventListener('keyup',(event)=>held.delete(event.key.toLowerCase()));
+    document.getElementById('startButton').addEventListener('click',beginMatch);document.getElementById('menuButton').addEventListener('click',openMenu);document.getElementById('rematchButton').addEventListener('click',beginMatch);document.getElementById('resultMenuButton').addEventListener('click',openMenu);
+    buildMenu();requestAnimationFrame(frame);
+  </script>
+</body>
+</html>
