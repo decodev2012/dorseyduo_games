@@ -13,6 +13,8 @@
     .topbar { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:12px; }
     .back { color:var(--cream); text-decoration:none; font-weight:800; opacity:.9; }
     .back:hover { color:var(--gold); }
+    .restart-table { border:1px solid rgba(255,255,255,.32); border-radius:10px; padding:7px 10px; cursor:pointer; color:#fff7d3; background:#23513f; font-size:.8rem; font-weight:900; transition:transform .12s ease,filter .12s ease; }
+    .restart-table:hover { transform:translateY(-1px); filter:brightness(1.12); }
     h1 { margin:0; text-align:center; font-size:clamp(1.55rem,4vw,2.4rem); letter-spacing:.03em; }
     .tag { margin:6px 0 18px; text-align:center; color:var(--muted); font-size:.93rem; }
     .scoreboard { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:0 auto 14px; max-width:860px; }
@@ -64,12 +66,22 @@
     .raise-field input { width:72px; padding:6px 5px; border:1px solid #f6c654; border-radius:8px; color:#2c2108; background:#fff6d4; font:inherit; font-weight:950; text-align:center; }
     .raise-field input:disabled { cursor:not-allowed; opacity:.55; }
     .footnote { margin:16px 0 0; color:#a9c8b8; text-align:center; font-size:.8rem; }
+    .start-overlay { position:fixed; z-index:20; inset:0; display:grid; place-items:center; padding:20px; background:linear-gradient(145deg,rgba(0,20,13,.88),rgba(0,0,0,.84)); }
+    .start-overlay[hidden] { display:none; }
+    .start-box { width:min(480px,100%); padding:clamp(24px,6vw,42px); border:1px solid rgba(255,239,183,.45); border-radius:25px; color:#fff8e8; background:radial-gradient(circle at 50% 0,rgba(76,159,105,.28),transparent 54%),linear-gradient(145deg,#10452f,#082519); box-shadow:0 24px 70px rgba(0,0,0,.6),inset 0 1px rgba(255,255,255,.18); text-align:center; }
+    .start-box h2 { margin:0 0 10px; color:var(--gold); font-size:clamp(2rem,7vw,3.4rem); line-height:.95; text-shadow:3px 3px #1b402b; }
+    .start-box p { margin:0 auto 20px; max-width:390px; color:#d5ecdd; line-height:1.48; }
+    .start-actions { display:grid; gap:10px; }
+    .start-actions button { min-height:48px; border:0; border-radius:13px; cursor:pointer; color:#172719; background:linear-gradient(#fff19a,#f2c951); box-shadow:0 4px 0 #8d6d24; font:900 1rem ui-rounded,"Avenir Next",system-ui,sans-serif; transition:transform .12s ease,filter .12s ease; }
+    .start-actions button:hover { transform:translateY(-2px); filter:brightness(1.06); }
+    .start-actions button:active { transform:translateY(3px); box-shadow:0 1px 0 #8d6d24; }
+    .start-actions .secondary { color:#e8f8ee; background:#286949; box-shadow:0 4px 0 #133728; }
     @media (max-width:560px) { .page { width:min(100% - 18px,1120px); padding-top:10px; } .table-wrap { padding:7px; border-radius:20px; } .table { min-height:540px; padding:18px 8px; } .scoreboard { gap:5px; } .stack { padding:8px 4px; } .stack-name { font-size:.63rem; } .stack-chips { font-size:.96rem; } .card { width:50px; height:72px; padding:5px 6px; font-size:.93rem; } .card .pip { font-size:1.5rem; } .cards,.community { gap:4px; } .player-seat { right:7px; bottom:12px; left:7px; } .action { min-width:96px; padding:10px 8px; } }
   </style>
 </head>
 <body>
   <main class="page">
-    <div class="topbar"><a class="back" href="../index.html">← All games</a><span aria-hidden="true"></span></div>
+    <div class="topbar"><a class="back" href="../index.html">← All games</a><button class="restart-table" id="restart-table" type="button">↻ Restart stacks</button></div>
     <h1>Texas Hold'em</h1>
     <p class="tag">Play for fictional table credits only — no real-money betting.</p>
     <section class="scoreboard" aria-label="Credit stacks">
@@ -98,6 +110,16 @@
     </div>
     <p class="footnote">Texas Hold'em: your two cards + the five community cards make your best five-card hand.</p>
   </main>
+  <section class="start-overlay" id="start-overlay" aria-label="Poker table start menu">
+    <div class="start-box">
+      <h2>Texas<br>Hold'em</h2>
+      <p id="start-copy">Face Nova and Ace at a fictional-credit table. Your three stacks stay with the table from hand to hand.</p>
+      <div class="start-actions">
+        <button id="start-table" type="button">Start table</button>
+        <button class="secondary" id="restart-overlay" type="button">Restart stacks at 200 credits</button>
+      </div>
+    </div>
+  </section>
   <script>
     (() => {
       'use strict';
@@ -114,9 +136,10 @@
         cardAreas:[0,1,2].map(seat => document.getElementById(`cards-${seat}`)),
         turnBadges:[0,1,2].map(seat => document.getElementById(`turn-${seat}`)),
         pot:document.getElementById('pot'), street:document.getElementById('street'), community:document.getElementById('community'), message:document.getElementById('message'), controls:document.getElementById('controls'),
-        fold:document.getElementById('fold'), call:document.getElementById('call'), raise:document.getElementById('raise'), raiseAmount:document.getElementById('raise-amount')
+        fold:document.getElementById('fold'), call:document.getElementById('call'), raise:document.getElementById('raise'), raiseAmount:document.getElementById('raise-amount'),
+        startOverlay:document.getElementById('start-overlay'), startCopy:document.getElementById('start-copy'), startTable:document.getElementById('start-table'), restartOverlay:document.getElementById('restart-overlay'), restartTable:document.getElementById('restart-table')
       };
-      const state = { chips:[200,200,200], deck:[], hands:[[],[],[]], community:[], pot:0, currentBet:0, roundContribution:[0,0,0], folded:[false,false,false], pending:[false,false,false], activeSeat:null, street:'idle', raisesThisStreet:0, revealBots:false, handNumber:0, token:0, message:'Press Deal a new hand to start.', dealing:false, cardAnimation:'', communityRevealFrom:0 };
+      const state = { chips:[200,200,200], deck:[], hands:[[],[],[]], community:[], pot:0, currentBet:0, roundContribution:[0,0,0], folded:[false,false,false], pending:[false,false,false], activeSeat:null, street:'idle', raisesThisStreet:0, revealBots:false, handNumber:0, token:0, message:'Choose Start table to begin.', dealing:false, cardAnimation:'', communityRevealFrom:0, tableStarted:false };
 
       function makeDeck() {
         const deck = [];
@@ -157,7 +180,7 @@
         if (state.community.length === 0) { const empty = document.createElement('span'); empty.className = 'empty-community'; empty.textContent = 'Community cards will appear here'; ui.community.appendChild(empty); }
         else state.community.forEach((card,index) => ui.community.appendChild(cardElement(card,false,(index - state.communityRevealFrom) * CARD_PACE,state.cardAnimation === 'community' && index >= state.communityRevealFrom)));
         ui.pot.textContent = `Pot: ${state.pot} credits`; ui.street.textContent = displayStreet(); ui.message.textContent = state.message; ui.controls.classList.toggle('is-hidden',state.folded[0]);
-        const playerTurn = state.activeSeat === 0 && state.street !== 'roundOver' && !state.dealing;
+        const playerTurn = state.tableStarted && state.activeSeat === 0 && state.street !== 'roundOver' && !state.dealing;
         const toCall = Math.max(0,state.currentBet - state.roundContribution[0]);
         const maxRaise = availableRaiseCredits(0), raiseBy = selectedRaiseAmount(), allIn = raiseBy > 0 && raiseBy === maxRaise;
         ui.raiseAmount.max = String(maxRaise); ui.raiseAmount.disabled = !playerTurn || maxRaise < BIG_BLIND;
@@ -170,7 +193,7 @@
       function postBlind(seat, amount) { addToPot(seat,amount); }
       function setPendingAfterRaise(raiser) { for (let seat = 0; seat < 3; seat += 1) state.pending[seat] = !state.folded[seat] && state.chips[seat] > 0 && seat !== raiser; }
       function nextPendingSeat(afterSeat) { for (let step = 1; step <= 3; step += 1) { const seat = (afterSeat + step) % 3; if (state.pending[seat] && !state.folded[seat]) return seat; } return null; }
-      function scheduleBotTurn(seat) { const token = state.token; window.setTimeout(() => { if (token !== state.token || state.activeSeat !== seat || state.street === 'roundOver') return; takeAction(seat,botChoice(seat)); },BOT_PACE); }
+      function scheduleBotTurn(seat) { const token = state.token; window.setTimeout(() => { if (!state.tableStarted || token !== state.token || state.activeSeat !== seat || state.street === 'roundOver') return; takeAction(seat,botChoice(seat)); },BOT_PACE); }
       function continueBetting(afterSeat) {
         const stillIn = activeSeats(); if (stillIn.length === 1) { finishByFolds(stillIn[0]); return; }
         const next = nextPendingSeat(afterSeat); if (next === null) { advanceStreet(); return; }
@@ -207,7 +230,7 @@
       function resumePlayerAfterDeal(message, delay) {
         const token = state.token;
         window.setTimeout(() => {
-          if (token !== state.token || state.street === 'roundOver') return;
+          if (!state.tableStarted || token !== state.token || state.street === 'roundOver') return;
           state.dealing = false; state.cardAnimation = '';
           const next = nextPendingSeat(2);
           if (next === null) { advanceStreet(); return; }
@@ -232,7 +255,19 @@
       function bestScore(cards) { let best = null; for (let a = 0; a < cards.length - 4; a += 1) for (let b = a + 1; b < cards.length - 3; b += 1) for (let c = b + 1; c < cards.length - 2; c += 1) for (let d = c + 1; d < cards.length - 1; d += 1) for (let e = d + 1; e < cards.length; e += 1) { const score = scoreFive([cards[a],cards[b],cards[c],cards[d],cards[e]]); if (!best || compareScores(score,best) > 0) best = score; } return best; }
       function scoreName(score) { return ['high card','one pair','two pair','three of a kind','straight','flush','full house','four of a kind','straight flush'][score[0]]; }
       function awardPot(winners) { const share = Math.floor(state.pot / winners.length); let remainder = state.pot % winners.length; for (const winner of winners) { state.chips[winner] += share + (remainder > 0 ? 1 : 0); remainder -= 1; } state.pot = 0; }
-      function scheduleNextHand(delay) { const token = state.token; window.setTimeout(() => { if (token === state.token) newHand(); },delay); }
+      function canContinueTable() { return state.chips.every(chips => chips >= BIG_BLIND); }
+      function showStartScreen(copy, canStart = canContinueTable()) {
+        state.tableStarted = false; state.activeSeat = null; state.dealing = false; state.cardAnimation = '';
+        ui.startCopy.textContent = copy; ui.startTable.disabled = !canStart; ui.startTable.textContent = canStart ? (state.handNumber ? 'Continue table' : 'Start table') : 'Restart stacks to play again';
+        ui.startOverlay.hidden = false; render();
+      }
+      function startTable(restartStacks) {
+        state.token += 1;
+        if (restartStacks) { state.chips = [200,200,200]; state.handNumber = 0; }
+        if (!canContinueTable()) { showStartScreen('A player is out of fictional credits. Use Restart stacks to start a fresh table.',false); return; }
+        state.tableStarted = true; ui.startOverlay.hidden = true; newHand();
+      }
+      function scheduleNextHand(delay) { const token = state.token; window.setTimeout(() => { if (state.tableStarted && token === state.token) newHand(); },delay); }
       function finishByFolds(winner) {
         const won = state.pot; state.chips[winner] += won; state.pot = 0; state.activeSeat = null; state.dealing = false; state.cardAnimation = ''; state.street = 'roundOver';
         setMessage(`${NAMES[winner]} ${winner === 0 ? 'win' : 'wins'} ${won} credits after everyone else folded.`); render(); scheduleNextHand(3000);
@@ -246,13 +281,17 @@
         scheduleNextHand(CARD_PACE * 2 + 2600);
       }
       function newHand() {
-        state.token += 1; if (state.chips.some(chips => chips < BIG_BLIND)) { state.chips = [200,200,200]; setMessage('Fresh point stacks issued.'); }
+        if (!state.tableStarted) return;
+        state.token += 1;
+        if (!canContinueTable()) { showStartScreen('A player is out of fictional credits. The table is saved as-is; choose Restart stacks for a fresh 200-credit table.',false); return; }
         state.deck = makeDeck(); state.hands = [[],[],[]]; state.community = []; state.pot = 0; state.currentBet = BIG_BLIND; state.roundContribution = [0,0,0]; state.folded = [false,false,false]; state.pending = [true,true,true]; state.raisesThisStreet = 0; state.revealBots = false; state.dealing = true; state.cardAnimation = 'hole'; state.communityRevealFrom = 0; state.street = 'preflop'; state.handNumber += 1;
         for (let card = 0; card < 2; card += 1) for (let seat = 0; seat < 3; seat += 1) state.hands[seat].push(drawCard());
         postBlind(0,SMALL_BLIND); postBlind(1,BIG_BLIND); state.activeSeat = null; setMessage(`Hand ${state.handNumber}: dealing hole cards…`); render();
         resumePlayerAfterDeal(`Hand ${state.handNumber}: you posted ${SMALL_BLIND}; Nova posted ${BIG_BLIND}. Your turn.`,CARD_PACE * 2);
       }
-      ui.fold.addEventListener('click',() => takeAction(0,'fold')); ui.call.addEventListener('click',() => takeAction(0,'call')); ui.raise.addEventListener('click',() => takeAction(0,'raise',selectedRaiseAmount())); ui.raiseAmount.addEventListener('input',render); render(); window.setTimeout(newHand,700);
+      ui.fold.addEventListener('click',() => takeAction(0,'fold')); ui.call.addEventListener('click',() => takeAction(0,'call')); ui.raise.addEventListener('click',() => takeAction(0,'raise',selectedRaiseAmount())); ui.raiseAmount.addEventListener('input',render);
+      ui.startTable.addEventListener('click',() => startTable(false)); ui.restartOverlay.addEventListener('click',() => startTable(true)); ui.restartTable.addEventListener('click',() => startTable(true));
+      render();
     })();
   </script>
 </body>
