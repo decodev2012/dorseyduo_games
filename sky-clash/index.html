@@ -11,6 +11,7 @@
     #app { position:relative; isolation:isolate; width:min(1120px,100%); overflow:hidden; border:2px solid #a9c8ff6b; border-radius:25px; background:#101b37; box-shadow:0 30px 100px #000c,inset 0 1px #fff4; }
     canvas { display:block; width:100%; aspect-ratio:16/9; touch-action:none; }
     .topbar { position:absolute; z-index:5; inset:0 0 auto; display:flex; justify-content:space-between; align-items:center; padding:14px 17px; pointer-events:none; }
+    .topbar-actions { display:flex; align-items:center; gap:7px; pointer-events:auto; }
     .topbar a,.topbar button { pointer-events:auto; color:#eaf4ff; font:800 13px/1 ui-rounded,system-ui,sans-serif; text-decoration:none; text-shadow:0 2px 2px #0008; }
     .topbar button { cursor:pointer; border:1px solid #d9ecff73; border-radius:10px; padding:8px 11px; background:#101d3bca; transition:transform .14s ease,filter .14s ease; }
     .topbar button:hover { transform:translateY(-2px); filter:brightness(1.17); }
@@ -71,7 +72,7 @@
 </head>
 <body>
   <main id="app">
-    <div class="topbar"><a href="../index.html">← GAMES</a><button id="menuButton" type="button">☰ MENU</button></div>
+    <div class="topbar"><a href="../index.html">← GAMES</a><div class="topbar-actions"><button id="soundButton" type="button" aria-pressed="true" title="Toggle sound and music">🔊 SOUND ON</button><button id="menuButton" type="button">☰ MENU</button></div></div>
     <div id="hud" aria-live="polite">
       <div class="fighter-hud p1"><span class="name" id="p1Name">PLAYER 1</span><span class="percent" id="p1Percent">0%</span><span class="stocks" id="p1Stocks">● ● ●</span></div>
       <div class="fighter-hud p2"><span class="name" id="p2Name">PLAYER 2</span><span class="percent" id="p2Percent">0%</span><span class="stocks" id="p2Stocks">● ● ●</span></div>
@@ -117,6 +118,7 @@
     const W = canvas.width, H = canvas.height;
     const menuOverlay = document.getElementById('menuOverlay');
     const resultOverlay = document.getElementById('result');
+    const soundButton = document.getElementById('soundButton');
     const ui = {
       p1Name:document.getElementById('p1Name'), p2Name:document.getElementById('p2Name'),
       p1Percent:document.getElementById('p1Percent'), p2Percent:document.getElementById('p2Percent'),
@@ -144,13 +146,94 @@
       {left:'arrowleft',right:'arrowright',jump:'arrowup',attack:',',dash:'.',signature:'k',utility:'l'}
     ];
     const BOT_PROFILES = {
-      easy:{label:'EASY',thinkMin:.38,thinkMax:.55,noise:110,idle:.54,spacing:160,edge:32,recoveryY:560,recoverySide:62,recoveryChance:.38,jumpChance:.03,attackChance:.38,signatureChance:.05,utilityChance:.04,dashChance:.05,forward:30,vertical:42},
-      medium:{label:'MEDIUM',thinkMin:.16,thinkMax:.28,noise:55,idle:.18,spacing:140,edge:58,recoveryY:455,recoverySide:110,recoveryChance:.84,jumpChance:.085,attackChance:.58,signatureChance:.18,utilityChance:.10,dashChance:.19,forward:42,vertical:48},
-      hard:{label:'HARD',thinkMin:.07,thinkMax:.12,noise:15,idle:.06,spacing:125,edge:90,recoveryY:438,recoverySide:140,recoveryChance:.96,jumpChance:.13,attackChance:.62,signatureChance:.28,utilityChance:.18,dashChance:.30,forward:55,vertical:62}
+      easy:{label:'EASY',thinkMin:.38,thinkMax:.55,noise:110,idle:.54,spacing:110,edge:32,recoveryY:560,recoverySide:62,recoveryChance:.38,jumpChance:.01,attackChance:.38,signatureChance:.05,utilityChance:.04,dashChance:.05,forward:30,vertical:42,forceAttackAfter:2},
+      medium:{label:'MEDIUM',thinkMin:.16,thinkMax:.28,noise:55,idle:.18,spacing:96,edge:58,recoveryY:455,recoverySide:110,recoveryChance:.84,jumpChance:.015,attackChance:.58,signatureChance:.18,utilityChance:.10,dashChance:.19,forward:42,vertical:48,forceAttackAfter:1},
+      hard:{label:'HARD',thinkMin:.07,thinkMax:.12,noise:15,idle:.06,spacing:92,edge:90,recoveryY:438,recoverySide:140,recoveryChance:.96,jumpChance:.02,attackChance:.62,signatureChance:.28,utilityChance:.18,dashChance:.30,forward:55,vertical:62,forceAttackAfter:1}
     };
     const pick = {p1:0,p2:3,stage:0,mode:'two',difficulty:'medium'};
     const held = new Set(), tapped = new Set();
-    const game = {mode:'menu',matchMode:'two',botDifficulty:'medium',players:[],stage:STAGES[0],last:0,shake:0,hitStop:0,particles:[],fields:[],banner:'',bannerTime:0,matchSerial:0,bot:{think:0,move:0,jumpLock:0,pending:null,lastTargetX:0}};
+    const game = {mode:'menu',matchMode:'two',botDifficulty:'medium',players:[],stage:STAGES[0],last:0,shake:0,hitStop:0,particles:[],fields:[],banner:'',bannerTime:0,matchSerial:0,bot:{think:0,move:0,jumpLock:0,dashLock:0,dashStreak:0,engageTimer:0,descending:false,pending:null,lastTargetX:0,closeDecisions:0}};
+    const POWER_SOUNDS = {
+      nova:{signature:[520,830,'sine'],utility:[300,450,'triangle']}, bram:{signature:[126,58,'sawtooth'],utility:[94,72,'square']},
+      luma:{signature:[410,750,'sine'],utility:[350,560,'triangle']}, moss:{signature:[185,92,'triangle'],utility:[145,105,'square']},
+      zip:{signature:[280,760,'square'],utility:[520,220,'square']}, orbit:{signature:[420,940,'sine'],utility:[170,390,'sine']},
+      skye:{signature:[330,740,'triangle'],utility:[450,810,'sine']}
+    };
+    const MUSIC_NOTES = [0,7,12,7,3,10,14,10,0,5,9,12,7,3,10,5];
+    const audio = {enabled:true,context:null,master:null,musicClock:0,musicStep:0};
+
+    function updateSoundButton() {
+      if(!soundButton) return;
+      soundButton.textContent=audio.enabled?'🔊 SOUND ON':'🔇 SOUND OFF';
+      soundButton.setAttribute('aria-pressed',String(audio.enabled));
+    }
+    function setAudioLevel(level) {
+      if(!audio.master||!audio.context) return;
+      try {
+        const gain=audio.master.gain,time=audio.context.currentTime;
+        if(gain.setTargetAtTime) gain.setTargetAtTime(level,time,.025); else gain.value=level;
+      } catch (_) {}
+    }
+    // This is called only by click handlers (Start/Rematch/Sound), never during page load.
+    function activateAudio() {
+      if(!audio.enabled) return null;
+      if(!audio.context) {
+        const AudioCtor=window.AudioContext||window.webkitAudioContext;
+        if(!AudioCtor) return null;
+        try {
+          audio.context=new AudioCtor();
+          audio.master=audio.context.createGain();
+          audio.master.gain.value=.20;
+          audio.master.connect(audio.context.destination);
+        } catch (_) { audio.context=null;audio.master=null;return null; }
+      }
+      try {
+        if(audio.context.state==='suspended'&&audio.context.resume) {
+          const resumed=audio.context.resume();
+          if(resumed&&resumed.catch) resumed.catch(()=>{});
+        }
+        setAudioLevel(.20);
+      } catch (_) {}
+      return audio.context;
+    }
+    function tone(start,end,duration,volume,type='triangle',delay=0) {
+      const context=audio.context;
+      if(!audio.enabled||!context||!audio.master||context.state==='suspended') return;
+      try {
+        const now=context.currentTime+delay,osc=context.createOscillator(),gain=context.createGain();
+        osc.type=type;osc.frequency.setValueAtTime(Math.max(18,start),now);
+        if(end) osc.frequency.exponentialRampToValueAtTime(Math.max(18,end),now+duration);
+        gain.gain.setValueAtTime(.0001,now);
+        gain.gain.exponentialRampToValueAtTime(Math.max(.0001,volume),now+.008);
+        gain.gain.exponentialRampToValueAtTime(.0001,now+duration);
+        osc.connect(gain);gain.connect(audio.master);osc.start(now);osc.stop(now+duration+.03);
+      } catch (_) {}
+    }
+    function soundJump(p) { tone(270+p.spec.jump*.08,520+p.spec.jump*.10,.095,.045,'triangle'); }
+    function soundWhiff(p) { tone(165+p.spec.range*1.6,112,.065,.032,'triangle'); }
+    function soundDash(p) { tone(170+p.spec.speed*.18,520,.085,.05,'square'); }
+    function soundHit(attacker,damage) { tone(160+damage*13,68,.105,.074,'square');tone(480,185,.07,.032,'triangle',.012); }
+    function soundPower(p,which) {
+      const flavor=POWER_SOUNDS[p.spec.id][which],volume=which==='signature'?.066:.048;
+      tone(flavor[0],flavor[1],which==='signature'?.18:.14,volume,flavor[2]);
+      tone(flavor[1]*1.18,flavor[0]*.92,.10,volume*.42,'sine',.035);
+    }
+    function soundKo(p) { tone(140,42,.34,.09,'sawtooth');tone(245,92,.22,.042,'triangle',.055); }
+    function soundFinish() { tone(392,587,.15,.046,'sine');tone(523,784,.22,.042,'triangle',.14); }
+    function updateMusic(dt) {
+      if(!audio.enabled||!audio.context||audio.context.state==='suspended'||game.mode!=='playing') return;
+      audio.musicClock-=dt;
+      if(audio.musicClock>0) return;
+      audio.musicClock=.29;
+      const step=audio.musicStep++%MUSIC_NOTES.length,note=MUSIC_NOTES[step],root=174.61;
+      tone(root*Math.pow(2,note/12),root*Math.pow(2,(note-.35)/12),.22,.019,'triangle');
+      if(step%4===0) tone(root*.5,root*.49,.18,.025,'sine');
+    }
+    function toggleSound() {
+      audio.enabled=!audio.enabled;
+      if(audio.enabled) { activateAudio();audio.musicClock=0; } else setAudioLevel(.0001);
+      updateSoundButton();
+    }
 
     function element(tag, props = {}) { const node=document.createElement(tag); Object.assign(node,props); return node; }
     function showFighterInfo(f) {
@@ -198,8 +281,9 @@
       return {slot,spec,x:spawnX,y:230,px:spawnX,py:230,vx:0,vy:0,w:42,h:70,facing:slot===0?1:-1,damage:0,stocks:3,jumps:2,onGround:false,attack:null,attackCooldown:0,special:null,signatureCooldown:0,utilityCooldown:0,brace:0,armor:0,drift:0,utilityLock:0,cloudPopReady:true,hitstun:0,invincible:.92,dash:0,dashCooldown:0,flash:0,run:0,dead:false,trail:[]};
     }
     function beginMatch() {
+      activateAudio(); audio.musicClock=0;
       game.stage=STAGES[pick.stage]; game.players=[newPlayer(0,pick.p1,game.stage.spawn[0]),newPlayer(1,pick.p2,game.stage.spawn[1])];
-      game.mode='playing'; game.matchMode=pick.mode; game.botDifficulty=pick.difficulty; game.matchSerial+=1; game.particles=[]; game.fields=[]; const profile=BOT_PROFILES[game.botDifficulty];game.bot={think:profile.thinkMin+Math.random()*(profile.thinkMax-profile.thinkMin),move:0,jumpLock:0,pending:null,lastTargetX:game.players[0].x};game.banner=pick.mode==='bot'?`${profile.label} BOT ONLINE`:'READY?'; game.bannerTime=.75; game.shake=0; game.hitStop=0;
+      game.mode='playing'; game.matchMode=pick.mode; game.botDifficulty=pick.difficulty; game.matchSerial+=1; game.particles=[]; game.fields=[]; const profile=BOT_PROFILES[game.botDifficulty];game.bot={think:profile.thinkMin+Math.random()*(profile.thinkMax-profile.thinkMin),move:0,jumpLock:0,dashLock:0,dashStreak:0,engageTimer:0,descending:false,pending:null,lastTargetX:game.players[0].x,closeDecisions:0};game.banner=pick.mode==='bot'?`${profile.label} BOT ONLINE`:'READY?'; game.bannerTime=.75; game.shake=0; game.hitStop=0;
       menuOverlay.classList.add('hidden'); resultOverlay.classList.add('hidden'); updateHud();
     }
     function openMenu() { game.mode='menu'; menuOverlay.classList.remove('hidden'); resultOverlay.classList.add('hidden'); }
@@ -218,11 +302,11 @@
     }
     function startAttack(p) {
       if (p.attack || p.special || p.attackCooldown>0 || p.hitstun>0 || p.dash>0 || p.utilityLock>0) return;
-      p.attack={time:0,hasHit:false}; p.attackCooldown=.42; p.vx+=p.facing*22;
+      p.attack={time:0,hasHit:false}; p.attackCooldown=.42; p.vx+=p.facing*22; soundWhiff(p);
     }
     function startDash(p) {
       if (p.dashCooldown>0 || p.hitstun>0 || p.attack || p.special || p.utilityLock>0) return;
-      p.dash=.145; p.dashCooldown=.55; p.invincible=Math.max(p.invincible,.10); p.vx=p.facing*590; p.vy*=.45; burst(p.x,p.y+21,p.spec.accent,8,.55);
+      p.dash=.145; p.dashCooldown=.55; p.invincible=Math.max(p.invincible,.10); p.vx=p.facing*590; p.vy*=.45; burst(p.x,p.y+21,p.spec.accent,8,.55); soundDash(p);
     }
     function canUsePower(p,which) {
       const cooldown=which==='signature'?p.signatureCooldown:p.utilityCooldown;
@@ -240,7 +324,7 @@
       if (id==='zip') { p.special={kind:'zipKick',time:0,duration:.30,activeStart:.025,activeEnd:.18,hasHit:false};p.signatureCooldown=1.95;p.dash=.18;p.vx=p.facing*640; }
       if (id==='orbit') { p.special={kind:'orbitLance',time:0,duration:.31,activeStart:.09,activeEnd:.20,hasHit:false};p.signatureCooldown=2.15; }
       if (id==='skye') { p.special={kind:'cloudPop',time:0,duration:.29,activeStart:.04,activeEnd:.17,hasHit:false};p.signatureCooldown=2.35;p.cloudPopReady=false;p.vy=Math.min(p.vy,-225);p.onGround=false; }
-      burst(p.x+p.facing*24,p.y-21,p.spec.accent,10,.7);
+      burst(p.x+p.facing*24,p.y-21,p.spec.accent,10,.7); soundPower(p,'signature');
     }
     function startUtility(p,other) {
       if (!canUsePower(p,'utility')) return;
@@ -256,7 +340,7 @@
         game.fields.push({type:'gravity',owner:p.slot,x:p.x,y:p.y-22,r:130,life:.34,color:p.spec.color});p.utilityCooldown=4;
       }
       if (id==='skye') { p.vx=p.facing*330;p.vy=Math.min(p.vy,-145);p.utilityCooldown=3.8; }
-      burst(p.x,p.y-16,p.spec.accent,9,.56);
+      burst(p.x,p.y-16,p.spec.accent,9,.56); soundPower(p,'utility');
     }
     function hitBox(p) { const reach=p.spec.range+(p.attack&&p.attack.time>.1?9:0); return {x:p.x+p.facing*(p.w*.5+reach*.5),y:p.y-16,w:reach,h:42}; }
     function specialBox(p) {
@@ -288,7 +372,7 @@
       const direction=options.direction===undefined?attacker.facing:options.direction;
       target.vx=direction*launch; target.vy=-(options.lift===undefined?228+target.damage*.76:options.lift)*mitigation; target.hitstun=Math.max(target.hitstun,options.hitstun===undefined?.17+target.damage/640:options.hitstun); target.onGround=false; target.invincible=.105; target.flash=.16;target.dash=0;
       if(target.armor>0) { target.armor=0;target.utilityLock=0; }
-      attacker.vx-=attacker.facing*(options.recoil===undefined?58:options.recoil); game.shake=Math.min(13,5+target.damage*.035); game.hitStop=.045; burst(target.x,target.y-22,attacker.spec.accent,19,1.2);
+      attacker.vx-=attacker.facing*(options.recoil===undefined?58:options.recoil); game.shake=Math.min(13,5+target.damage*.035); game.hitStop=.045; burst(target.x,target.y-22,attacker.spec.accent,19,1.2); soundHit(attacker,damage);
     }
     function land(p) {
       const plats=game.stage.platforms; const previousBottom=p.py+p.h*.5; const bottom=p.y+p.h*.5;
@@ -315,16 +399,39 @@
       }
       return bestX;
     }
+    function platformClimbX(p,target) {
+      let bestX=target.x,bestScore=Infinity;
+      for(const platform of game.stage.platforms) {
+        const rise=p.y-platform.y;
+        if(rise<38||rise>230) continue;
+        const x=clamp(target.x,platform.x+30,platform.x+platform.w-30);
+        const score=Math.abs(x-p.x)+Math.abs(x-target.x)*.35+Math.abs(rise-125)*.22;
+        if(score<bestScore) { bestScore=score;bestX=x; }
+      }
+      return bestX;
+    }
+    function standingPlatform(p) {
+      const feet=p.y+p.h*.5;
+      return game.stage.platforms.find(platform=>Math.abs(feet-platform.y)<=5&&p.x+p.w*.42>platform.x&&p.x-p.w*.42<platform.x+platform.w) || null;
+    }
+    function platformDropX(p,target,platform) {
+      const direction=target.x<=platform.x+platform.w*.5?-1:1;
+      return direction<0?platform.x-34:platform.x+platform.w+34;
+    }
     function botIntent(p,target,dt) {
       const state=game.bot,profile=BOT_PROFILES[game.botDifficulty]||BOT_PROFILES.medium;
       const input={left:false,right:false,jump:false,attack:false,dash:false,signature:false,utility:false};
-      if(!p||p.dead||!target||target.dead) { state.pending=null;state.move=0;return input; }
-      state.think-=dt;state.jumpLock=Math.max(0,state.jumpLock-dt);
-      if(p.invincible>.55) { state.pending=null;state.move=0;return input; }
+      if(!p||p.dead||!target||target.dead) { state.pending=null;state.move=0;state.closeDecisions=0;state.engageTimer=0;state.descending=false;return input; }
+      state.think-=dt;state.jumpLock=Math.max(0,state.jumpLock-dt);state.dashLock=Math.max(0,state.dashLock-dt);
+      if(p.invincible>.55) { state.pending=null;state.move=0;state.closeDecisions=0;state.dashStreak=0;state.engageTimer=0;state.descending=false;return input; }
       const main=game.stage.platforms[0],leftGuard=main.x+profile.edge,rightGuard=main.x+main.w-profile.edge;
-      const unsafeAir=!p.onGround&&(p.y>profile.recoveryY||p.x<main.x-profile.recoverySide||p.x>main.x+main.w+profile.recoverySide);
+      const unsafeAir=!state.descending&&!p.onGround&&(p.y>profile.recoveryY||p.x<main.x-profile.recoverySide||p.x>main.x+main.w+profile.recoverySide);
       if(unsafeAir) {
         state.pending=null;
+        state.closeDecisions=0;
+        state.dashStreak=0;
+        state.engageTimer=0;
+        state.descending=false;
         const recoveryX=nearestRecoveryX(p);state.move=recoveryX===p.x?0:Math.sign(recoveryX-p.x);
         if(p.jumps>0&&p.vy>30&&state.jumpLock<=0&&Math.random()<profile.recoveryChance) { input.jump=true;state.jumpLock=.32+Math.random()*.08; }
       }
@@ -333,29 +440,74 @@
         if(!unsafeAir) {
           const seenX=target.x+(Math.random()-.5)*profile.noise,dx=seenX-p.x,distance=Math.abs(dx),direction=dx===0?p.facing:Math.sign(dx),vertical=Math.abs(target.y-p.y);
           state.lastTargetX=target.x;
-          if(p.x<leftGuard) state.move=1;
+          const isOrbit=p.spec.id==='orbit';
+          const hardOrbit=isOrbit&&game.botDifficulty==='hard';
+          const platform=standingPlatform(p);
+          if(hardOrbit&&p.onGround&&platform&&platform===main) state.descending=false;
+          if(hardOrbit&&p.onGround&&platform&&platform!==main&&target.y-p.y>=70) state.descending=true;
+          const orbitNeedsDescent=hardOrbit&&state.descending;
+          const targetAbove=p.y-target.y;
+          const orbitNeedsClimb=isOrbit&&targetAbove>=70&&targetAbove<=190;
+          const climbX=orbitNeedsClimb?platformClimbX(p,target):target.x;
+          const climbDirection=Math.abs(climbX-p.x)<12?direction:Math.sign(climbX-p.x);
+          const dropX=orbitNeedsDescent&&platform&&platform!==main?platformDropX(p,target,platform):target.x;
+          const dropDirection=Math.abs(dropX-p.x)<12?direction:Math.sign(dropX-p.x);
+          const attackReach=p.spec.range+profile.forward;
+          const attackPursuit=distance<=attackReach+60&&vertical<=profile.vertical+30;
+          if(orbitNeedsDescent) state.move=dropDirection;
+          else if(p.x<leftGuard) state.move=1;
           else if(p.x>rightGuard) state.move=-1;
+          else if(orbitNeedsClimb) state.move=climbDirection;
+          else if(attackPursuit) state.move=direction;
           else if(Math.random()<profile.idle) state.move=0;
           else if(distance>profile.spacing+34) state.move=direction;
           else if(distance<profile.spacing-34) state.move=-direction;
           else state.move=Math.random()<.36?0:direction;
-          if(p.onGround&&p.jumps>0&&state.jumpLock<=0&&((target.y+42<p.y&&Math.random()<profile.jumpChance*4)||Math.random()<profile.jumpChance)) { state.pending={jump:true};state.jumpLock=.32+Math.random()*.08; }
-          const facingTarget=direction===p.facing,forwardHit=facingTarget&&distance<=p.spec.range+profile.forward&&vertical<=profile.vertical;
-          const forwardPower=facingTarget&&distance<=p.spec.range+profile.forward+72&&vertical<=profile.vertical+35;
-          const dashOutward=(p.facing<0&&p.x<leftGuard+48)||(p.facing>0&&p.x>rightGuard-48);
+          if(orbitNeedsDescent) { state.pending=null;state.dashStreak=0;state.engageTimer=0; }
+          else if(orbitNeedsClimb&&p.onGround&&p.jumps>0&&state.jumpLock<=0) { state.pending={jump:true};state.jumpLock=.34+Math.random()*.08; }
+          else if(p.onGround&&p.jumps>0&&state.jumpLock<=0&&((target.y+42<p.y&&Math.random()<profile.jumpChance*4)||Math.random()<profile.jumpChance)) { state.pending={jump:true};state.jumpLock=.32+Math.random()*.08; }
+          const rawDx=target.x-p.x,rawDistance=Math.abs(rawDx),rawVertical=Math.abs(target.y-p.y),rawDirection=rawDx===0?p.facing:Math.sign(rawDx);
+          const legalOrbitEngage=hardOrbit&&target.invincible<=.25&&rawDistance<=175&&rawVertical<=52&&p.hitstun<=0&&!p.attack&&!p.special&&p.dash<=0&&p.utilityLock<=0;
+          state.engageTimer=legalOrbitEngage?Math.min(1.4,(state.engageTimer||0)+dt):0;
+          const forceOrbitAction=legalOrbitEngage&&state.engageTimer>=1.1;
+          if(forceOrbitAction) state.move=rawDirection;
+          const canFaceTarget=state.move===direction||p.facing===direction||forceOrbitAction;
+          const forwardHit=canFaceTarget&&distance<=(isOrbit?118:attackReach)&&vertical<=(isOrbit?42:profile.vertical);
+          const forwardPower=canFaceTarget&&distance<=(isOrbit?158:attackReach+72)&&vertical<=(isOrbit?48:profile.vertical+35);
+          // Orbit deliberately uses its extra reach instead of endlessly dashing past it.
+          const orbitLanceWindow=isOrbit&&canFaceTarget&&distance>=105&&distance<=158&&vertical<=48;
+          const orbitGravityWindow=isOrbit&&canFaceTarget&&Math.hypot(target.x-p.x,target.y-p.y)<=125;
+          const forcedOrbitPunch=forceOrbitAction&&rawDistance<=118&&rawVertical<=42;
+          const forcedOrbitLance=forceOrbitAction&&rawDistance>=105&&rawDistance<=158&&rawVertical<=48;
+          state.closeDecisions=forwardHit?state.closeDecisions+1:0;
+          if(forwardHit||forwardPower) state.dashStreak=0;
+          const dashOutward=(direction<0&&p.x<leftGuard+48)||(direction>0&&p.x>rightGuard-48);
           const safeDash=!dashOutward&&p.x>main.x-8&&p.x<main.x+main.w+8;
-          if(p.hitstun<=0&&!p.attack&&!p.special&&!p.dash&&p.utilityLock<=0) {
+          const dashMinRange=Math.max(attackReach+88,profile.spacing+62);
+          const dashMaxRange=isOrbit?340:390;
+          const canChaseDash=p.dashCooldown<=0&&safeDash&&state.dashLock<=0&&state.dashStreak<1&&distance>=dashMinRange&&distance<=dashMaxRange&&Math.abs(p.vx)<p.spec.speed*.82;
+          if(!orbitNeedsDescent&&p.hitstun<=0&&!p.attack&&!p.special&&p.dash<=0&&p.utilityLock<=0) {
             let action=null,roll=Math.random();
-            if(forwardHit) {
+            if(forcedOrbitLance&&p.signatureCooldown<=0) action='signature';
+            else if(forcedOrbitPunch&&p.attackCooldown<=0) action='attack';
+            else if(orbitLanceWindow&&p.signatureCooldown<=0&&roll<Math.max(profile.signatureChance,.36)) action='signature';
+            else if(orbitGravityWindow&&p.utilityCooldown<=0&&roll<Math.max(profile.utilityChance,.14)) action='utility';
+            else if(forwardHit) {
               if(p.signatureCooldown<=0&&roll<profile.signatureChance&&!(p.spec.id==='bram'&&!p.onGround)) action='signature';
-              else if(roll<profile.signatureChance+profile.attackChance) action='attack';
+              else if(p.attackCooldown<=0&&state.closeDecisions>=profile.forceAttackAfter) action='attack';
+              else if(p.attackCooldown<=0&&roll<profile.signatureChance+profile.attackChance) action='attack';
               else if(p.utilityCooldown<=0&&roll<profile.signatureChance+profile.attackChance+profile.utilityChance) action='utility';
             } else if(forwardPower) {
               if(p.signatureCooldown<=0&&roll<profile.signatureChance&&!(p.spec.id==='bram'&&!p.onGround)) action='signature';
-              else if(p.dashCooldown<=0&&safeDash&&roll<profile.signatureChance+profile.dashChance) action='dash';
+              else if(canChaseDash&&roll<profile.signatureChance+profile.dashChance) action='dash';
               else if(p.utilityCooldown<=0&&roll<profile.signatureChance+profile.dashChance+profile.utilityChance) action='utility';
-            } else if(distance<420&&p.dashCooldown<=0&&safeDash&&roll<profile.dashChance*.55) action='dash';
-            if(action) { state.pending={...(state.pending||{}),[action]:true};state.move=direction; }
+            } else if(canChaseDash&&roll<profile.dashChance*.55) action='dash';
+            if(action) {
+              state.pending={...(state.pending||{}),[action]:true};state.move=direction;state.closeDecisions=0;
+              if(action==='dash') { state.dashStreak+=1;state.dashLock=.46+profile.thinkMin; }
+              else state.dashStreak=0;
+              state.engageTimer=0;
+            }
           }
         }
       }
@@ -366,13 +518,13 @@
     function updatePlayer(p,other,dt,intent) {
       const input=intent||humanIntent(CONTROLS[p.slot]); p.px=p.x;p.py=p.y;
       p.invincible=Math.max(0,p.invincible-dt); p.flash=Math.max(0,p.flash-dt); p.attackCooldown=Math.max(0,p.attackCooldown-dt);p.dashCooldown=Math.max(0,p.dashCooldown-dt);p.signatureCooldown=Math.max(0,p.signatureCooldown-dt);p.utilityCooldown=Math.max(0,p.utilityCooldown-dt);p.brace=Math.max(0,p.brace-dt);p.armor=Math.max(0,p.armor-dt);p.drift=Math.max(0,p.drift-dt);p.utilityLock=Math.max(0,p.utilityLock-dt); p.hitstun=Math.max(0,p.hitstun-dt);
-      if (p.dash>0) {p.dash-=dt; p.vx*=Math.pow(.965,dt*60);} else if (p.hitstun<=0) {
-        if (p.utilityLock>0 || p.special) { p.vx*=Math.pow(.64,dt*60); }
+      if (p.dash>0) {p.dash=Math.max(0,p.dash-dt); p.vx*=Math.pow(.965,dt*60);} else if (p.hitstun<=0) {
+        if (p.utilityLock>0 || p.special || p.attack) { p.vx*=Math.pow(.64,dt*60); }
         else {
         const dir=(input.right?1:0)-(input.left?1:0);
         if (dir) { p.vx+=dir*(p.spec.speed*8.4)*dt; p.facing=dir; p.run+=Math.abs(p.vx)*dt*.035; } else p.vx*=Math.pow(.79,dt*60);
         const max=p.spec.speed*(p.onGround?1:0.83)*(p.drift>0?1.15:1); p.vx=clamp(p.vx,-max,max);
-        if (input.jump && p.jumps>0) { p.vy=-p.spec.jump; p.jumps-=1; p.onGround=false; burst(p.x,p.y+p.h*.42,p.spec.accent,7,.45); }
+        if (input.jump && p.jumps>0) { p.vy=-p.spec.jump; p.jumps-=1; p.onGround=false; burst(p.x,p.y+p.h*.42,p.spec.accent,7,.45); soundJump(p); }
         if (input.attack) startAttack(p); if (input.dash) startDash(p);
         if (input.signature) startSignature(p); if (input.utility) startUtility(p,other);
         }
@@ -406,7 +558,7 @@
     }
     function loseStock(p) {
       if (p.dead || game.mode!=='playing') return;
-      p.stocks-=1; p.dead=true; burst(clamp(p.x,0,W),clamp(p.y,0,H),p.spec.color,38,1.8); game.shake=18; updateHud();
+      p.stocks-=1; p.dead=true; burst(clamp(p.x,0,W),clamp(p.y,0,H),p.spec.color,38,1.8); soundKo(p); game.shake=18; updateHud();
       if (p.stocks<=0) { finishMatch(1-p.slot); return; }
       game.banner=`${p.spec.name} LOST A STOCK!`; game.bannerTime=1.15;
       window.setTimeout(()=>{
@@ -415,7 +567,7 @@
     }
     function finishMatch(winner) {
       game.mode='finished'; const win=game.players[winner], lose=game.players[1-winner];
-      ui.resultTitle.textContent=`${winner===0?'PLAYER 1':'PLAYER 2'} WINS!`; ui.resultText.textContent=`${win.spec.name} takes the sky from ${lose.spec.name}.`; window.setTimeout(()=>resultOverlay.classList.remove('hidden'),600);
+      ui.resultTitle.textContent=`${winner===0?'PLAYER 1':'PLAYER 2'} WINS!`; ui.resultText.textContent=`${win.spec.name} takes the sky from ${lose.spec.name}.`; soundFinish(); window.setTimeout(()=>resultOverlay.classList.remove('hidden'),600);
     }
     function updateParticles(dt) { game.particles=game.particles.filter(p=>{p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=340*dt;return p.life>0;}); }
     function update(dt) {
@@ -423,7 +575,7 @@
         if (game.hitStop>0) game.hitStop=Math.max(0,game.hitStop-dt); else { const [a,b]=game.players; if(a&&!a.dead) updatePlayer(a,b,dt); if(b&&!b.dead) updatePlayer(b,a,dt,game.matchMode==='bot'?botIntent(b,a,dt):null); updateFields(dt); }
         game.bannerTime=Math.max(0,game.bannerTime-dt); updateHud();
       }
-      updateParticles(dt); game.shake=Math.max(0,game.shake-dt*27);
+      updateMusic(dt); updateParticles(dt); game.shake=Math.max(0,game.shake-dt*27);
     }
     function drawRoundedRect(x,y,w,h,r,fill,stroke) { ctx.beginPath();ctx.roundRect(x,y,w,h,r);if(fill){ctx.fillStyle=fill;ctx.fill();}if(stroke){ctx.strokeStyle=stroke;ctx.stroke();} }
     function drawBackground(stage,t) {
@@ -506,8 +658,8 @@
 
     window.addEventListener('keydown',(event)=>{const k=event.key.toLowerCase();if(['a','d','w','f','g','r','t','k','l','arrowleft','arrowright','arrowup',',','.','escape'].includes(k)) event.preventDefault();if(!held.has(k))tapped.add(k);held.add(k);if(k==='escape')openMenu();});
     window.addEventListener('keyup',(event)=>held.delete(event.key.toLowerCase()));
-    document.getElementById('startButton').addEventListener('click',beginMatch);document.getElementById('menuButton').addEventListener('click',openMenu);document.getElementById('rematchButton').addEventListener('click',beginMatch);document.getElementById('resultMenuButton').addEventListener('click',openMenu);
-    buildMenu();requestAnimationFrame(frame);
+    document.getElementById('startButton').addEventListener('click',beginMatch);document.getElementById('menuButton').addEventListener('click',openMenu);document.getElementById('rematchButton').addEventListener('click',beginMatch);document.getElementById('resultMenuButton').addEventListener('click',openMenu);soundButton.addEventListener('click',toggleSound);
+    buildMenu();updateSoundButton();requestAnimationFrame(frame);
   </script>
 </body>
 </html>
