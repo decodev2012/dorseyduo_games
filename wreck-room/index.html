@@ -83,7 +83,7 @@
     var canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
     // World units are pixels per second. This keeps normal derby cars around
     // 150–190 km/h and a nitro run below roughly 230 km/h.
-    var W=canvas.width,H=canvas.height,TAU=Math.PI*2,WORLD_UNITS_TO_KMH=.34,MIN_AI_NITRO=10;
+    var W=canvas.width,H=canvas.height,TAU=Math.PI*2,WORLD_UNITS_TO_KMH=.34;
     var ui={
       hud:document.getElementById('hud'),menu:document.getElementById('menu'),pause:document.getElementById('pausePanel'),results:document.getElementById('resultPanel'),
       modeChoices:document.getElementById('modeChoices'),carChoices:document.getElementById('carChoices'),p2CarChoices:document.getElementById('p2CarChoices'),p2CarBlock:document.getElementById('p2CarBlock'),arenaChoices:document.getElementById('arenaChoices'),menuKicker:document.getElementById('menuKicker'),start:document.getElementById('startButton'),
@@ -103,6 +103,13 @@
       bull:{id:'bull',name:'Iron Bull',tag:'Heavy armor. Win the head-on collision.',color:'#376fa4',accent:'#a9e6ff',health:225,mass:1.55,accel:440,reverse:280,maxSpeed:445,turn:2.42,grip:8.2,roll:1.45,boostForce:690,boostDrain:27,radius:38,stats:[48,94,52]},
       viper:{id:'viper',name:'Glass Viper',tag:'Fast and loose. Drift around the big hits.',color:'#64af6d',accent:'#e6ff8c',health:130,mass:.84,accel:610,reverse:340,maxSpeed:555,turn:3.36,grip:5.2,roll:1.1,boostForce:850,boostDrain:33,radius:31,stats:[91,42,96]}
     };
+    // This is the champion policy produced by wreck-room/ai-generation-tuner.js.
+    // The tuner uses a fixed seed, 42 candidates and 36 generations across all
+    // three shipped arena layouts, rewarding clean moving-target intercepts and
+    // rams while penalising obstacle and boundary impacts. Keep this metadata
+    // beside the policy so a future balancing pass is reproducible, not guesswork.
+    var AI_TRAINING=Object.freeze({seed:'0x57ec2026',population:42,generations:36,championGeneration:32,fitness:8838.07});
+    var AI_PROFILE=Object.freeze({steerGain:2.415,interceptTime:.36,routePad:58.691,avoidWeight:1.689,turnBrake:.58,driftTurn:.76,boostFacing:.934,boostRange:1075.947,boostReserve:14,pickupBias:.568,flankDistance:145,recoveryTime:1.163});
     var BOT_NAMES=['Chrome Jack','Rivet','Moxie','Rustbite','Torque','K.O. Kelly','Grinder','Static','Latch','Gasket'];
     var ARENAS={
       scrap:{
@@ -181,7 +188,8 @@
       return {spec:spec,x:x,y:y,angle:angle||0,vx:0,vy:0,r:spec.radius,health:spec.health,maxHealth:spec.health,boost:100,alive:true,isPlayer:controller>0,controller:controller||0,team:team||'rivals',name:name||spec.name,
         color:spec.color,accent:spec.accent,hit:0,hitCooldown:0,wallCooldown:0,boosting:false,boostPower:0,drifting:false,handbrakeSlide:false,driftSign:0,skidTravel:0,aiTimer:rand(.15,.55),target:null,personality:Math.random(),
         lastX:x,lastY:y,damageLook:0,kills:0,engine:rand(0,TAU),pickupGlow:0,shock:0,spin:0,roadSpeed:0,
-        aiWaypoint:null,aiRoute:null,aiRouteIndex:0,aiRouteTime:0,aiRouteTargetX:x,aiRouteTargetY:y,aiTarget:null,aiTargetHold:0,aiProbeX:x,aiProbeY:y,aiProbeTimer:.86,aiStuck:0,aiReverse:0,aiEscapeAngle:0,aiSide:Math.random()<.5?-1:1,aiMode:'idle'};
+        aiWaypoint:null,aiRoute:null,aiRouteIndex:0,aiRouteTime:0,aiRouteTargetX:x,aiRouteTargetY:y,aiTarget:null,aiTargetHold:0,aiProbeX:x,aiProbeY:y,aiProbeTimer:.86,aiStuck:0,aiWallTime:0,aiReverse:0,aiEscapeAngle:0,aiSide:Math.random()<.5?-1:1,aiMode:'idle',
+        aiRole:'striker',aiSlot:-1,aiGoal:null,aiGoalType:'idle',aiObjective:'idle',aiGoalHold:0,aiResourceTarget:null,aiProgress:Infinity,aiGeneration:AI_TRAINING.championGeneration};
     }
     function teamStartLayout(a){
       // All arenas put their first four start pads in left/right pairs. Keep
@@ -204,6 +212,7 @@
         player=makeCar(CAR_SPECS[selectedCar],spots[0][0],spots[0][1],0,1,'YOU','crew');cars.push(player);player2=null;
         for(var i=1;i<spots.length;i++){var spec=options[(i+Math.floor(Math.random()*2))%options.length],c=makeCar(spec,spots[i][0],spots[i][1],Math.PI,0,BOT_NAMES[(i-1)%BOT_NAMES.length],'rivals');c.personality=(i*.237)%1;cars.push(c);}
       }
+      assignAiRoles();
       arena.pickups.forEach(function(pos,i){spawnPickup(pos[0],pos[1],i%3===1?'shock':'nitro');});
       camera.x=player.x;camera.y=player.y;camera.zoom=.54;camera2.x=(player2||player).x;camera2.y=(player2||player).y;camera2.zoom=.54;
       if(gameMode==='team')ui.hud.classList.add('team-mode');else ui.hud.classList.remove('team-mode');ui.menu.classList.add('hidden');ui.pause.classList.add('hidden');ui.results.classList.add('hidden');canvas.focus();
@@ -246,18 +255,18 @@
     function updateCar(c,control,dt){
       if(!c.alive)return;c.lastX=c.x;c.lastY=c.y;c.hit=Math.max(0,c.hit-dt*3.1);c.hitCooldown=Math.max(0,c.hitCooldown-dt);c.wallCooldown=Math.max(0,c.wallCooldown-dt);c.shock=Math.max(0,c.shock-dt);c.engine+=dt*(3+Math.hypot(c.vx,c.vy)*.025);
       var cs=Math.cos(c.angle),sn=Math.sin(c.angle),forward=c.vx*cs+c.vy*sn,side=-c.vx*sn+c.vy*cs,road=Math.hypot(forward,side);
-      // A proper handbrake drift belongs to a moving player who is actually
-      // turning. Holding the brake at a stop, or in a straight line, stays a
-      // normal brake instead of magically creating sideways motion.
+      // A proper handbrake drift belongs to a moving driver who is actually
+      // turning. Bots use the same physics as players, but their evolved
+      // policy only asks for a slide on a safe, high-speed corner.
       var wasSlide=c.handbrakeSlide,driftSpeedReady=wasSlide?(forward>88&&road>112):(forward>135&&road>155);
-      var playerSlide=!!(c.isPlayer&&control.drift&&Math.abs(control.steer)>.12&&driftSpeedReady);
-      if(playerSlide){if(!wasSlide){c.driftSign=control.steer>0?1:-1;c.skidTravel=0;}c.handbrakeSlide=true;}
+      var controlledSlide=!!(control.drift&&Math.abs(control.steer)>.12&&driftSpeedReady);
+      if(controlledSlide){if(!wasSlide){c.driftSign=control.steer>0?1:-1;c.skidTravel=0;}c.handbrakeSlide=true;}
       else {c.handbrakeSlide=false;if(!control.drift||Math.abs(control.steer)<=.12)c.driftSign=0;}
       var throttle=control.throttle;
       if(throttle>0)forward+=c.spec.accel*throttle*dt;
       if(throttle<0)forward+=c.spec.reverse*throttle*dt;
-      var counterSteer=!!(playerSlide&&wasSlide&&c.driftSign&&control.steer*c.driftSign<-.12);
-      if(playerSlide){
+      var counterSteer=!!(controlledSlide&&wasSlide&&c.driftSign&&control.steer*c.driftSign<-.12);
+      if(controlledSlide){
         // Lock the rear just enough to carry speed. Momentum is handled below
         // in world space, so steering produces a real rear slide instead of
         // rotating the velocity vector with the chassis.
@@ -268,10 +277,10 @@
         if(control.drift)forward*=Math.max(0,1-2.65*dt);
         side*=Math.max(0,1-c.spec.grip*(control.drift?.20:1)*dt);
       }
-      forward*=Math.max(0,1-c.spec.roll*(playerSlide?(counterSteer?.22:.42):1)*dt);
+      forward*=Math.max(0,1-c.spec.roll*(controlledSlide?(counterSteer?.22:.42):1)*dt);
       var turnScale=.26+clamp(Math.abs(forward)/c.spec.maxSpeed,0,1.12)*.86;
       var oldVx=cs*forward-sn*side,oldVy=sn*forward+cs*side;
-      c.angle+=control.steer*c.spec.turn*turnScale*dt*(playerSlide?.40:1)*(forward<-4?-1:1);
+      c.angle+=control.steer*c.spec.turn*turnScale*dt*(controlledSlide?.40:1)*(forward<-4?-1:1);
       // Nitro is finite down to its final fraction: any positive reserve gets
       // a proportional last push, then clamps to exactly zero. That avoids a
       // fake full impulse at empty charge and removes the old low-charge dead zone.
@@ -285,14 +294,14 @@
       if(c.boosting&&Math.random()<dt*22*boostPower)trail(c,-cs*1,-sn*1,c.accent);
       var speedLimit=c.spec.maxSpeed*(1+.20*boostPower);forward=clamp(forward,-c.spec.maxSpeed*.43,speedLimit);
       cs=Math.cos(c.angle);sn=Math.sin(c.angle);var followVx=cs*forward-sn*side,followVy=sn*forward+cs*side;
-      if(playerSlide){
+      if(controlledSlide){
         // The lower follow factor preserves the old world-space velocity and
         // lets the rear step out. Opposite steering raises it sharply, making
         // a deliberate countersteer catch feel responsive instead of floaty.
         var chassisFollow=counterSteer?1:.50;c.vx=lerp(oldVx,followVx,chassisFollow);c.vy=lerp(oldVy,followVy,chassisFollow);
       }else {c.vx=followVx;c.vy=followVy;}
       var finalForward=c.vx*cs+c.vy*sn,finalSide=-c.vx*sn+c.vy*cs;
-      c.drifting=playerSlide&&Math.abs(finalSide)>42&&Math.abs(finalForward)>90;
+      c.drifting=controlledSlide&&Math.abs(finalSide)>42&&Math.abs(finalForward)>90;
       c.x+=c.vx*dt;c.y+=c.vy*dt;resolveTerrain(c,dt);
       if(c.drifting){
         c.skidTravel+=Math.hypot(c.x-c.lastX,c.y-c.lastY);
@@ -318,7 +327,11 @@
         if(d<r){if(d<.001){var left=Math.abs(c.x-o.x),right=Math.abs(c.x-(o.x+o.w)),top=Math.abs(c.y-o.y),bot=Math.abs(c.y-(o.y+o.h)),m=Math.min(left,right,top,bot);if(m===left){dx=-1;dy=0;}else if(m===right){dx=1;dy=0;}else if(m===top){dx=0;dy=-1;}else{dx=0;dy=1;}d=1;}
           dx/=d;dy/=d;c.x+=dx*(r-d);c.y+=dy*(r-d);normalX+=dx;normalY+=dy;hit=true;}
       }
-      if(hit){var nl=Math.hypot(normalX,normalY)||1;normalX/=nl;normalY/=nl;var vn=c.vx*normalX+c.vy*normalY;if(vn<0){var impact=-vn;c.vx-=normalX*vn*1.55;c.vy-=normalY*vn*1.55;if(impact>105&&c.wallCooldown<=0){c.wallCooldown=.32;applyDamage(c,(impact-95)*.032,null,'wall');burst(c.x,c.y,'#f6d3a2',8);game.shake=Math.max(game.shake,Math.min(11,impact*.027));sound('wall',impact);}}}
+      // Give bot recovery a physical signal. A moving target can otherwise
+      // make a nose-first car look as if it is "making progress" while it is
+      // actually pressed against a container at walking speed.
+      if(hit){c.aiWallTime=Math.min(2.4,(c.aiWallTime||0)+dt);var nl=Math.hypot(normalX,normalY)||1;normalX/=nl;normalY/=nl;var vn=c.vx*normalX+c.vy*normalY;if(vn<0){var impact=-vn;c.vx-=normalX*vn*1.55;c.vy-=normalY*vn*1.55;if(impact>105&&c.wallCooldown<=0){c.wallCooldown=.32;applyDamage(c,(impact-95)*.032,null,'wall');burst(c.x,c.y,'#f6d3a2',8);game.shake=Math.max(game.shake,Math.min(11,impact*.027));sound('wall',impact);}}}
+      else c.aiWallTime=Math.max(0,(c.aiWallTime||0)-dt*2.6);
       for(var h=0;h<arena.hazards.length;h++){var z=arena.hazards[h];if(z.kind==='oil'&&Math.hypot(c.x-z.x,c.y-z.y)<z.r+c.r*.4){c.vx*=Math.max(0,1-dt*.08);c.vy*=Math.max(0,1-dt*.08);c.angle+=Math.sin(game.time*3+c.engine)*dt*.35;}
         if(z.kind==='boostpad'&&c.x>z.x&&c.x<z.x+z.w&&c.y>z.y&&c.y<z.y+z.h){c.boost=Math.min(100,c.boost+48*dt);var a=Math.atan2(c.vy,c.vx);c.vx+=Math.cos(a)*190*dt;c.vy+=Math.sin(a)*190*dt;}
         if(z.kind==='reactor'){var dd=Math.hypot(c.x-z.x,c.y-z.y);if(dd<z.r+c.r){var nx=(c.x-z.x)/(dd||1),ny=(c.y-z.y)/(dd||1);c.vx+=nx*180*dt;c.vy+=ny*180*dt;applyDamage(c,8*dt,null,'reactor');}}
@@ -333,111 +346,139 @@
       c.roadSpeed=clamp(Math.hypot(c.vx,c.vy),0,c.spec.maxSpeed*1.20);
       return c.roadSpeed;
     }
+    function assignAiRoles(){
+      // Team mates have different jobs. In a 2v2 this is the thing that makes
+      // one rival pressure while the other attacks from an angle instead of
+      // both taking the exact same line into the player.
+      var groups={};cars.forEach(function(c){if(!c.alive||c.isPlayer)return;(groups[c.team]||(groups[c.team]=[])).push(c);});
+      Object.keys(groups).forEach(function(team){
+        var group=groups[team].sort(function(a,b){return a.name<b.name?-1:a.name>b.name?1:0;}),roles=['striker','flanker','interceptor','harvester','ambush'];
+        group.forEach(function(c,i){c.aiSlot=i;c.aiRole=roles[i%roles.length];c.aiSide=i%2?-1:1;});
+      });
+    }
+    function ensureAiRoles(c){if(c.aiSlot<0)assignAiRoles();}
+    function aiTargetFor(c,enemies){
+      var best=enemies[0],bestScore=Infinity;
+      enemies.forEach(function(o){
+        var d=Math.hypot(o.x-c.x,o.y-c.y),focused=0;
+        cars.forEach(function(friend){if(friend!==c&&friend.alive&&friend.team===c.team&&friend.aiTarget===o)focused++;});
+        // The flanker strongly prefers the opponent the striker is not
+        // already crowding. If there is only one opponent, it still approaches
+        // from a different side rather than disabling its role.
+        var focusCost=c.aiRole==='flanker'?focused*560:c.aiRole==='interceptor'?focused*285:focused*105;
+        var score=d+focusCost+(c.aiRole==='harvester'?90:0);
+        if(score<bestScore){bestScore=score;best=o;}
+      });
+      return best;
+    }
+    function aiResourceGoal(c,target,targetDistance){
+      var lowNitro=c.boost<30,resource=null,best=Infinity,limit=Math.max(520,targetDistance*(.62+AI_PROFILE.pickupBias*.60));
+      if(!lowNitro&&c.aiRole!=='harvester')return null;
+      pickups.forEach(function(p){
+        if(p.life<=0)return;var d=Math.hypot(p.x-c.x,p.y-c.y),bonus=p.kind==='nitro'?(100-c.boost)*4:(targetDistance<560?85:-55),score=d-bonus;
+        if(d<limit&&score<best){best=score;resource={x:p.x,y:p.y,pickup:p,type:p.kind==='nitro'?'pickup-nitro':'pickup-shock'};}
+      });
+      // Boost pads are deliberately a fallback: a Nitro Cell is more useful,
+      // but a low-reserve driver can use a clear pad to reset a long chase.
+      if(!resource&&c.boost<18)arena.hazards.forEach(function(h){if(h.kind!=='boostpad')return;var x=h.x+h.w*.5,y=h.y+h.h*.5,d=Math.hypot(x-c.x,y-c.y);if(d<limit*.86&&d<best){best=d;resource={x:x,y:y,pad:h,type:'boostpad'};}});
+      return resource;
+    }
+    function aiTacticalGoal(c,target,targetDistance,roadSpeed){
+      var resource=aiResourceGoal(c,target,targetDistance);if(resource)return resource;
+      // Catch the predicted future position, rather than tailgating the
+      // target's current bumper. The capped lead was selected by the trainer.
+      var lead=clamp(targetDistance/Math.max(280,roadSpeed+255),.16,AI_PROFILE.interceptTime),x=target.x+target.vx*lead,y=target.y+target.vy*lead,type='intercept';
+      if(c.aiRole==='flanker'&&targetDistance>AI_PROFILE.flankDistance*.76){
+        var tv=Math.hypot(target.vx,target.vy),nx,ny;
+        if(tv>65){nx=-target.vy/tv;ny=target.vx/tv;}else{var d=targetDistance||1;nx=-((target.y-c.y)/d);ny=(target.x-c.x)/d;}
+        x+=nx*AI_PROFILE.flankDistance*c.aiSide;y+=ny*AI_PROFILE.flankDistance*c.aiSide;type='flank';
+      }
+      return {x:clamp(x,90,arena.w-90),y:clamp(y,90,arena.h-90),target:target,type:type};
+    }
+    function aiObstacleNormal(x,y,o){
+      var qx=clamp(x,o.x,o.x+o.w),qy=clamp(y,o.y,o.y+o.h),dx=x-qx,dy=y-qy,d=Math.hypot(dx,dy);
+      // A probe can land inside a box. Giving that case the nearest face
+      // normal fixes the former zero-vector bug exactly when escape matters.
+      if(d<.001){var left=Math.abs(x-o.x),right=Math.abs(x-(o.x+o.w)),top=Math.abs(y-o.y),bottom=Math.abs(y-(o.y+o.h)),m=Math.min(left,right,top,bottom);if(m===left){dx=-1;dy=0;}else if(m===right){dx=1;dy=0;}else if(m===top){dx=0;dy=-1;}else{dx=0;dy=1;}d=1;}
+      return {x:dx/d,y:dy/d,d:d};
+    }
     function aiControl(c,dt){
+      ensureAiRoles(c);
       var enemies=cars.filter(function(o){return o!==c&&o.alive&&o.team!==c.team;});
-      if(!enemies.length){c.aiMode='idle';return {throttle:0,steer:0,drift:false,boost:false};}
-      // Keep a target for a short while. Constantly swapping between two cars
-      // makes a driver weave in place, and the validity check can never select
-      // a teammate.
-      var nearest=enemies[0],nearestSq=Infinity;
-      enemies.forEach(function(o){var d=(o.x-c.x)*(o.x-c.x)+(o.y-c.y)*(o.y-c.y);if(d<nearestSq){nearestSq=d;nearest=o;}});
-      var target=c.aiTarget,lockIsValid=target&&target.alive&&target.team!==c.team;
-      var lockedSq=lockIsValid?(target.x-c.x)*(target.x-c.x)+(target.y-c.y)*(target.y-c.y):Infinity;
-      if(!lockIsValid||(c.aiTargetHold<=0&&lockedSq>nearestSq*1.55+190*190)){target=nearest;}
-      if(c.aiTarget!==target){c.aiTarget=target;c.aiTargetHold=1.15;clearAiRoute(c);}
-      else c.aiTargetHold=Math.max(0,c.aiTargetHold-dt);
+      if(!enemies.length){c.aiMode='idle';c.aiObjective='idle';return {throttle:0,steer:0,drift:false,boost:false};}
+      var nearest=aiTargetFor(c,enemies),target=c.aiTarget,valid=target&&target.alive&&target.team!==c.team;
+      if(!valid||c.aiTargetHold<=0){target=nearest;}
+      if(c.aiTarget!==target){c.aiTarget=target;c.aiTargetHold=1.15;clearAiRoute(c);}else c.aiTargetHold=Math.max(0,c.aiTargetHold-dt);
       c.target=target;
 
-      var dx=target.x-c.x,dy=target.y-c.y,targetDistance=Math.hypot(dx,dy),roadSpeed=refreshRoadSpeed(c);
+      var dx=target.x-c.x,dy=target.y-c.y,targetDistance=Math.hypot(dx,dy),roadSpeed=refreshRoadSpeed(c),plan=aiTacticalGoal(c,target,targetDistance,roadSpeed),routePad=c.r+AI_PROFILE.routePad;
+      if(c.aiGoalType!==plan.type||c.aiResourceTarget!==(plan.pickup||plan.pad||null))clearAiRoute(c);
+      c.aiGoal=plan;c.aiGoalType=plan.type;c.aiObjective=plan.type;c.aiResourceTarget=plan.pickup||plan.pad||null;
+
       c.aiProbeTimer-=dt;
       if(c.aiProbeTimer<=0){
-        var moved=Math.hypot(c.x-c.aiProbeX,c.y-c.aiProbeY),goalForProbe=c.aiWaypoint||target,remaining=Math.hypot(goalForProbe.x-c.x,goalForProbe.y-c.y);
-        // A long route can include a slow, tight corner. Recover only after
-        // several samples prove the car is genuinely immobile, not while it is
-        // merely rotating into the next turn.
-        var stalled=moved<13&&roadSpeed<30&&remaining>92;
-        c.aiStuck=stalled?Math.min(2,c.aiStuck+.31):Math.max(0,c.aiStuck-.25);
-        c.aiProbeX=c.x;c.aiProbeY=c.y;c.aiProbeTimer=.82+Math.random()*.20;
+        var probeGoal=c.aiWaypoint||plan,moved=Math.hypot(c.x-c.aiProbeX,c.y-c.aiProbeY),remaining=Math.hypot(probeGoal.x-c.x,probeGoal.y-c.y),madeProgress=remaining<c.aiProgress-24;
+        // Collision pressure wins over an optimistic moving-target estimate.
+        // This also covers a close target just beyond a container edge, where
+        // the old remaining>90 exemption let a bot grind in place forever.
+        var pinned=(c.aiWallTime||0)>.11&&roadSpeed<95,stalled=(pinned&&(!madeProgress||remaining<115))||(moved<19&&roadSpeed<46&&remaining>90&&!madeProgress);
+        c.aiStuck=stalled?Math.min(2,c.aiStuck+(pinned?.64:.46)):Math.max(0,c.aiStuck-.28);c.aiProgress=remaining;
+        c.aiProbeX=c.x;c.aiProbeY=c.y;c.aiProbeTimer=.43+Math.random()*.09;
       }
       c.aiReverse=Math.max(0,c.aiReverse-dt);
-      if(c.aiStuck>1.04&&c.aiReverse<=0){
-        c.aiReverse=.42+Math.random()*.16;
-        // Alternate the escape and route side each time so a corner cannot
-        // trap a driver in the same failed maneuver forever.
-        c.aiSide*=-1;
-        c.aiEscapeAngle=c.angle+Math.PI+c.aiSide*(.62+Math.random()*.28);
-        clearAiRoute(c);c.aiStuck=0;c.aiMode='unstick';
+      if(c.aiStuck>AI_PROFILE.recoveryTime&&c.aiReverse<=0){
+        c.aiReverse=.36+Math.random()*.14;c.aiSide*=-1;c.aiEscapeAngle=c.angle+Math.PI+c.aiSide*(.52+Math.random()*.24);
+        clearAiRoute(c);c.aiStuck=0;c.aiMode='unstick';c.aiObjective='escape';
       }
 
       if(c.aiWaypoint){
         c.aiRouteTime-=dt;
-        if(clearRoute(c,target,c.r+72))clearAiRoute(c);
-        else if(Math.hypot(c.aiWaypoint.x-c.x,c.aiWaypoint.y-c.y)<70){
-          c.aiRouteIndex++;c.aiWaypoint=c.aiRoute&&c.aiRoute[c.aiRouteIndex]||null;
-          if(!c.aiWaypoint)clearAiRoute(c);
-        }else if(c.aiRouteTime<=0||Math.hypot(target.x-c.aiRouteTargetX,target.y-c.aiRouteTargetY)>430){
-          setAiRoute(c,target);
-        }
+        if(clearRoute(c,plan,routePad))clearAiRoute(c);
+        else if(Math.hypot(c.aiWaypoint.x-c.x,c.aiWaypoint.y-c.y)<66){c.aiRouteIndex++;c.aiWaypoint=c.aiRoute&&c.aiRoute[c.aiRouteIndex]||null;if(!c.aiWaypoint)clearAiRoute(c);}
+        else if(c.aiRouteTime<=0||Math.hypot(plan.x-c.aiRouteTargetX,plan.y-c.aiRouteTargetY)>310)setAiRoute(c,plan,routePad);
       }
-      if(!c.aiWaypoint&&!clearRoute(c,target,c.r+72))setAiRoute(c,target);
+      if(!c.aiWaypoint&&!clearRoute(c,plan,routePad))setAiRoute(c,plan,routePad);
 
-      var goal=c.aiWaypoint||target,lead=(!c.aiWaypoint&&targetDistance<660)?Math.min(.38,targetDistance/1050):0;
-      var gx=goal.x-c.x+(c.aiWaypoint?0:target.vx*lead),gy=goal.y-c.y+(c.aiWaypoint?0:target.vy*lead),desired=Math.atan2(gy,gx);
-      if(c.spec.id==='viper'&&!c.aiWaypoint&&targetDistance>330)desired+=Math.sin(game.time*1.05+c.personality*12)*clamp(targetDistance/900,0,.30);
-
-      var avoidX=0,avoidY=0,margin=175;
+      var goal=c.aiWaypoint||plan,desired=Math.atan2(goal.y-c.y,goal.x-c.x),avoidX=0,avoidY=0,margin=170;
       if(c.x<margin)avoidX+=(margin-c.x)/margin*1.9;if(c.x>arena.w-margin)avoidX-=(c.x-(arena.w-margin))/margin*1.9;
       if(c.y<margin)avoidY+=(margin-c.y)/margin*1.9;if(c.y>arena.h-margin)avoidY-=(c.y-(arena.h-margin))/margin*1.9;
-      // Fan three short obstacle probes instead of relying on a single point
-      // directly ahead. This catches container corners during a drift.
-      var probeRange=clamp(135+roadSpeed*.32,145,292);
-      [-.48,0,.48].forEach(function(offset){
-        var probeAngle=c.angle+offset,probeX=c.x+Math.cos(probeAngle)*probeRange,probeY=c.y+Math.sin(probeAngle)*probeRange;
-        arena.obstacles.forEach(function(o){var qx=clamp(probeX,o.x,o.x+o.w),qy=clamp(probeY,o.y,o.y+o.h),px=probeX-qx,py=probeY-qy,dd=Math.hypot(px,py);if(dd<185){var pressure=(1-dd/185)*(offset===0?2.35:1.15);avoidX+=px/(dd||1)*pressure;avoidY+=py/(dd||1)*pressure;}});
+      var probeRange=clamp(142+roadSpeed*.39,158,325);
+      [-.60,-.30,0,.30,.60].forEach(function(offset){
+        var a=c.angle+offset,px=c.x+Math.cos(a)*probeRange,py=c.y+Math.sin(a)*probeRange;
+        arena.obstacles.forEach(function(o){var n=aiObstacleNormal(px,py,o);if(n.d<190){var pressure=(1-n.d/190)*(offset===0?2.35:1.05)*AI_PROFILE.avoidWeight;avoidX+=n.x*pressure;avoidY+=n.y*pressure;}});
       });
-      // Rival bots are teammates too: leave space instead of nose-to-tail
-      // shoving that looks like indecisive target switching.
-      cars.forEach(function(o){if(o!==c&&o.alive&&o.team===c.team){var ax=c.x-o.x,ay=c.y-o.y,ad=Math.hypot(ax,ay),space=c.r+o.r+90;if(ad<space){var push=(1-ad/space)*1.35;avoidX+=ax/(ad||1)*push;avoidY+=ay/(ad||1)*push;}}});
+      cars.forEach(function(o){if(o!==c&&o.alive&&o.team===c.team){var ax=c.x-o.x,ay=c.y-o.y,ad=Math.hypot(ax,ay),space=c.r+o.r+96;if(ad<space){var push=(1-ad/space)*1.45;avoidX+=ax/(ad||1)*push;avoidY+=ay/(ad||1)*push;}}});
       arena.hazards.forEach(function(h){
-        if(h.kind==='boostpad')return;
-        var hx=h.x+(h.w||0)*.5,hy=h.y+(h.h||0)*.5,hr=h.r||Math.max(h.w||0,h.h||0)*.55,hdx=c.x-hx,hdy=c.y-hy,hd=Math.hypot(hdx,hdy),safe=hr+142;
-        var caution=h.kind==='oil'&&c.spec.id==='viper'?.18:1.3;
-        if(hd<safe){var pressure=(1-hd/safe)*caution;avoidX+=hdx/(hd||1)*pressure;avoidY+=hdy/(hd||1)*pressure;}
+        if(h.kind==='boostpad')return;var hx=h.x+(h.w||0)*.5,hy=h.y+(h.h||0)*.5,hr=h.r||Math.max(h.w||0,h.h||0)*.55,hdx=c.x-hx,hdy=c.y-hy,hd=Math.hypot(hdx,hdy),safe=hr+142;
+        var caution=h.kind==='oil'&&c.spec.id==='viper'?.18:1.3;if(hd<safe){var pressure=(1-hd/safe)*caution;if(hd<.001){hdx=-Math.cos(c.angle);hdy=-Math.sin(c.angle);hd=1;}avoidX+=hdx/hd*pressure;avoidY+=hdy/hd*pressure;}
       });
       var avoiding=Math.hypot(avoidX,avoidY)>.08;
-      if(avoiding){var avoidAngle=Math.atan2(avoidY,avoidX),goalWeight=c.aiWaypoint ? .68 : .90;desired=Math.atan2(Math.sin(desired)*goalWeight+Math.sin(avoidAngle)*1.22,Math.cos(desired)*goalWeight+Math.cos(avoidAngle)*1.22);}
+      if(avoiding){var avoidAngle=Math.atan2(avoidY,avoidX),goalWeight=c.aiWaypoint?.70:.91,avoidWeight=1.02*AI_PROFILE.avoidWeight;desired=Math.atan2(Math.sin(desired)*goalWeight+Math.sin(avoidAngle)*avoidWeight,Math.cos(desired)*goalWeight+Math.cos(avoidAngle)*avoidWeight);}
       if(c.aiReverse>0)desired=c.aiEscapeAngle;
 
-      var diff=angleDiff(desired,c.angle),facing=Math.cos(diff),steer=clamp(diff*2.45,-1,1);
-      // updateCar reverses the steering sign when rolling backward. Recovery
-      // needs the opposite input, otherwise it steers deeper into a wall.
+      var diff=angleDiff(desired,c.angle),facing=Math.cos(diff),steer=clamp(diff*AI_PROFILE.steerGain,-1,1);
       if(c.aiReverse>0)return {throttle:-1,steer:-steer,drift:false,boost:false};
-      // Keep turning forward to face an enemy. Generic reverse-chasing was the
-      // main source of backward steering loops and long-distance stalls.
-      var throttle=1.06;
-      if(c.aiWaypoint&&Math.abs(diff)>1.10&&roadSpeed>205)throttle=.28;
-      else if(!c.aiWaypoint&&Math.abs(diff)>1.52&&roadSpeed>185)throttle=.42;
-      if(!c.aiWaypoint&&targetDistance<315&&facing>.60)throttle=1.20;
-      var drift=Math.abs(diff)>1.00&&roadSpeed>220&&(c.aiWaypoint||targetDistance<340);
-      // A bot only spends nitro on a clear, reasonably aligned ramming lane.
-      // The slightly forgiving lineup threshold lets it commit instead of
-      // trailing a stationary opponent forever, while edge/hazard avoidance
-      // still cancels the charge.
-      var linedUp=facing>.91&&!c.aiWaypoint&&!avoiding&&roadSpeed>92;
-      var shouldBoost=linedUp&&targetDistance>155&&targetDistance<1120&&clearRoute(c,target,c.r+30)&&c.boost>=MIN_AI_NITRO;
+      var goalDistance=Math.hypot(goal.x-c.x,goal.y-c.y),throttle=1.08;
+      if(Math.abs(diff)>1.16&&roadSpeed>185)throttle=AI_PROFILE.turnBrake;
+      else if(Math.abs(diff)>.80&&roadSpeed>245)throttle=.74;
+      if(!c.aiWaypoint&&plan.type==='intercept'&&targetDistance<320&&facing>.56)throttle=1.20;
+      if(plan.type.indexOf('pickup')===0||plan.type==='boostpad')throttle=goalDistance<90?.32:1.02;
+      var drift=Math.abs(diff)>AI_PROFILE.driftTurn&&roadSpeed>225&&(c.aiWaypoint||goalDistance<520)&&!avoiding;
+      var linedUp=facing>AI_PROFILE.boostFacing&&!c.aiWaypoint&&!avoiding&&roadSpeed>88&&plan.type==='intercept';
+      var shouldBoost=linedUp&&targetDistance>148&&targetDistance<AI_PROFILE.boostRange&&clearRoute(c,target,c.r+30)&&c.boost>=AI_PROFILE.boostReserve;
       if(c.spec.id==='bull')shouldBoost=shouldBoost&&targetDistance<900;
-      if(c.spec.id==='prowler')shouldBoost=shouldBoost&&c.personality>.18;
-      c.aiMode=c.aiWaypoint?'route':shouldBoost?'ram-boost':drift?'drift':'chase';
+      if(c.spec.id==='prowler')shouldBoost=shouldBoost&&c.personality>.13;
+      c.aiMode=c.aiWaypoint?'route':shouldBoost?'ram-boost':drift?'drift':plan.type;
       return {throttle:throttle,steer:steer,drift:drift,boost:shouldBoost};
     }
     function clearAiRoute(c){c.aiWaypoint=null;c.aiRoute=null;c.aiRouteIndex=0;c.aiRouteTime=0;}
-    function setAiRoute(c,target){
-      var route=routeAroundObstacle(c,target);
+    function setAiRoute(c,target,pad){
+      var route=routeAroundObstacle(c,target,pad);
       c.aiRoute=route;c.aiRouteIndex=0;c.aiWaypoint=route&&route[0]||null;c.aiRouteTargetX=target.x;c.aiRouteTargetY=target.y;
       c.aiRouteTime=c.aiWaypoint?Math.min(16,7+Math.hypot(target.x-c.x,target.y-c.y)/220):0;
     }
-    function routeAroundObstacle(c,target){
-      var pad=c.r+72,start={x:c.x,y:c.y},finish={x:target.x,y:target.y};
+    function routeAroundObstacle(c,target,pad){
+      pad=pad||c.r+AI_PROFILE.routePad;var start={x:c.x,y:c.y},finish={x:target.x,y:target.y};
       if(clearRoute(start,finish,pad))return null;
       // A tiny visibility graph of the expanded obstacle corners lets drivers
       // take several turns around container stacks instead of treating one
