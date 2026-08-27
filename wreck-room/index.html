@@ -83,7 +83,7 @@
     var canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
     // World units are pixels per second. This keeps normal derby cars around
     // 150–190 km/h and a nitro run below roughly 230 km/h.
-    var W=canvas.width,H=canvas.height,TAU=Math.PI*2,WORLD_UNITS_TO_KMH=.34,BOOST_START_RESERVE=6;
+    var W=canvas.width,H=canvas.height,TAU=Math.PI*2,WORLD_UNITS_TO_KMH=.34,MIN_AI_NITRO=10;
     var ui={
       hud:document.getElementById('hud'),menu:document.getElementById('menu'),pause:document.getElementById('pausePanel'),results:document.getElementById('resultPanel'),
       modeChoices:document.getElementById('modeChoices'),carChoices:document.getElementById('carChoices'),p2CarChoices:document.getElementById('p2CarChoices'),p2CarBlock:document.getElementById('p2CarBlock'),arenaChoices:document.getElementById('arenaChoices'),menuKicker:document.getElementById('menuKicker'),start:document.getElementById('startButton'),
@@ -179,7 +179,7 @@
 
     function makeCar(spec,x,y,angle,controller,name,team){
       return {spec:spec,x:x,y:y,angle:angle||0,vx:0,vy:0,r:spec.radius,health:spec.health,maxHealth:spec.health,boost:100,alive:true,isPlayer:controller>0,controller:controller||0,team:team||'rivals',name:name||spec.name,
-        color:spec.color,accent:spec.accent,hit:0,hitCooldown:0,wallCooldown:0,boosting:false,drifting:false,handbrakeSlide:false,driftSign:0,skidTravel:0,aiTimer:rand(.15,.55),target:null,personality:Math.random(),
+        color:spec.color,accent:spec.accent,hit:0,hitCooldown:0,wallCooldown:0,boosting:false,boostPower:0,drifting:false,handbrakeSlide:false,driftSign:0,skidTravel:0,aiTimer:rand(.15,.55),target:null,personality:Math.random(),
         lastX:x,lastY:y,damageLook:0,kills:0,engine:rand(0,TAU),pickupGlow:0,shock:0,spin:0,roadSpeed:0,
         aiWaypoint:null,aiRoute:null,aiRouteIndex:0,aiRouteTime:0,aiRouteTargetX:x,aiRouteTargetY:y,aiTarget:null,aiTargetHold:0,aiProbeX:x,aiProbeY:y,aiProbeTimer:.86,aiStuck:0,aiReverse:0,aiEscapeAngle:0,aiSide:Math.random()<.5?-1:1,aiMode:'idle'};
     }
@@ -272,12 +272,18 @@
       var turnScale=.26+clamp(Math.abs(forward)/c.spec.maxSpeed,0,1.12)*.86;
       var oldVx=cs*forward-sn*side,oldVy=sn*forward+cs*side;
       c.angle+=control.steer*c.spec.turn*turnScale*dt*(playerSlide?.40:1)*(forward<-4?-1:1);
-      // Nitro is a real finite resource: empty cars do not get a free boost tick
-      // or passive regeneration. Only Nitro Cells and boost pads refill it.
-      var boostCost=c.spec.boostDrain*dt;
-      c.boosting=!!(control.boost&&c.boost>=BOOST_START_RESERVE&&forward>65&&!control.drift);
-      if(c.boosting){forward+=c.spec.boostForce*dt;c.boost=Math.max(0,c.boost-boostCost);if(c.boost<BOOST_START_RESERVE)c.boosting=false;if(Math.random()<dt*22)trail(c,-cs*1,-sn*1,c.accent);}
-      var speedLimit=c.spec.maxSpeed*(c.boosting?1.20:1);forward=clamp(forward,-c.spec.maxSpeed*.43,speedLimit);
+      // Nitro is finite down to its final fraction: any positive reserve gets
+      // a proportional last push, then clamps to exactly zero. That avoids a
+      // fake full impulse at empty charge and removes the old low-charge dead zone.
+      var boostCost=c.spec.boostDrain*dt,boostPower=0;
+      if(control.boost&&c.boost>0&&boostCost>0&&forward>65&&!control.drift){
+        if(c.boost<=boostCost){boostPower=c.boost/boostCost;c.boost=0;}
+        else {boostPower=1;c.boost-=boostCost;}
+        forward+=c.spec.boostForce*dt*boostPower;
+      }
+      c.boostPower=boostPower;c.boosting=boostPower>0;
+      if(c.boosting&&Math.random()<dt*22*boostPower)trail(c,-cs*1,-sn*1,c.accent);
+      var speedLimit=c.spec.maxSpeed*(1+.20*boostPower);forward=clamp(forward,-c.spec.maxSpeed*.43,speedLimit);
       cs=Math.cos(c.angle);sn=Math.sin(c.angle);var followVx=cs*forward-sn*side,followVy=sn*forward+cs*side;
       if(playerSlide){
         // The lower follow factor preserves the old world-space velocity and
@@ -293,7 +299,7 @@
         var skidStride=Math.max(7,c.r*.28);
         while(c.skidTravel>=skidStride){c.skidTravel-=skidStride;laySkidMarks(c,cs,sn,skidStride);}
       }else c.skidTravel=0;
-      if(c.boosting&&Math.random()<dt*12)trail(c,-cs,-sn,c.accent);
+      if(c.boosting&&Math.random()<dt*12*boostPower)trail(c,-cs,-sn,c.accent);
       refreshRoadSpeed(c);
     }
     function laySkidMarks(c,cs,sn,stride){
@@ -418,7 +424,7 @@
       // trailing a stationary opponent forever, while edge/hazard avoidance
       // still cancels the charge.
       var linedUp=facing>.91&&!c.aiWaypoint&&!avoiding&&roadSpeed>92;
-      var shouldBoost=linedUp&&targetDistance>155&&targetDistance<1120&&clearRoute(c,target,c.r+30)&&c.boost>=BOOST_START_RESERVE+10;
+      var shouldBoost=linedUp&&targetDistance>155&&targetDistance<1120&&clearRoute(c,target,c.r+30)&&c.boost>=MIN_AI_NITRO;
       if(c.spec.id==='bull')shouldBoost=shouldBoost&&targetDistance<900;
       if(c.spec.id==='prowler')shouldBoost=shouldBoost&&c.personality>.18;
       c.aiMode=c.aiWaypoint?'route':shouldBoost?'ram-boost':drift?'drift':'chase';
@@ -528,9 +534,16 @@
     function showToast(title,sub,duration){ui.toast.innerHTML=title+(sub?'<small>'+sub+'</small>':'');ui.toast.classList.add('show');game.toastTime=duration||1.3;}
     function updateHUD(){
       if(!player||gameMode==='team')return;var hp=Math.max(0,player.health/player.maxHealth),bo=player.boost/100,spd=speedKmh(player);
-      ui.arenaName.textContent=' // '+arena.name;ui.healthText.textContent=Math.max(0,Math.ceil(player.health))+' / '+player.maxHealth;ui.healthFill.style.width=(hp*100)+'%';ui.boostText.textContent=Math.ceil(player.boost)+'%';ui.boostFill.style.width=(bo*100)+'%';ui.kills.textContent=game.kills;ui.alive.textContent=cars.filter(function(c){return c.alive;}).length;ui.speed.innerHTML=String(spd).padStart(3,'0')+' <span>KM/H</span>';
+      ui.arenaName.textContent=' // '+arena.name;ui.healthText.textContent=Math.max(0,Math.ceil(player.health))+' / '+player.maxHealth;ui.healthFill.style.width=(hp*100)+'%';ui.boostText.textContent=boostLabel(player.boost);ui.boostFill.style.width=(bo*100)+'%';ui.kills.textContent=game.kills;ui.alive.textContent=cars.filter(function(c){return c.alive;}).length;ui.speed.innerHTML=String(spd).padStart(3,'0')+' <span>KM/H</span>';
     }
     function speedKmh(c){return Math.round(refreshRoadSpeed(c)*WORLD_UNITS_TO_KMH);}
+    function boostLabel(value){
+      value=Math.max(0,value||0);
+      if(value<=0)return '0%';
+      // Do not round a usable fraction down to zero in the HUD.
+      if(value<1)return Math.max(.1,Math.round(value*10)/10).toFixed(1)+'%';
+      return Math.ceil(value)+'%';
+    }
 
     function draw(){
       ctx.clearRect(0,0,W,H);if(!arena){drawMenuBackground();return;}
@@ -551,7 +564,7 @@
       ctx.save();ctx.fillStyle='rgba(5,12,17,.82)';roundedRect(ctx,x,y,w,56,8);ctx.fill();ctx.strokeStyle=c.alive?'rgba(124,241,248,.52)':'rgba(255,102,78,.6)';ctx.lineWidth=1;ctx.stroke();
       ctx.fillStyle='#f7f3df';ctx.font='900 12px ui-rounded,system-ui';ctx.textAlign='left';ctx.fillText(label+' // '+(c.alive?'CREW ACTIVE':'WRECKED'),x+9,y+14);
       ctx.fillStyle='#b6cad2';ctx.font='800 8px ui-rounded,system-ui';ctx.fillText('ARMOR '+Math.max(0,Math.ceil(c.health))+'/'+c.maxHealth,x+9,y+27);ctx.fillStyle='#071017';roundedRect(ctx,x+9,y+31,w-18,7,4);ctx.fill();ctx.fillStyle=hp>.42?'#ff8057':'#ff4555';roundedRect(ctx,x+9,y+31,(w-18)*hp,7,4);ctx.fill();
-      ctx.fillStyle='#b6cad2';ctx.fillText('NITRO '+Math.ceil(c.boost)+'%',x+9,y+49);ctx.fillStyle='#071017';roundedRect(ctx,x+64,y+43,w-73,7,4);ctx.fill();ctx.fillStyle=nitro>.06?'#64eaff':'#39434a';roundedRect(ctx,x+64,y+43,(w-73)*nitro,7,4);ctx.fill();
+      ctx.fillStyle='#b6cad2';ctx.fillText('NITRO '+boostLabel(c.boost),x+9,y+49);ctx.fillStyle='#071017';roundedRect(ctx,x+64,y+43,w-73,7,4);ctx.fill();ctx.fillStyle=nitro>0?'#64eaff':'#39434a';roundedRect(ctx,x+64,y+43,(w-73)*nitro,7,4);ctx.fill();
       var bottomY=view.y+view.h-42;ctx.fillStyle='rgba(5,12,17,.78)';roundedRect(ctx,x,bottomY,184,30,8);ctx.fill();ctx.fillStyle='#f3e8d4';ctx.font='900 17px ui-rounded,system-ui';ctx.fillText(String(speedKmh(c)).padStart(3,'0')+' KM/H',x+9,bottomY+19);ctx.fillStyle='#a9c0c8';ctx.font='800 7px ui-rounded,system-ui';ctx.fillText(controls+' // RIVAL PAIR '+rivals+'/2',x+9,bottomY+27);ctx.restore();
     }
     function drawMenuBackground(){
@@ -603,9 +616,14 @@
     }
     function drawCars(){
       cars.slice().sort(function(a,b){return a.y-b.y;}).forEach(function(c){var p=worldToScreen(c.x,c.y);if(p.x<view.x-100||p.x>view.x+view.w+100||p.y<view.y-100||p.y>view.y+view.h+100)return;var s=activeCamera.zoom,r=c.r*s;
+        // Ground contact shadow: drawn before body rotation, with only a tiny
+        // motion-direction trail. It stays planted while the car turns, drifts,
+        // or spins after a KO instead of behaving like a painted body detail.
+        var groundSpeed=Math.hypot(c.vx,c.vy),speedRatio=clamp(groundSpeed/c.spec.maxSpeed,0,1.2),shadowTrail=groundSpeed>1?Math.min(7*s,groundSpeed*.018*s):0,shadowX=p.x-(groundSpeed>1?c.vx/groundSpeed*shadowTrail:0),shadowY=p.y+8*s-(groundSpeed>1?c.vy/groundSpeed*shadowTrail:0),shadowW=r*(1.12+speedRatio*.15),shadowH=r*(.43+speedRatio*.05),shadow=ctx.createRadialGradient(shadowX,shadowY,Math.max(1,shadowH*.12),shadowX,shadowY,shadowW);
+        shadow.addColorStop(0,'rgba(0,0,0,'+(c.alive?.34:.23)+')');shadow.addColorStop(.62,'rgba(0,0,0,'+(c.alive?.19:.12)+')');shadow.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=shadow;ctx.beginPath();ctx.ellipse(shadowX,shadowY,shadowW,shadowH,0,0,TAU);ctx.fill();
         ctx.save();ctx.translate(p.x,p.y);ctx.rotate(c.angle);if(!c.alive)ctx.rotate(c.spin||.7);
-        ctx.fillStyle='rgba(0,0,0,.36)';ctx.beginPath();ctx.ellipse(5*s,8*s,r*1.10,r*.72,0,0,TAU);ctx.fill();
-        if(c.boosting&&c.alive){ctx.fillStyle=rgba(c.accent,.58);ctx.beginPath();ctx.moveTo(-r*1.25,-r*.28);ctx.lineTo(-r*2.0-rand(0,r*.4),0);ctx.lineTo(-r*1.25,r*.28);ctx.fill();}
+        var plume=clamp(c.boostPower||0,0,1);
+        if(plume>0&&c.alive){ctx.fillStyle=rgba(c.accent,.58*plume);ctx.beginPath();ctx.moveTo(-r*1.18,-r*(.15+.13*plume));ctx.lineTo(-r*(1.22+.82*plume+rand(0,.28)*plume),0);ctx.lineTo(-r*1.18,r*(.15+.13*plume));ctx.fill();}
         // wheels
         ctx.fillStyle='#101319';for(var wi=0;wi<2;wi++){var wy=wi? r*.62:-r*.62;roundedRect(ctx,-r*.72,wy-r*.18,r*.52,r*.36,r*.08);ctx.fill();roundedRect(ctx,r*.20,wy-r*.18,r*.52,r*.36,r*.08);ctx.fill();}
         var bodyGrad=ctx.createLinearGradient(-r,0,r,0);bodyGrad.addColorStop(0,'#2a2427');bodyGrad.addColorStop(.13,c.color);bodyGrad.addColorStop(.7,c.color);bodyGrad.addColorStop(1,'#f0b08d');ctx.fillStyle=bodyGrad;roundedRect(ctx,-r*.95,-r*.67,r*1.9,r*1.34,r*.29);ctx.fill();
