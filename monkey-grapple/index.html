@@ -57,8 +57,8 @@ kbd{display:inline-grid;place-items:center;min-width:27px;height:25px;padding:0 
     <div class="eyebrow">Field manual</div>
     <h2>Move fast. Aim clean.</h2>
     <div class="help-grid">
-      <div class="help-card"><b><kbd>A</kbd> <kbd>D</kbd> Move</b><span>Run along branches. Press <kbd>W</kbd> or <kbd>Space</kbd> to jump. Keep moving while swinging to pump momentum.</span></div>
-      <div class="help-card"><b>Right Mouse / <kbd>E</kbd> Grapple</b><span>Hold to latch onto the glowing knot nearest your aim. Release at the bottom of an arc to launch.</span></div>
+      <div class="help-card"><b><kbd>A</kbd> <kbd>D</kbd> Move</b><span>Run along branches. Press <kbd>W</kbd> or <kbd>↑</kbd> twice to double jump. Keep moving while swinging to pump momentum.</span></div>
+      <div class="help-card"><b><kbd>Space</kbd> Grapple</b><span>Hold Space to smart-hook a glowing knot, swing through the arc, then release to launch. Right mouse and <kbd>E</kbd> also work.</span></div>
       <div class="help-card"><b>Left Mouse Fire</b><span>Aim with the mouse and hold to fire. Headshots hit harder. Press <kbd>R</kbd> to reload.</span></div>
       <div class="help-card"><b><kbd>Shift</kbd> Slow Motion</b><span>Hold to bend time while aiming or dodging. The yellow meter refills whenever time is moving normally.</span></div>
     </div>
@@ -109,10 +109,10 @@ function resize(){
 addEventListener("resize",resize);resize();
 
 const TAU=Math.PI*2,clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),lerp=(a,b,t)=>a+(b-a)*t;
-const WORLD_W=7200,DEATH_Y=1250,GRAVITY=1450;
+const WORLD_W=7200,DEATH_Y=1250,GRAVITY=1450,GRAPPLE_RANGE=720;
 let state="menu",last=0,worldTime=0,runTime=0,realRunTime=0,slowScale=1,shake=0,flash=0,freeze=0;
 let player,camera={x:0,y:0},bullets=[],enemies=[],particles=[],texts=[],pickups=[],grapple=null;
-let keys={},mouse={x:W*.65,y:H*.45,wx:0,wy:0,left:false,right:false},anchors=[],platforms=[],trees=[],checkpoints=[];
+let keys={},mouse={x:W*.65,y:H*.45,wx:0,wy:0,left:false,right:false,ctrlGrapple:false},anchors=[],platforms=[],trees=[],checkpoints=[];
 let audio=null,audioUnavailable=false,muted=false,musicClock=0,score=0,kills=0,totalEnemies=0,combo=0,comboTimer=0,tutorialTime=0;
 function readBest(){try{return +(localStorage.getItem("canopyCaliberBest")||0)}catch(e){return 0}}
 function writeBest(value){try{localStorage.setItem("canopyCaliberBest",String(value))}catch(e){}}
@@ -194,7 +194,7 @@ function makeWorld(){
     {x:6720,y:650,w:350,h:30,t:"branch"}
   ];
   anchors=[
-    {x:690,y:315},{x:1130,y:280},{x:1590,y:225},{x:1990,y:330},{x:2490,y:270},
+    {x:540,y:400},{x:690,y:315},{x:1130,y:280},{x:1590,y:225},{x:1990,y:330},{x:2490,y:270},
     {x:2890,y:345},{x:3390,y:205},{x:3880,y:300},{x:4320,y:220},{x:4810,y:310},
     {x:5290,y:205},{x:5740,y:300},{x:6210,y:210},{x:6690,y:320}
   ];
@@ -230,42 +230,55 @@ function resetGame(){
   makeWorld();bullets=[];particles=[];texts=[];grapple=null;
   player={x:170,y:700,vx:0,vy:0,w:30,h:66,ground:false,plat:null,face:1,hp:100,maxHp:100,
     ammo:10,mag:10,reserve:70,reload:0,shoot:0,slow:100,invuln:0,checkpoint:0,landSquash:0,
-    walk:0,gunKick:0,fallGrace:0,grappleCooldown:0};
+    walk:0,gunKick:0,coyote:0,jumpBuffer:0,jumpHeld:false,airJumps:1,airJumpFlash:0,grappleCooldown:0};
   camera.x=player.x-W*.42;camera.y=player.y-H*.54;
+  mouse.wx=mouse.x+camera.x;mouse.wy=mouse.y+camera.y;
   score=0;kills=0;combo=0;comboTimer=0;tutorialTime=11;runTime=0;realRunTime=0;worldTime=0;shake=0;flash=0;freeze=0;keys={};
-  mouse.left=false;mouse.right=false;slowScale=1;state="playing";
+  mouse.left=false;mouse.right=false;mouse.ctrlGrapple=false;slowScale=1;state="playing";
   show(menu,false);show(help,false);show(pause,false);show(ending,false);
   canvas.style.cursor="none";
   initAudio();resumeAudio();
   toast("CLEAR THE POACHERS", "#d8ff78", 20);
 }
 
-function findGrapple(){
-  let best=null,bestScore=1e9;
+function anchorState(a){
+  const distance=Math.hypot(a.x-player.x,a.y-player.y);
+  return{distance:distance,inRange:distance<=GRAPPLE_RANGE,clear:distance<=GRAPPLE_RANGE&&!segmentHitsPlatform(player.x,player.y-12,a.x,a.y)};
+}
+function findGrapple(mode="aim"){
+  let best=null,bestScore=1e9,nearest=null,nearestScore=1e9;
+  const aimX=mouse.wx-player.x,aimY=mouse.wy-(player.y-12),aimLength=Math.hypot(aimX,aimY);
   for(const a of anchors){
-    const pd=Math.hypot(a.x-player.x,a.y-player.y);
-    if(pd>610||segmentHitsPlatform(player.x,player.y-12,a.x,a.y))continue;
+    const eligibility=anchorState(a),pd=eligibility.distance;
+    if(!eligibility.clear)continue;
+    const smartScore=pd+(a.y>player.y-20?150:0)+((a.x-player.x)*player.face<-25?75:0);
+    if(smartScore<nearestScore){nearestScore=smartScore;nearest=a}
+    if(mode==="smart")continue;
     const md=Math.hypot(a.x-mouse.wx,a.y-mouse.wy);
-    const dx=mouse.wx-player.x,dy=mouse.wy-player.y,den=dx*dx+dy*dy||1;
-    const t=clamp(((a.x-player.x)*dx+(a.y-player.y)*dy)/den,0,1);
-    const line=Math.hypot(a.x-(player.x+dx*t),a.y-(player.y+dy*t));
-    const value=md*.5+line+pd*.06;
+    const den=aimX*aimX+aimY*aimY||1;
+    const t=clamp(((a.x-player.x)*aimX+(a.y-(player.y-12))*aimY)/den,0,1);
+    const line=Math.hypot(a.x-(player.x+aimX*t),a.y-((player.y-12)+aimY*t));
+    const behind=((a.x-player.x)*aimX+(a.y-(player.y-12))*aimY)<0?260:0;
+    const value=line*1.15+md*.22+pd*.07+behind;
     if(value<bestScore){bestScore=value;best=a}
   }
-  return bestScore<210?best:null;
+  if(mode==="smart"||aimLength<35)return nearest;
+  return best||nearest;
 }
-function startGrapple(){
+function grappleRequested(){return mouse.right||mouse.ctrlGrapple||!!keys.KeyE||!!keys.Space}
+function startGrapple(mode="aim",silent=false){
   if(state!=="playing"||grapple||player.grappleCooldown>0)return;
-  const a=findGrapple();if(!a){tone(95,.05,"square",.015,70);return}
+  const a=findGrapple(mode);if(!a){if(!silent)tone(95,.05,"square",.015,70);return}
   const dist=Math.hypot(a.x-player.x,a.y-player.y);
-  grapple={a:a,len:Math.max(85,dist*.92),pulse:0,time:0,taut:0};
+  grapple={a:a,len:Math.max(85,dist),pulse:0,time:0,taut:0,currentTaut:true};
   burst(player.x,player.y,9,"#bfff6b",150);shake=Math.max(shake,3);sfx("grapple");
 }
 function stopGrapple(){
   if(!grapple)return;
   const speed=Math.hypot(player.vx,player.vy),dx=player.x-grapple.a.x,dy=player.y-grapple.a.y,d=Math.hypot(dx,dy)||1,tangent=Math.abs(player.vx*(-dy/d)+player.vy*(dx/d));
-  if(grapple.time>.18&&grapple.taut>.08&&tangent>190&&speed>220){const boost=1+clamp((tangent-190)/900,0,.035);player.vx*=boost;player.vy*=boost;const capped=Math.hypot(player.vx,player.vy);if(capped>900){player.vx*=900/capped;player.vy*=900/capped}burst(player.x,player.y,5,"#d9ff91",90);shake=Math.max(shake,2)}
-  player.grappleCooldown=.12;
+  const ropeTaut=d>=grapple.len-2&&grapple.currentTaut;
+  if(grapple.time>.16&&ropeTaut&&grapple.taut>.06&&tangent>165&&speed>205){const launch=clamp(22+(tangent-165)*.075,22,68);player.vx+=player.vx/speed*launch;player.vy+=player.vy/speed*launch;const capped=Math.hypot(player.vx,player.vy);if(capped>900){player.vx*=900/capped;player.vy*=900/capped}burst(player.x,player.y,6,"#d9ff91",100);shake=Math.max(shake,2)}
+  player.grappleCooldown=.08;
   grapple=null;sfx("release");
 }
 function reload(){
@@ -327,7 +340,10 @@ function update(dt,realDt){
 }
 function updatePlayer(dt,realDt){
   player.shoot=Math.max(0,player.shoot-dt);player.invuln=Math.max(0,player.invuln-dt);
-  player.gunKick=Math.max(0,player.gunKick-dt*10);player.landSquash=Math.max(0,player.landSquash-dt*6);player.grappleCooldown=Math.max(0,player.grappleCooldown-dt);
+  player.gunKick=Math.max(0,player.gunKick-dt*10);player.landSquash=Math.max(0,player.landSquash-dt*6);player.airJumpFlash=Math.max(0,player.airJumpFlash-dt*5);player.grappleCooldown=Math.max(0,player.grappleCooldown-dt);
+  if(player.ground){player.coyote=.1;player.airJumps=1}else player.coyote=Math.max(0,player.coyote-dt);
+  player.jumpBuffer=Math.max(0,player.jumpBuffer-dt);
+  if(!grapple&&grappleRequested()&&player.grappleCooldown<=0)startGrapple(keys.KeyE||keys.Space?"smart":"aim",true);
   if(player.reload>0){
     player.reload-=dt;
     if(player.reload<=0){const n=Math.min(player.mag-player.ammo,player.reserve);player.ammo+=n;player.reserve-=n;toast("RELOADED","#eef7df",11)}
@@ -335,33 +351,32 @@ function updatePlayer(dt,realDt){
   const left=keys.KeyA||keys.ArrowLeft,right=keys.KeyD||keys.ArrowRight;
   const move=(right?1:0)-(left?1:0);
   if(move)player.face=move;
-  const accel=player.ground?2100:grapple?1050:720;
+  const accel=player.ground?2100:grapple?220:720;
   player.vx+=move*accel*dt;
   if(player.ground){
     player.vx*=Math.pow(move?.26:.0008,dt);
     player.vx=clamp(player.vx,-330,330);
   }else player.vx*=Math.pow(.83,dt);
-  const jump=(keys.KeyW||keys.Space||keys.ArrowUp);
-  if(jump&&!player.jumpHeld&&player.ground){
-    player.vy=-570;player.ground=false;player.plat=null;player.landSquash=.25;
-    burst(player.x,player.y+22,6,"#d7b06b",90);tone(190,.1,"triangle",.025,310);
+  const jump=!!(keys.KeyW||keys.ArrowUp),jumpPressed=jump&&!player.jumpHeld;
+  if(jumpPressed&&!grapple)player.jumpBuffer=.12;
+  if(!grapple&&player.jumpBuffer>0){
+    if(player.ground||player.coyote>0){
+      player.vy=-570;player.ground=false;player.plat=null;player.coyote=0;player.jumpBuffer=0;player.landSquash=.25;
+      burst(player.x,player.y+22,6,"#d7b06b",90);tone(190,.1,"triangle",.025,310);
+    }else if(player.airJumps>0){
+      player.airJumps--;player.vy=-540;player.jumpBuffer=0;player.airJumpFlash=.28;player.landSquash=.18;
+      burst(player.x,player.y+18,10,"#c8ff75",135);tone(285,.12,"triangle",.035,520);
+    }
   }
   player.jumpHeld=!!jump;
   if(grapple){
     grapple.time+=dt;
     if(keys.KeyW||keys.ArrowUp)grapple.len=Math.max(75,grapple.len-115*dt);
-    if(keys.KeyS||keys.ArrowDown)grapple.len=Math.min(590,grapple.len+95*dt);
+    if(keys.KeyS||keys.ArrowDown)grapple.len=Math.min(GRAPPLE_RANGE,grapple.len+95*dt);
     const dx=player.x-grapple.a.x,dy=player.y-grapple.a.y,d=Math.hypot(dx,dy)||1,nx=dx/d,ny=dy/d;
-    if(d>grapple.len*.97)grapple.taut+=dt;
     const tx=-ny,ty=nx,tangentIntent=move*(tx>=0?1:-1);
-    player.vx+=tx*tangentIntent*690*dt;player.vy+=ty*tangentIntent*690*dt;
-    if(d>grapple.len){
-      const excess=d-grapple.len;
-      player.x-=nx*excess*.82;player.y-=ny*excess*.82;
-      const radial=player.vx*nx+player.vy*ny;
-      if(radial>0){player.vx-=nx*radial*.94;player.vy-=ny*radial*.94}
-      player.vx-=nx*excess*22*dt;player.vy-=ny*excess*22*dt;
-    }
+    const pump=d>=grapple.len-7?920:360;
+    player.vx+=tx*tangentIntent*pump*dt;player.vy+=ty*tangentIntent*pump*dt;
     const sp=Math.hypot(player.vx,player.vy);
     if(sp>850){player.vx*=850/sp;player.vy*=850/sp}
     grapple.pulse+=dt*8;
@@ -372,7 +387,14 @@ function updatePlayer(dt,realDt){
   player.x+=player.vx*dt;player.y+=player.vy*dt;
   if(grapple){
     const dx=player.x-grapple.a.x,dy=player.y-grapple.a.y,d=Math.hypot(dx,dy)||1;
-    if(d>grapple.len){const nx=dx/d,ny=dy/d,excess=d-grapple.len;player.x-=nx*excess*.97;player.y-=ny*excess*.97;const radial=player.vx*nx+player.vy*ny;if(radial>0){player.vx-=nx*radial*.98;player.vy-=ny*radial*.98}}
+    if(d>grapple.len){
+      const nx=dx/d,ny=dy/d;player.x=grapple.a.x+nx*grapple.len;player.y=grapple.a.y+ny*grapple.len;
+      const radial=player.vx*nx+player.vy*ny;if(radial>0){player.vx-=nx*radial;player.vy-=ny*radial}
+      grapple.currentTaut=true;grapple.taut+=dt;
+    }else{
+      grapple.currentTaut=d>=grapple.len-2;
+      grapple.taut=grapple.currentTaut?grapple.taut+dt:Math.max(0,grapple.taut-dt*4);
+    }
   }
   const airSpeed=Math.hypot(player.vx,player.vy);if(airSpeed>900){player.vx*=900/airSpeed;player.vy*=900/airSpeed}
   player.ground=false;player.plat=null;
@@ -386,7 +408,7 @@ function updatePlayer(dt,realDt){
   }
   if(player.y>DEATH_Y){
     damagePlayer(28,0,-100);
-    const cp=checkpoints[player.checkpoint];player.x=cp.x;player.y=cp.y-80;player.vx=0;player.vy=0;grapple=null;
+    const cp=checkpoints[player.checkpoint];player.x=cp.x;player.y=cp.y-80;player.vx=0;player.vy=0;player.airJumps=1;player.coyote=0;player.jumpBuffer=0;grapple=null;
     flash=.4;toast("VINE SLIP  -28","#ff9d78",16);
   }
 }
@@ -598,7 +620,7 @@ function drawSilhouetteTree(x,y,s){
 function drawWorld(){
   for(const t of trees)drawTree(t);
   for(const p of platforms)drawPlatform(p);
-  const selected=state==="playing"&&!grapple?findGrapple():null;
+  const selected=state==="playing"&&!grapple?findGrapple(keys.KeyE||keys.Space?"smart":"aim"):null;
   for(const a of anchors)drawAnchor(a,a===selected);
   for(const cp of checkpoints)if(cp.x>200)drawCheckpoint(cp);
 }
@@ -635,9 +657,9 @@ function drawPlatform(p){
   }
 }
 function drawAnchor(a,selected){
-  const near=Math.hypot(a.x-player.x,a.y-player.y)<610,pulse=.5+.5*Math.sin(worldTime*4+a.x);
-  ctx.save();ctx.globalAlpha=selected?1:near?.9:.28;ctx.shadowBlur=selected?28:near?15+pulse*8:0;ctx.shadowColor=selected?"#77f6ff":"#caff70";
-  ctx.strokeStyle=selected?"#9effff":near?"#d8ff7a":"#5a8851";ctx.lineWidth=selected?5:4;ctx.beginPath();ctx.arc(a.x,a.y,(selected?14:9)+pulse*2,0,TAU);ctx.stroke();
+  const eligibility=anchorState(a),usable=eligibility.clear,blocked=eligibility.inRange&&!eligibility.clear,pulse=.5+.5*Math.sin(worldTime*4+a.x);
+  ctx.save();ctx.globalAlpha=selected?1:usable?.92:blocked?.38:.24;ctx.shadowBlur=selected?30:usable?15+pulse*8:0;ctx.shadowColor=selected?"#77f6ff":"#caff70";
+  ctx.strokeStyle=selected?"#9effff":usable?"#d8ff7a":blocked?"#8c776a":"#5a8851";ctx.lineWidth=selected?5:4;ctx.beginPath();ctx.arc(a.x,a.y,(selected?14:9)+pulse*2,0,TAU);ctx.stroke();
   ctx.fillStyle="#8dc44a";ctx.beginPath();ctx.arc(a.x,a.y,4,0,TAU);ctx.fill();ctx.restore();
 }
 function drawCheckpoint(cp){
@@ -791,9 +813,9 @@ function drawHUD(){
   }
   if(tutorialTime>0&&state==="playing"){
     const fade=clamp(Math.min(11-tutorialTime,tutorialTime)*2,0,1),y=H-(compact?94:72);ctx.globalAlpha=fade;
-    ctx.font="900 "+(compact?9:11)+"px system-ui";ctx.textAlign="center";const line=compact?"A/D MOVE • W JUMP • RMB/E GRAPPLE":"A / D  MOVE    •    W  JUMP    •    RIGHT MOUSE / E  GRAPPLE    •    LEFT MOUSE  FIRE    •    SHIFT  SLOW-MO";
+    ctx.font="900 "+(compact?9:11)+"px system-ui";ctx.textAlign="center";const line=compact?"A/D MOVE • W DOUBLE JUMP • HOLD SPACE TO SWING":"A / D  MOVE    •    W / ↑  DOUBLE JUMP    •    HOLD SPACE  TO SWING    •    RELEASE TO LAUNCH";
     const tw=Math.min(W-24,ctx.measureText(line).width+28);ctx.fillStyle="rgba(4,13,9,.78)";roundRect(W/2-tw/2,y-18,tw,compact?48:32,11);ctx.fill();ctx.fillStyle="#dfffb3";ctx.fillText(line,W/2,y+2);
-    if(compact){ctx.font="800 9px system-ui";ctx.fillStyle="#ffc95c";ctx.fillText("LMB FIRE • SHIFT SLOW-MO",W/2,y+18)}ctx.globalAlpha=1;
+    if(compact){ctx.font="800 9px system-ui";ctx.fillStyle="#ffc95c";ctx.fillText("RELEASE TO LAUNCH • LMB FIRE • SHIFT SLOW-MO",W/2,y+18)}ctx.globalAlpha=1;
   }
 }
 function drawObjectiveIndicator(){
@@ -832,23 +854,30 @@ function pointerPos(e){const r=canvas.getBoundingClientRect();mouse.x=(e.clientX
 canvas.addEventListener("pointermove",pointerPos);
 canvas.addEventListener("pointerdown",e=>{
   pointerPos(e);initAudio();resumeAudio();
-  if(e.button===0)mouse.left=true;
-  if(e.button===2){mouse.right=true;startGrapple()}
+  if(e.button===0&&e.ctrlKey){mouse.ctrlGrapple=true;startGrapple("aim");e.preventDefault()}
+  else if(e.button===0)mouse.left=true;
+  if(e.button===2){mouse.right=true;startGrapple("aim")}
 });
-addEventListener("pointerup",e=>{if(e.button===0)mouse.left=false;if(e.button===2){mouse.right=false;stopGrapple()}});
+function releasePointer(e){
+  if(e.button===0){mouse.left=false;mouse.ctrlGrapple=false}
+  if(e.button===2)mouse.right=false;
+  if(!grappleRequested())stopGrapple();
+}
+addEventListener("pointerup",releasePointer);addEventListener("pointercancel",releasePointer);
 canvas.addEventListener("contextmenu",e=>e.preventDefault());
 addEventListener("keydown",e=>{
   keys[e.code]=true;
   if(["Space","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.code))e.preventDefault();
-  if(e.code==="KeyE"&&!e.repeat)startGrapple();
+  if(e.code==="Space"&&!e.repeat)startGrapple("smart");
+  if(e.code==="KeyE"&&!e.repeat)startGrapple("smart");
   if(e.code==="KeyR"&&!e.repeat)reload();
   if(e.code==="Escape"){
-    if(state==="playing"){state="paused";grapple=null;mouse.left=false;mouse.right=false;show(pause,true);canvas.style.cursor="default"}
+    if(state==="playing"){state="paused";grapple=null;mouse.left=false;mouse.right=false;mouse.ctrlGrapple=false;show(pause,true);canvas.style.cursor="default"}
     else if(state==="paused"){state="playing";show(pause,false);canvas.style.cursor="none";last=performance.now()}
   }
 });
-addEventListener("keyup",e=>{keys[e.code]=false;if(e.code==="KeyE")stopGrapple()});
-addEventListener("blur",()=>{mouse.left=false;mouse.right=false;grapple=null;Object.keys(keys).forEach(k=>keys[k]=false)});
+addEventListener("keyup",e=>{keys[e.code]=false;if((e.code==="KeyE"||e.code==="Space")&&!grappleRequested())stopGrapple()});
+addEventListener("blur",()=>{mouse.left=false;mouse.right=false;mouse.ctrlGrapple=false;grapple=null;Object.keys(keys).forEach(k=>keys[k]=false)});
 
 document.getElementById("play").onclick=resetGame;
 document.getElementById("how").onclick=()=>{show(menu,false);show(help,true)};
@@ -857,7 +886,7 @@ document.getElementById("resume").onclick=()=>{state="playing";show(pause,false)
 document.getElementById("quit").onclick=goMenu;
 document.getElementById("endMenu").onclick=goMenu;
 document.getElementById("again").onclick=resetGame;
-function goMenu(){state="menu";show(pause,false);show(ending,false);show(help,false);show(menu,true);canvas.style.cursor="default";mouse.left=false;mouse.right=false;grapple=null;keys={};slowScale=1}
+function goMenu(){state="menu";show(pause,false);show(ending,false);show(help,false);show(menu,true);canvas.style.cursor="default";mouse.left=false;mouse.right=false;mouse.ctrlGrapple=false;grapple=null;keys={};slowScale=1}
 
 function loop(now){
   const realDt=Math.min(.033,Math.max(0,(now-last)/1000||0));last=now;
