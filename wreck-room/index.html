@@ -189,6 +189,7 @@
         color:spec.color,accent:spec.accent,hit:0,hitCooldown:0,wallCooldown:0,boosting:false,boostPower:0,drifting:false,handbrakeSlide:false,driftSign:0,skidTravel:0,aiTimer:rand(.15,.55),target:null,personality:Math.random(),
         lastX:x,lastY:y,damageLook:0,kills:0,engine:rand(0,TAU),pickupGlow:0,shock:0,spin:0,roadSpeed:0,
         aiWaypoint:null,aiRoute:null,aiRouteIndex:0,aiRouteTime:0,aiRouteTargetX:x,aiRouteTargetY:y,aiTarget:null,aiTargetHold:0,aiProbeX:x,aiProbeY:y,aiProbeTimer:.86,aiStuck:0,aiWallTime:0,aiReverse:0,aiEscapeAngle:0,aiSide:Math.random()<.5?-1:1,aiMode:'idle',
+        aiDriftCooldown:0,aiDriftCommit:0,aiDriftSign:0,aiDriftArmed:true,aiDriftAge:0,aiDriftMinHold:0,aiDriftSafetyTimer:0,aiDriftPathClear:true,
         aiRole:'striker',aiSlot:-1,aiGoal:null,aiGoalType:'idle',aiObjective:'idle',aiGoalHold:0,aiResourceTarget:null,aiProgress:Infinity,aiGeneration:AI_TRAINING.championGeneration};
     }
     function teamStartLayout(a){
@@ -272,7 +273,10 @@
         // rotating the velocity vector with the chassis.
         forward*=Math.max(0,1-(counterSteer?.10:.42)*dt);
         side*=Math.max(0,1-c.spec.grip*(counterSteer?.92:.12)*dt);
-        if(!counterSteer)side-=c.driftSign*72*clamp(road/c.spec.maxSpeed,.45,1.15)*dt;
+        // Bots get a little more initial rear slip so a deliberate AI drift
+        // becomes visibly sideways before its short, safety-latched session
+        // expires. Human handbrake physics stays exactly as it was.
+        if(!counterSteer)side-=c.driftSign*(c.isPlayer?72:118)*clamp(road/c.spec.maxSpeed,.45,1.15)*dt;
       }else{
         if(control.drift)forward*=Math.max(0,1-2.65*dt);
         side*=Math.max(0,1-c.spec.grip*(control.drift?.20:1)*dt);
@@ -402,6 +406,69 @@
       if(d<.001){var left=Math.abs(x-o.x),right=Math.abs(x-(o.x+o.w)),top=Math.abs(y-o.y),bottom=Math.abs(y-(o.y+o.h)),m=Math.min(left,right,top,bottom);if(m===left){dx=-1;dy=0;}else if(m===right){dx=1;dy=0;}else if(m===top){dx=0;dy=-1;}else{dx=0;dy=1;}d=1;}
       return {x:dx/d,y:dy/d,d:d};
     }
+    function aiDriftSegmentSafe(c,from,to,pad){
+      // A drift carries world velocity through the turn, so test a wider
+      // swept line than ordinary route-following. This stops the AI from
+      // initiating a pretty slide that immediately becomes a wall hit.
+      if(to.x<pad||to.x>arena.w-pad||to.y<pad||to.y>arena.h-pad)return false;
+      if(!clearRoute(from,to,pad))return false;
+      for(var h=0;h<arena.hazards.length;h++){
+        var z=arena.hazards[h];if(z.kind==='oil'||z.kind==='boostpad')continue;
+        var hx=z.x+(z.w||0)*.5,hy=z.y+(z.h||0)*.5,hr=z.r||Math.max(z.w||0,z.h||0)*.55;
+        if(Math.hypot(to.x-hx,to.y-hy)<hr+pad*.72)return false;
+      }
+      for(var i=0;i<cars.length;i++){
+        var other=cars[i];if(other===c||!other.alive||other.team!==c.team)continue;
+        if(Math.hypot(to.x-other.x,to.y-other.y)<c.r+other.r+68)return false;
+      }
+      return true;
+    }
+    function aiDriftPathSafe(c,turnSign,roadSpeed){
+      var speed=Math.max(roadSpeed,1),heading=roadSpeed>32?Math.atan2(c.vy,c.vx):c.angle,pad=c.r+AI_PROFILE.routePad*.73,from={x:c.x,y:c.y};
+      // Predict a short, shallow arc. It intentionally overestimates the
+      // width of the slide so a bot will give up a drift near tight scenery.
+      for(var step=1;step<=3;step++){
+        var bend=turnSign*(.055+.105*step),distance=clamp(speed*(.095+.025*step),42,105),to={x:from.x+Math.cos(heading+bend)*distance,y:from.y+Math.sin(heading+bend)*distance};
+        if(!aiDriftSegmentSafe(c,from,to,pad))return false;
+        from=to;
+      }
+      return true;
+    }
+    function aiDriftImmediateDanger(c){
+      var pad=c.r+AI_PROFILE.routePad*.46;
+      if(c.x<pad||c.x>arena.w-pad||c.y<pad||c.y>arena.h-pad||(c.aiWallTime||0)>.025)return true;
+      for(var i=0;i<arena.obstacles.length;i++)if(aiObstacleNormal(c.x,c.y,arena.obstacles[i]).d<pad*.55)return true;
+      return false;
+    }
+    function aiShouldDrift(c,diff,roadSpeed,goalDistance,avoiding,plan,dt){
+      c.aiDriftCooldown=Math.max(0,(c.aiDriftCooldown||0)-dt);
+      var sign=diff<0?-1:1,speedFloor=c.spec.id==='viper'?230:c.spec.id==='bull'?270:248,turn=Math.abs(diff),usefulPlan=!!(c.aiWaypoint||plan.type==='intercept'||plan.type==='flank');
+      // Keep a slide briefly once it is already underway, but cancel it the
+      // moment a wall / edge becomes immediate danger or the bot makes a
+      // strong counter-steer. The swept path is sampled, not recomputed every
+      // frame, so a good slide has time to develop real visible sideways slip.
+      if(c.aiDriftCommit>0){
+        c.aiDriftCommit=Math.max(0,c.aiDriftCommit-dt);c.aiDriftAge=(c.aiDriftAge||0)+dt;c.aiDriftSafetyTimer=(c.aiDriftSafetyTimer||0)-dt;
+        if(c.aiDriftSafetyTimer<=0){c.aiDriftPathClear=aiDriftPathSafe(c,c.aiDriftSign,roadSpeed);c.aiDriftSafetyTimer=.12;}
+        var protectedHold=c.aiDriftAge<(c.aiDriftMinHold||.46),danger=aiDriftImmediateDanger(c),badCounter=diff*c.aiDriftSign<-.25;
+        if(danger||roadSpeed<speedFloor*.65||badCounter||(!protectedHold&&!c.aiDriftPathClear)){c.aiDriftCommit=0;c.aiDriftCooldown=Math.max(c.aiDriftCooldown,1.1);return false;}
+        return true;
+      }
+      // One drift per corner. A bot must first finish the current bend before
+      // it can arm another slide, which eliminates repeated handbrake pulses
+      // when a target stays in roughly the same direction for several seconds.
+      if(turn<.52||!usefulPlan)c.aiDriftArmed=true;
+      // No random brake taps: only enter from a fast, medium-strength corner
+      // with enough room to carry it. The personality merely varies the
+      // cooldown, not whether an unsafe turn is allowed.
+      if(!c.aiDriftArmed||c.aiDriftCooldown>0||avoiding||aiDriftImmediateDanger(c)||!usefulPlan||roadSpeed<speedFloor||turn<Math.max(.62,AI_PROFILE.driftTurn*.80)+(c.spec.id==='bull'?.08:0)||turn>1.38||goalDistance<150||goalDistance>700)return false;
+      if(!aiDriftPathSafe(c,sign,roadSpeed))return false;
+      // A full, readable slide instead of a one-frame brake flicker. Each
+      // driver has a stable cadence, so Vipers can be a little more playful
+      // than Bulls without turning every corner into a random handbrake tap.
+      c.aiDriftSign=sign;c.aiDriftCommit=.76+c.personality*.28;c.aiDriftCooldown=(c.spec.id==='viper'?2.55:2.82)+c.personality*1.83;c.aiDriftArmed=false;c.aiDriftAge=0;c.aiDriftMinHold=.46;c.aiDriftSafetyTimer=.12;c.aiDriftPathClear=true;
+      return true;
+    }
     function aiControl(c,dt){
       ensureAiRoles(c);
       var enemies=cars.filter(function(o){return o!==c&&o.alive&&o.team!==c.team;});
@@ -457,13 +524,13 @@
       if(c.aiReverse>0)desired=c.aiEscapeAngle;
 
       var diff=angleDiff(desired,c.angle),facing=Math.cos(diff),steer=clamp(diff*AI_PROFILE.steerGain,-1,1);
-      if(c.aiReverse>0)return {throttle:-1,steer:-steer,drift:false,boost:false};
+      if(c.aiReverse>0){c.aiDriftCommit=0;return {throttle:-1,steer:-steer,drift:false,boost:false};}
       var goalDistance=Math.hypot(goal.x-c.x,goal.y-c.y),throttle=1.08;
       if(Math.abs(diff)>1.16&&roadSpeed>185)throttle=AI_PROFILE.turnBrake;
       else if(Math.abs(diff)>.80&&roadSpeed>245)throttle=.74;
       if(!c.aiWaypoint&&plan.type==='intercept'&&targetDistance<320&&facing>.56)throttle=1.20;
       if(plan.type.indexOf('pickup')===0||plan.type==='boostpad')throttle=goalDistance<90?.32:1.02;
-      var drift=Math.abs(diff)>AI_PROFILE.driftTurn&&roadSpeed>225&&(c.aiWaypoint||goalDistance<520)&&!avoiding;
+      var drift=aiShouldDrift(c,diff,roadSpeed,goalDistance,avoiding,plan,dt);
       var linedUp=facing>AI_PROFILE.boostFacing&&!c.aiWaypoint&&!avoiding&&roadSpeed>88&&plan.type==='intercept';
       var shouldBoost=linedUp&&targetDistance>148&&targetDistance<AI_PROFILE.boostRange&&clearRoute(c,target,c.r+30)&&c.boost>=AI_PROFILE.boostReserve;
       if(c.spec.id==='bull')shouldBoost=shouldBoost&&targetDistance<900;
