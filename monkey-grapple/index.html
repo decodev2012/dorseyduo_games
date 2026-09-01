@@ -22,8 +22,34 @@ h1 span{display:block;color:var(--gold)}
 button{border:0;border-radius:15px;padding:15px 24px;min-width:155px;font:900 14px/1 inherit;letter-spacing:.08em;text-transform:uppercase;color:#13200d;background:linear-gradient(#dfff72,#9edf36);box-shadow:0 6px 0 #4f7e19,0 12px 24px #0008;cursor:pointer;transition:transform .12s,filter .12s,box-shadow .12s}
 button:hover{filter:brightness(1.12);transform:translateY(-2px);box-shadow:0 8px 0 #4f7e19,0 16px 30px #0008}
 button:active{transform:translateY(5px);box-shadow:0 1px 0 #4f7e19}
+button:focus-visible{outline:3px solid #fff0a0;outline-offset:4px}
+button:disabled{cursor:default;filter:saturate(.35);opacity:.62;transform:none;box-shadow:0 4px 0 #284214,0 8px 18px #0005}
 button.secondary{color:#dcebdd;background:#173525;box-shadow:0 6px 0 #0b1c12,0 12px 24px #0007;border:1px solid #315942}
-.best{height:24px;margin-top:25px;font-size:12px;color:#72907b;letter-spacing:.12em;text-transform:uppercase}
+.best{min-height:24px;margin-top:20px;font-size:12px;color:#72907b;letter-spacing:.12em;line-height:1.6;text-transform:uppercase}
+.wallet{display:inline-flex;align-items:center;gap:10px;margin:0 auto 22px;padding:9px 16px;border:1px solid #ffd76555;border-radius:999px;background:#1d2818;color:#fff4bd;font-size:15px;font-weight:1000;letter-spacing:.08em;box-shadow:inset 0 1px #fff2,0 8px 24px #0005}
+.coin{display:inline-grid;place-items:center;width:23px;height:23px;border:2px solid #fff09a;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff4a3 0 12%,#ffd34f 16% 45%,#bd7315 76%);color:#8c570d;font-size:12px;text-shadow:0 1px #fff8;box-shadow:0 0 14px #ffc94a55,inset 0 -2px #8d520c}
+.shop-panel{width:min(980px,96vw);padding:clamp(20px,3vw,36px)}
+.shop-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;text-align:left}
+.shop-head h2{margin:5px 0 4px;font-size:clamp(30px,5vw,48px);color:#f6ffe9}
+.shop-head .wallet{margin:4px 54px 0 0;white-space:nowrap}
+.close-button{position:absolute;top:22px;right:22px;min-width:0;width:40px;height:40px;padding:0;border-radius:50%;font-size:22px;color:#dcebdd;background:#173525;box-shadow:0 4px 0 #0b1c12;border:1px solid #315942}
+.shop-panel{position:relative}
+.shop-copy{margin:8px 0 20px;color:#94aa99;font-size:13px;text-align:left}
+.skin-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:13px}
+.skin-card{position:relative;padding:13px;border:1px solid rgba(218,255,165,.12);border-radius:20px;background:linear-gradient(155deg,rgba(255,255,255,.055),rgba(255,255,255,.018));text-align:left;transition:transform .15s,border-color .15s,box-shadow .15s}
+.skin-card:hover{transform:translateY(-3px);border-color:rgba(218,255,165,.3);box-shadow:0 12px 30px #0005}
+.skin-card.equipped{border-color:#c9ff55aa;box-shadow:0 0 0 2px #9ee53425,0 12px 30px #0005}
+.skin-card.locked .skin-preview{filter:saturate(.72)}
+.skin-preview{display:block;width:100%;height:112px;border-radius:13px;background:radial-gradient(circle at 50% 42%,rgba(180,255,133,.13),rgba(3,11,7,.5));box-shadow:inset 0 0 0 1px #fff1}
+.skin-name{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:12px 2px 4px;color:#f4ffe8;font-size:15px;font-weight:950;text-transform:uppercase;letter-spacing:.05em}
+.skin-badge{color:#b9cebc;font-size:9px;letter-spacing:.08em}
+.skin-note{min-height:32px;margin:0 2px 10px;color:#829587;font-size:11px;line-height:1.35}
+button.skin-action{width:100%;min-width:0;padding:11px 8px;border-radius:11px;font-size:11px}
+.shop-status{min-height:22px;margin:16px 0 2px;color:#b9cebc;font-size:12px;font-weight:800;letter-spacing:.05em}
+.shop-status.good{color:#caff6a}.shop-status.warn{color:#ffc36a}
+.reward-card{display:flex;align-items:center;justify-content:center;gap:12px;width:min(390px,100%);margin:-8px auto 22px;padding:13px 18px;border:1px solid #ffd75c55;border-radius:16px;background:linear-gradient(135deg,#2b3119,#172017);color:#ffe99e;box-shadow:0 10px 28px #0006;animation:rewardPop .5s cubic-bezier(.2,1.4,.4,1)}
+.reward-card[hidden]{display:none}.reward-card strong{font-size:23px;color:#fff2a5}.reward-detail{display:block;color:#8fa08f;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+@keyframes rewardPop{from{opacity:0;transform:scale(.72) rotate(-2deg)}to{opacity:1;transform:scale(1) rotate(0)}}
 .help-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;text-align:left;margin:26px 0}
 .help-card{padding:18px;border:1px solid rgba(255,255,255,.08);border-radius:18px;background:rgba(255,255,255,.035)}
 .help-card b{display:block;color:#f4ffe8;font-size:13px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:7px}
@@ -33,7 +59,8 @@ kbd{display:inline-grid;place-items:center;min-width:27px;height:25px;padding:0 
 #pause{background:rgba(2,7,5,.55)}
 #pause .panel{width:min(430px,92vw)}
 .credit{position:fixed;right:14px;bottom:10px;z-index:2;color:#d9f6dd55;font-size:10px;letter-spacing:.12em;pointer-events:none}
-@media(max-width:600px){.help-grid{grid-template-columns:1fr}.panel{border-radius:24px;padding:24px}button{min-width:135px}.credit{display:none}}
+@media(max-width:600px){.help-grid{grid-template-columns:1fr}.panel{border-radius:24px;padding:24px}button{min-width:135px}.credit{display:none}.shop-head{display:block;padding-right:30px}.shop-head .wallet{margin:10px 0}.skin-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.skin-card{padding:9px}.skin-preview{height:86px}.skin-note{display:none}.close-button{top:16px;right:16px}}
+@media(max-width:390px){.skin-grid{grid-template-columns:1fr 1fr}.skin-name{font-size:12px}.skin-badge{font-size:8px}}
 </style>
 </head>
 <body>
@@ -43,9 +70,11 @@ kbd{display:inline-grid;place-items:center;min-width:27px;height:25px;padding:0 
   <div class="panel">
     <div class="eyebrow">An original jungle action game</div>
     <h1>Canopy <span>Caliber</span></h1>
-    <p class="tag">Swing like a legend. Bend time. Clear the jungle of tiny poachers and reach the extraction flare.</p>
+    <p class="tag">Swing like a legend. Bend time. Clear the jungle of armed poachers and reach the extraction flare.</p>
+    <div class="wallet" aria-label="Coin balance"><span class="coin">C</span><span id="menuCoins">0</span> COINS</div>
     <div class="actions">
       <button id="play">Drop In</button>
+      <button id="openShop" class="secondary">Skin Shop</button>
       <button id="how" class="secondary">How To Play</button>
     </div>
     <div id="best" class="best"></div>
@@ -67,6 +96,22 @@ kbd{display:inline-grid;place-items:center;min-width:27px;height:25px;padding:0 
   </div>
 </section>
 
+<section id="shop" class="layer hidden" aria-labelledby="shopTitle">
+  <div class="panel shop-panel">
+    <button id="closeShop" class="close-button" aria-label="Close skin shop">×</button>
+    <div class="shop-head">
+      <div>
+        <div class="eyebrow">Canopy Outfitters</div>
+        <h2 id="shopTitle">Skin Shop</h2>
+      </div>
+      <div class="wallet" aria-label="Shop coin balance"><span class="coin">C</span><span id="shopCoins">0</span> COINS</div>
+    </div>
+    <p class="shop-copy">Finish the jungle faster to earn more coins. Buy a look once, then equip it whenever you want.</p>
+    <div id="skinGrid" class="skin-grid"></div>
+    <p id="shopStatus" class="shop-status" role="status" aria-live="polite">Select a skin to preview your next run.</p>
+  </div>
+</section>
+
 <section id="pause" class="layer hidden">
   <div class="panel">
     <div class="eyebrow">Time frozen</div>
@@ -81,6 +126,7 @@ kbd{display:inline-grid;place-items:center;min-width:27px;height:25px;padding:0 
     <div id="endEyebrow" class="eyebrow">Run complete</div>
     <h2 id="endTitle">Jungle Secured</h2>
     <div id="endScore" class="end-stat">0</div>
+    <div id="endReward" class="reward-card" hidden><span class="coin">C</span><div><strong>+<span id="endCoins">0</span> coins</strong><span id="endRewardDetail" class="reward-detail"></span></div></div>
     <p id="endText" class="tag"></p>
     <div class="actions"><button id="again">Run Again</button><button id="endMenu" class="secondary">Main Menu</button></div>
   </div>
@@ -114,14 +160,45 @@ const WORLD_W=7200,DEATH_Y=1250,GRAVITY=1450,GRAPPLE_RANGE=720;
 let state="menu",last=0,worldTime=0,runTime=0,realRunTime=0,slowScale=1,shake=0,flash=0,freeze=0;
 let player,camera={x:0,y:0,leadX:0,leadY:0,shakePhase:0},bullets=[],enemies=[],particles=[],texts=[],pickups=[],grapple=null;
 let keys={},mouse={x:W*.65,y:H*.45,wx:0,wy:0,left:false,right:false,ctrlGrapple:false},anchors=[],platforms=[],trees=[],checkpoints=[];
-let audio=null,audioUnavailable=false,muted=false,musicClock=0,score=0,kills=0,totalEnemies=0,combo=0,comboTimer=0,tutorialTime=0;
+let audio=null,audioUnavailable=false,muted=false,musicClock=0,score=0,kills=0,totalEnemies=0,combo=0,comboTimer=0,tutorialTime=0,runCoinAwarded=false;
+const PROFILE_KEY="canopyCaliberProfileV1";
+const SKINS=[
+  {id:"classic",name:"Classic",price:0,note:"The original jungle legend.",colors:{dark:"#492a18",fur:"#8d542b",light:"#a56a35",face:"#d8a35e",belly:"#d7a05a",accent:"#bfff64"}},
+  {id:"sunset",name:"Sunset",price:200,note:"Hot coral fur and a golden band.",colors:{dark:"#54243a",fur:"#ad4648",light:"#e4774b",face:"#ffc083",belly:"#ffd09b",accent:"#ffe45c"}},
+  {id:"frost",name:"Frost",price:400,note:"Cool blue tones from the high canopy.",colors:{dark:"#24445d",fur:"#4b849c",light:"#82c2d1",face:"#d6f0e9",belly:"#eafff7",accent:"#72e9ff"}},
+  {id:"shadow",name:"Shadow",price:650,note:"Quiet charcoal with violet energy.",colors:{dark:"#111018",fur:"#29283a",light:"#47435c",face:"#91869f",belly:"#c4b7d0",accent:"#bd71ff"}},
+  {id:"neon",name:"Neon",price:900,note:"Electric purple, pink and mint.",colors:{dark:"#24164b",fur:"#6637b2",light:"#9b52df",face:"#ff91c8",belly:"#ffd0ec",accent:"#68ffdb"}},
+  {id:"golden",name:"Golden",price:1400,note:"A trophy look for elite runners.",colors:{dark:"#67450a",fur:"#b87a0e",light:"#efa928",face:"#ffe08a",belly:"#fff0b0",accent:"#fff45a"}}
+];
+const SKIN_BY_ID=Object.fromEntries(SKINS.map(s=>[s.id,s]));
+const isSkinId=id=>typeof id==="string"&&Object.prototype.hasOwnProperty.call(SKIN_BY_ID,id);
 function readBest(){try{return +(localStorage.getItem("canopyCaliberBest")||0)}catch(e){return 0}}
 function writeBest(value){try{localStorage.setItem("canopyCaliberBest",String(value))}catch(e){}}
+function freshProfile(){return{version:1,coins:0,lifetimeCoins:0,wins:0,bestTime:null,ownedSkins:["classic"],selectedSkin:"classic"}}
+function readProfile(){
+  const base=freshProfile();
+  try{
+    const saved=JSON.parse(localStorage.getItem(PROFILE_KEY)||"null");if(!saved||typeof saved!=="object")return base;
+    const owned=[...new Set(["classic",...(Array.isArray(saved.ownedSkins)?saved.ownedSkins:[])])].filter(isSkinId);
+    const selected=typeof saved.selectedSkin==="string"&&owned.includes(saved.selectedSkin)?saved.selectedSkin:"classic";
+    const bestTime=Number(saved.bestTime);
+    return{version:1,coins:clamp(Math.floor(Number(saved.coins)||0),0,9999999),lifetimeCoins:clamp(Math.floor(Number(saved.lifetimeCoins)||0),0,99999999),wins:clamp(Math.floor(Number(saved.wins)||0),0,999999),bestTime:Number.isFinite(bestTime)&&bestTime>0?bestTime:null,ownedSkins:owned,selectedSkin:selected};
+  }catch(e){return base}
+}
+function saveProfile(){try{localStorage.setItem(PROFILE_KEY,JSON.stringify(profile))}catch(e){}}
 let bestScore=readBest();
-const menu=document.getElementById("menu"),help=document.getElementById("help"),pause=document.getElementById("pause"),ending=document.getElementById("ending");
-document.getElementById("best").textContent=bestScore?"BEST FIELD SCORE  "+bestScore.toLocaleString():"NO RUNS RECORDED — YET";
+let profile=readProfile();
+const menu=document.getElementById("menu"),help=document.getElementById("help"),shop=document.getElementById("shop"),pause=document.getElementById("pause"),ending=document.getElementById("ending");
+const bestEl=document.getElementById("best"),menuCoinsEl=document.getElementById("menuCoins"),shopCoinsEl=document.getElementById("shopCoins"),skinGrid=document.getElementById("skinGrid"),shopStatus=document.getElementById("shopStatus");
 
-function show(el,on){el.classList.toggle("hidden",!on)}
+function show(el,on){el.classList.toggle("hidden",!on);if(el.setAttribute)el.setAttribute("aria-hidden",String(!on));if("inert" in el)el.inert=!on}
+function updatePersistentUI(){
+  menuCoinsEl.textContent=profile.coins.toLocaleString();shopCoinsEl.textContent=profile.coins.toLocaleString();
+  const stats=[];if(bestScore)stats.push("BEST FIELD SCORE  "+bestScore.toLocaleString());if(profile.bestTime)stats.push("BEST EXTRACTION  "+formatTime(profile.bestTime));
+  bestEl.textContent=stats.length?stats.join("  •  "):"NO RUNS RECORDED — YET";
+}
+function selectedSkin(){return isSkinId(profile.selectedSkin)?SKIN_BY_ID[profile.selectedSkin]:SKINS[0]}
+updatePersistentUI();[help,shop,pause,ending].forEach(el=>show(el,false));show(menu,true);
 function disableAudio(){
   const old=audio;audio=null;audioUnavailable=true;
   if(old&&old.state!=="closed")try{const closing=old.close();if(closing&&closing.catch)closing.catch(()=>{})}catch(e){}
@@ -167,6 +244,63 @@ function sfx(name){
   if(name==="pickup"){tone(440,.08,"sine",.04,660);setTimeout(()=>tone(880,.1,"sine",.03,1100),70)}
   if(name==="slow"){tone(180,.28,"sine",.04,65)}
   if(name==="win"){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,.35,"triangle",.04,f*1.01),i*130))}
+  if(name==="coin"){tone(660,.08,"triangle",.04,880);setTimeout(()=>tone(990,.1,"sine",.035,1320),75)}
+  if(name==="equip"){tone(310,.08,"triangle",.035,520);setTimeout(()=>tone(620,.12,"sine",.03,760),65)}
+  if(name==="deny")tone(105,.12,"square",.025,75);
+}
+
+function drawSkinPreview(canvasEl,skin){
+  const pc=canvasEl.getContext("2d"),c=skin.colors,w=canvasEl.width,h=canvasEl.height;if(!pc)return;
+  pc.clearRect(0,0,w,h);pc.save();pc.translate(w*.5-2,2);pc.lineCap="round";pc.lineJoin="round";
+  pc.globalAlpha=.3;pc.fillStyle="#020704";pc.beginPath();pc.ellipse(0,99,37,7,0,0,TAU);pc.fill();pc.globalAlpha=1;
+  pc.strokeStyle=c.dark;pc.lineWidth=10;pc.beginPath();pc.moveTo(-12,61);pc.bezierCurveTo(-40,62,-45,35,-30,30);pc.stroke();pc.strokeStyle=c.fur;pc.lineWidth=5;pc.stroke();
+  pc.strokeStyle=c.dark;pc.lineWidth=9;pc.beginPath();pc.moveTo(-8,72);pc.lineTo(-13,98);pc.moveTo(8,72);pc.lineTo(13,98);pc.stroke();pc.strokeStyle=c.fur;pc.lineWidth=5;pc.beginPath();pc.moveTo(-14,98);pc.lineTo(-5,98);pc.moveTo(12,98);pc.lineTo(21,98);pc.stroke();
+  const body=pc.createLinearGradient(-18,44,18,82);body.addColorStop(0,c.light);body.addColorStop(1,c.dark);pc.fillStyle=body;pc.beginPath();pc.ellipse(0,62,21,28,0,0,TAU);pc.fill();pc.fillStyle=c.belly;pc.beginPath();pc.ellipse(5,66,12,18,0,0,TAU);pc.fill();
+  pc.strokeStyle=c.fur;pc.lineWidth=9;pc.beginPath();pc.moveTo(8,49);pc.lineTo(28,61);pc.lineTo(42,57);pc.stroke();pc.fillStyle=c.face;pc.beginPath();pc.arc(42,57,4,0,TAU);pc.fill();
+  pc.fillStyle=c.dark;pc.beginPath();pc.arc(-12,31,9,0,TAU);pc.arc(12,31,9,0,TAU);pc.fill();pc.beginPath();pc.ellipse(0,30,20,19,0,0,TAU);pc.fill();pc.fillStyle=c.face;pc.beginPath();pc.ellipse(7,33,12,10,0,0,TAU);pc.fill();pc.fillStyle="#17110b";pc.beginPath();pc.arc(8,25,2.2,0,TAU);pc.arc(16,33,1.8,0,TAU);pc.fill();
+  pc.strokeStyle=c.accent;pc.lineWidth=4;pc.beginPath();pc.arc(0,29,19,Math.PI*.98,Math.PI*2.03);pc.stroke();pc.beginPath();pc.moveTo(-17,27);pc.quadraticCurveTo(-30,18,-37,28);pc.stroke();
+  pc.fillStyle="#202925";pc.save();pc.translate(37,54);pc.rotate(-.1);pc.fillRect(-5,-5,34,9);pc.fillStyle="#748078";pc.fillRect(22,-2,20,4);pc.restore();
+  pc.restore();
+}
+function setShopStatus(text,toneClass=""){
+  shopStatus.textContent=text;shopStatus.className="shop-status"+(toneClass?" "+toneClass:"");
+}
+function renderShop(){
+  skinGrid.textContent="";updatePersistentUI();
+  for(const skin of SKINS){
+    const owned=profile.ownedSkins.includes(skin.id),equipped=profile.selectedSkin===skin.id,affordable=profile.coins>=skin.price;
+    const card=document.createElement("article");card.className="skin-card"+(equipped?" equipped":"")+(!owned?" locked":"");card.dataset.skinId=skin.id;
+    const preview=document.createElement("canvas");preview.className="skin-preview";preview.width=220;preview.height=112;preview.setAttribute("aria-hidden","true");
+    const title=document.createElement("div");title.className="skin-name";const name=document.createElement("span");name.textContent=skin.name;const badge=document.createElement("span");badge.className="skin-badge";badge.textContent=equipped?"EQUIPPED":owned?"OWNED":skin.price.toLocaleString()+" C";title.append(name,badge);
+    const note=document.createElement("p");note.className="skin-note";note.textContent=skin.note;
+    const action=document.createElement("button");action.className="skin-action";action.dataset.skinAction="";action.dataset.skinId=skin.id;
+    if(equipped){action.textContent="Equipped";action.disabled=true}
+    else if(owned)action.textContent="Equip";
+    else if(affordable)action.textContent="Buy • "+skin.price.toLocaleString();
+    else{action.textContent="Need "+(skin.price-profile.coins).toLocaleString()+" more";action.disabled=true}
+    action.addEventListener("click",()=>buyOrEquipSkin(skin.id));card.append(preview,title,note,action);skinGrid.append(card);drawSkinPreview(preview,skin);
+  }
+}
+function buyOrEquipSkin(id){
+  if(!isSkinId(id))return;const skin=SKIN_BY_ID[id];initAudio();resumeAudio();
+  if(profile.ownedSkins.includes(id)){
+    if(profile.selectedSkin===id)return;profile.selectedSkin=id;saveProfile();updatePersistentUI();renderShop();setShopStatus(skin.name+" equipped for your next run.","good");sfx("equip");return;
+  }
+  if(profile.coins<skin.price){setShopStatus("You need "+(skin.price-profile.coins).toLocaleString()+" more coins.","warn");sfx("deny");return}
+  profile.coins-=skin.price;profile.ownedSkins.push(id);profile.selectedSkin=id;saveProfile();updatePersistentUI();renderShop();setShopStatus(skin.name+" unlocked and equipped!","good");sfx("coin");
+}
+function openSkinShop(){
+  initAudio();resumeAudio();renderShop();setShopStatus("Finish faster to earn a bigger speed bonus.");show(menu,false);show(shop,true);document.getElementById("closeShop").focus();
+}
+function closeSkinShop(){show(shop,false);show(menu,true);document.getElementById("openShop").focus()}
+function calculateRunReward(seconds){
+  const base=50,speedBonus=Math.round(150*clamp((240-seconds)/180,0,1));return{base:base,speedBonus:speedBonus,total:base+speedBonus};
+}
+function awardRunCoins(seconds){
+  if(runCoinAwarded)return null;runCoinAwarded=true;
+  const reward=calculateRunReward(seconds),firstClear=profile.wins===0?100:0,newBest=profile.bestTime===null||seconds<profile.bestTime-.25,pbBonus=profile.wins>0&&newBest?25:0,total=reward.total+firstClear+pbBonus;
+  profile.coins=clamp(profile.coins+total,0,9999999);profile.lifetimeCoins=clamp(profile.lifetimeCoins+total,0,99999999);profile.wins++;
+  if(newBest)profile.bestTime=seconds;saveProfile();updatePersistentUI();return{base:reward.base,speedBonus:reward.speedBonus,firstClear:firstClear,pbBonus:pbBonus,total:total,newBest:newBest};
 }
 
 function makeWorld(){
@@ -236,7 +370,7 @@ function resetGame(){
   camera.x=player.x-W*.42;camera.y=player.y-H*.54;
   camera.leadX=0;camera.leadY=0;camera.shakePhase=0;
   mouse.wx=mouse.x+camera.x;mouse.wy=mouse.y+camera.y;
-  score=0;kills=0;combo=0;comboTimer=0;tutorialTime=11;runTime=0;realRunTime=0;worldTime=0;shake=0;flash=0;freeze=0;keys={};
+  score=0;kills=0;combo=0;comboTimer=0;tutorialTime=11;runTime=0;realRunTime=0;worldTime=0;shake=0;flash=0;freeze=0;runCoinAwarded=false;keys={};
   mouse.left=false;mouse.right=false;mouse.ctrlGrapple=false;slowScale=1;state="playing";
   show(menu,false);show(help,false);show(pause,false);show(ending,false);
   canvas.style.cursor="none";
@@ -580,14 +714,18 @@ function finish(win){
   if(state!=="playing")return;
   state=win?"win":"lose";mouse.left=false;mouse.right=false;grapple=null;slowScale=1;canvas.style.cursor="default";
   if(win){
+    const reward=awardRunCoins(realRunTime),rewardParts=[reward.base+" clear",reward.speedBonus+" speed"];
+    if(reward.firstClear)rewardParts.push(reward.firstClear+" first clear");if(reward.pbBonus)rewardParts.push(reward.pbBonus+" personal best");
+    document.getElementById("endReward").hidden=false;document.getElementById("endCoins").textContent=reward.total.toLocaleString();document.getElementById("endRewardDetail").textContent=rewardParts.join(" + ")+" • "+profile.coins.toLocaleString()+" banked";
     const timeBonus=Math.max(0,24000-Math.floor(realRunTime*95));score+=timeBonus+Math.round(player.hp)*40;
-    if(score>bestScore){bestScore=score;writeBest(bestScore);document.getElementById("best").textContent="BEST FIELD SCORE  "+bestScore.toLocaleString()}
+    if(score>bestScore){bestScore=score;writeBest(bestScore);updatePersistentUI()}
     document.getElementById("endEyebrow").textContent="Run complete";
     document.getElementById("endTitle").textContent="Jungle Secured";
     document.getElementById("endScore").textContent=score.toLocaleString();
-    document.getElementById("endText").textContent=kills+" poachers cleared • "+formatTime(realRunTime)+" • "+Math.ceil(player.hp)+" health remaining";
-    sfx("win");
+    document.getElementById("endText").textContent=kills+" poachers cleared • "+formatTime(realRunTime)+" • "+Math.ceil(player.hp)+" health remaining"+(reward.newBest?" • NEW BEST TIME":"");
+    sfx("win");setTimeout(()=>sfx("coin"),520);
   }else{
+    document.getElementById("endReward").hidden=true;
     document.getElementById("endEyebrow").textContent="Run ended";
     document.getElementById("endTitle").textContent="Monkey Down";
     document.getElementById("endScore").textContent=score.toLocaleString();
@@ -741,59 +879,121 @@ function drawMotionEffects(){
 }
 function drawLimb(x1,y1,x2,y2,x3,y3,width,color){ctx.strokeStyle=color;ctx.lineWidth=width;ctx.lineCap="round";ctx.lineJoin="round";ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.lineTo(x3,y3);ctx.stroke()}
 function drawPlayer(){
-  const p=player,aim=Math.atan2(mouse.wy-(p.y-13),mouse.wx-p.x),aimFace=Math.cos(aim)>=0?1:-1,moveFace=p.visualFacing>=0?1:-1;
+  const p=player,skin=selectedSkin().colors,aim=Math.atan2(mouse.wy-(p.y-13),mouse.wx-p.x),aimFace=Math.cos(aim)>=0?1:-1,moveFace=p.visualFacing>=0?1:-1;
   const blink=p.invuln>0&&Math.floor(p.invuln*18)%2===0,run=p.ground?clamp(Math.abs(p.vx)/345,0,1):0,phase=p.walk,bob=run*(1-Math.cos(phase*2))*1.3;
   const ropeLean=grapple?clamp((p.x-grapple.a.x)/(Math.abs(p.y-grapple.a.y)+100),-.36,.36):0,bodyTilt=p.lean+ropeLean;
   const bodyCos=Math.cos(bodyTilt),bodySin=Math.sin(bodyTilt),posePoint=(x,y)=>({x:p.x+x*bodyCos-y*bodySin,y:p.y+bob+x*bodySin+y*bodyCos});
   if(blink)ctx.globalAlpha=.35;
   if(p.ground){ctx.save();ctx.globalAlpha=.2;ctx.fillStyle="#06100b";ctx.beginPath();ctx.ellipse(p.x,p.y+32,20+run*5,5-run,0,0,TAU);ctx.fill();ctx.restore()}
-  if(grapple){const hand=grappleHandPosition(),shoulder=posePoint(-moveFace*7,-18),elbow={x:lerp(shoulder.x,hand.x,.52)-moveFace*4,y:lerp(shoulder.y,hand.y,.52)+5};drawLimb(shoulder.x,shoulder.y,elbow.x,elbow.y,hand.x,hand.y,10,"#754322");ctx.fillStyle="#b87a3d";ctx.beginPath();ctx.arc(hand.x,hand.y,5.5,0,TAU);ctx.fill()}
+  if(grapple){const hand=grappleHandPosition(),shoulder=posePoint(-moveFace*7,-18),elbow={x:lerp(shoulder.x,hand.x,.52)-moveFace*4,y:lerp(shoulder.y,hand.y,.52)+5};drawLimb(shoulder.x,shoulder.y,elbow.x,elbow.y,hand.x,hand.y,10,skin.fur);ctx.fillStyle=skin.face;ctx.beginPath();ctx.arc(hand.x,hand.y,5.5,0,TAU);ctx.fill()}
   ctx.save();ctx.translate(p.x,p.y+bob);ctx.rotate(bodyTilt);
   const squash=p.landSquash,stretch=!p.ground?clamp(Math.abs(p.vy)/1800,0,.1):0;ctx.scale(1+squash*.26-stretch*.18,1-squash*.24+stretch);
   const tailDir=Math.abs(p.vx)>25?-Math.sign(p.vx):-moveFace,tailLag=clamp(-p.vx*.04,-17,17),tailLift=clamp(-p.vy*.018,-10,12);
-  ctx.strokeStyle="#492a18";ctx.lineWidth=10;ctx.lineCap="round";ctx.beginPath();ctx.moveTo(-moveFace*9,-2);ctx.bezierCurveTo(tailDir*25+tailLag,2+tailLift,tailDir*43+tailLag,-22+tailLift,tailDir*29,-39+tailLift*.4);ctx.stroke();ctx.strokeStyle="#8d542b";ctx.lineWidth=5;ctx.stroke();
-  ctx.strokeStyle="#58311d";ctx.lineWidth=10;
+  ctx.strokeStyle=skin.dark;ctx.lineWidth=10;ctx.lineCap="round";ctx.beginPath();ctx.moveTo(-moveFace*9,-2);ctx.bezierCurveTo(tailDir*25+tailLag,2+tailLift,tailDir*43+tailLag,-22+tailLift,tailDir*29,-39+tailLift*.4);ctx.stroke();ctx.strokeStyle=skin.fur;ctx.lineWidth=5;ctx.stroke();
+  ctx.strokeStyle=skin.dark;ctx.lineWidth=10;
   for(const side of [-1,1]){
     let hipX=side*7,kneeX,footX,kneeY,footY;
     if(p.ground){const stride=Math.sin(phase+side*Math.PI*.5)*12*run;kneeX=hipX+stride*.48;kneeY=17+Math.abs(Math.cos(phase+side))*3;footX=hipX+stride;footY=32}
     else if(grapple){const trail=clamp(-p.vx*.028,-11,11);kneeX=hipX+trail+side*3;kneeY=16;footX=hipX+trail*1.45+side*6;footY=27+Math.sin(worldTime*5+side)*3}
     else{const tuck=clamp((-p.vy+180)/650,0,1);kneeX=hipX+side*(5+6*tuck);kneeY=14+8*(1-tuck);footX=hipX+side*(11+5*tuck);footY=24+7*(1-tuck)}
-    ctx.beginPath();ctx.moveTo(hipX,7);ctx.lineTo(kneeX,kneeY);ctx.lineTo(footX,footY);ctx.stroke();ctx.strokeStyle="#9a6030";ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(footX-side*2,footY);ctx.lineTo(footX+side*7,footY);ctx.stroke();ctx.strokeStyle="#58311d";ctx.lineWidth=10;
+    ctx.beginPath();ctx.moveTo(hipX,7);ctx.lineTo(kneeX,kneeY);ctx.lineTo(footX,footY);ctx.stroke();ctx.strokeStyle=skin.fur;ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(footX-side*2,footY);ctx.lineTo(footX+side*7,footY);ctx.stroke();ctx.strokeStyle=skin.dark;ctx.lineWidth=10;
   }
-  const bg=ctx.createLinearGradient(-15,-26,16,17);bg.addColorStop(0,"#a56a35");bg.addColorStop(1,"#482718");ctx.fillStyle=bg;ctx.beginPath();ctx.ellipse(0,-5,17,24,0,0,TAU);ctx.fill();
-  ctx.fillStyle="#d7a05a";ctx.beginPath();ctx.ellipse(aimFace*2,-3,10,15,0,0,TAU);ctx.fill();
-  ctx.fillStyle="#6f3d20";ctx.beginPath();ctx.arc(-12,-36,9,0,TAU);ctx.arc(12,-36,9,0,TAU);ctx.fill();ctx.beginPath();ctx.ellipse(0,-37,19,18,0,0,TAU);ctx.fill();
-  ctx.fillStyle="#d8a35e";ctx.beginPath();ctx.ellipse(aimFace*5,-34,12,10,0,0,TAU);ctx.fill();ctx.fillStyle="#17110b";ctx.beginPath();ctx.arc(aimFace*7,-42,2.6,0,TAU);ctx.arc(aimFace*13,-35,2,0,TAU);ctx.fill();
+  const bg=ctx.createLinearGradient(-15,-26,16,17);bg.addColorStop(0,skin.light);bg.addColorStop(1,skin.dark);ctx.fillStyle=bg;ctx.beginPath();ctx.ellipse(0,-5,17,24,0,0,TAU);ctx.fill();
+  ctx.fillStyle=skin.belly;ctx.beginPath();ctx.ellipse(aimFace*2,-3,10,15,0,0,TAU);ctx.fill();
+  ctx.fillStyle=skin.dark;ctx.beginPath();ctx.arc(-12,-36,9,0,TAU);ctx.arc(12,-36,9,0,TAU);ctx.fill();ctx.beginPath();ctx.ellipse(0,-37,19,18,0,0,TAU);ctx.fill();
+  ctx.fillStyle=skin.face;ctx.beginPath();ctx.ellipse(aimFace*5,-34,12,10,0,0,TAU);ctx.fill();ctx.fillStyle="#17110b";ctx.beginPath();ctx.arc(aimFace*7,-42,2.6,0,TAU);ctx.arc(aimFace*13,-35,2,0,TAU);ctx.fill();
   ctx.strokeStyle="#25160e";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(aimFace*3,-46);ctx.lineTo(aimFace*10,-44);ctx.stroke();
-  ctx.strokeStyle="#bfff64";ctx.lineWidth=4;ctx.beginPath();ctx.arc(0,-39,18,Math.PI*.96,Math.PI*2.04);ctx.stroke();const ribbon=-moveFace;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(ribbon*15,-42);ctx.quadraticCurveTo(ribbon*(28+Math.abs(p.vx)*.025),-48+tailLift*.3,ribbon*(36+Math.abs(p.vx)*.04),-41+tailLift*.5);ctx.stroke();
+  ctx.strokeStyle=skin.accent;ctx.lineWidth=4;ctx.beginPath();ctx.arc(0,-39,18,Math.PI*.96,Math.PI*2.04);ctx.stroke();const ribbon=-moveFace;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(ribbon*15,-42);ctx.quadraticCurveTo(ribbon*(28+Math.abs(p.vx)*.025),-48+tailLift*.3,ribbon*(36+Math.abs(p.vx)*.04),-41+tailLift*.5);ctx.stroke();
   ctx.restore();
   const reloadT=p.reload>0?1-p.reload/1.05:0,reloadWave=p.reload>0?Math.sin(reloadT*Math.PI):0,gunAngle=aim+reloadWave*(aimFace>0?.68:-.68),gunY=reloadWave*8,kick=p.gunKick*6;
   const gx=p.x-Math.cos(gunAngle)*kick,gy=p.y-13+gunY-Math.sin(gunAngle)*kick,grip={x:gx+Math.cos(gunAngle)*5,y:gy+Math.sin(gunAngle)*5},support={x:gx+Math.cos(gunAngle)*21,y:gy+Math.sin(gunAngle)*21};
-  const shoulder1=posePoint(aimFace*8,-18),elbow1={x:lerp(shoulder1.x,grip.x,.55),y:lerp(shoulder1.y,grip.y,.55)+aimFace*3};drawLimb(shoulder1.x,shoulder1.y,elbow1.x,elbow1.y,grip.x,grip.y,9,"#754322");
-  if(!grapple){const shoulder2=posePoint(-aimFace*7,-17),elbow2={x:lerp(shoulder2.x,support.x,.55),y:lerp(shoulder2.y,support.y,.55)+5};drawLimb(shoulder2.x,shoulder2.y,elbow2.x,elbow2.y,support.x,support.y,8,"#8b5229")}
+  const shoulder1=posePoint(aimFace*8,-18),elbow1={x:lerp(shoulder1.x,grip.x,.55),y:lerp(shoulder1.y,grip.y,.55)+aimFace*3};drawLimb(shoulder1.x,shoulder1.y,elbow1.x,elbow1.y,grip.x,grip.y,9,skin.dark);
+  if(!grapple){const shoulder2=posePoint(-aimFace*7,-17),elbow2={x:lerp(shoulder2.x,support.x,.55),y:lerp(shoulder2.y,support.y,.55)+5};drawLimb(shoulder2.x,shoulder2.y,elbow2.x,elbow2.y,support.x,support.y,8,skin.fur)}
   ctx.save();ctx.translate(gx,gy);ctx.rotate(gunAngle);ctx.fillStyle="#1b2520";roundRect(-7,-6,42,12,3);ctx.fill();ctx.fillStyle="#6f7e75";ctx.fillRect(15,-3,31,6);ctx.fillStyle="#101713";ctx.fillRect(41,-2,14,4);ctx.fillStyle="#9c6533";ctx.beginPath();ctx.moveTo(-10,-5);ctx.lineTo(7,-4);ctx.lineTo(2,8);ctx.lineTo(-12,8);ctx.fill();ctx.fillStyle="#172019";ctx.fillRect(8,3,8,12);
   if(p.reload>0){const drop=Math.sin(clamp((reloadT-.18)/.58,0,1)*Math.PI);ctx.save();ctx.translate(11,7+drop*8);ctx.rotate(drop*.25);ctx.fillStyle="#334139";ctx.fillRect(-4,0,9,13);ctx.restore()}
   if(p.muzzleFlash>0){const a=clamp(p.muzzleFlash/.09,0,1);ctx.globalAlpha=a;ctx.fillStyle="#fff3a0";ctx.shadowBlur=16;ctx.shadowColor="#ffb53d";ctx.beginPath();ctx.moveTo(56,0);ctx.lineTo(43,-7*a);ctx.lineTo(47,0);ctx.lineTo(43,7*a);ctx.closePath();ctx.fill()}ctx.restore();
   ctx.globalAlpha=1;
 }
 function drawEnemy(e){
-  ctx.save();ctx.translate(e.x,e.y);ctx.scale(e.dir,1);
-  const walk=Math.sin(worldTime*9+e.phase)*Math.min(1,Math.abs(e.vx)/50);
-  ctx.strokeStyle="#24251f";ctx.lineWidth=e.type==="heavy"?8:6;ctx.lineCap="round";
-  ctx.beginPath();ctx.moveTo(-5,-6);ctx.lineTo(-7+walk*5,10);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(5,-6);ctx.lineTo(7-walk*5,10);ctx.stroke();
-  ctx.fillStyle=e.flash>0?"#fff3cf":e.type==="heavy"?"#6a5138":e.type==="scout"?"#486247":"#545e3b";
-  roundRect(-e.w*.5,-e.h+8,e.w,e.h-13,6);ctx.fill();
-  // tiny human head
-  ctx.fillStyle="#c99068";ctx.beginPath();ctx.arc(0,-e.h+3,e.type==="heavy"?8:7,0,TAU);ctx.fill();
-  ctx.fillStyle=e.type==="heavy"?"#2c332b":"#394b34";ctx.beginPath();ctx.arc(0,-e.h+1,e.type==="heavy"?9:8,Math.PI,TAU);ctx.fill();ctx.fillRect(-10,-e.h,20,4);
-  ctx.fillStyle="#171c16";ctx.fillRect(4,-e.h+3,2,2);
-  // weapon
-  ctx.fillStyle="#252b27";ctx.fillRect(5,-e.h*.63,22,5);ctx.fillStyle="#756044";ctx.fillRect(2,-e.h*.6,8,7);
+  const visualScale=e.type==="heavy"?1.13:e.type==="scout"?1.08:1.1;
+  const maxSpeed=e.type==="scout"?110:e.type==="heavy"?55:76;
+  const run=clamp(Math.abs(e.vx)/maxSpeed,0,1),gait=worldTime*(8.2+run*1.8)+e.phase;
+  const bob=-Math.abs(Math.sin(gait))*1.1*run;
+  const facing=e.alert>0&&Math.abs(player.x-e.x)>4?Math.sign(player.x-e.x):e.dir;
+  const headY=-e.h+3,headR=e.type==="heavy"?8.8:8,shoulderY=headY+13,waistY=-5,hipY=-2,footY=e.h*.5-1;
+  const shirt=e.flash>0?"#fff3cf":e.type==="heavy"?"#66513c":e.type==="scout"?"#3f674a":"#53633e";
+  const shirtDark=e.type==="heavy"?"#3b3328":e.type==="scout"?"#294534":"#34442f";
+  const pants=e.type==="heavy"?"#292d29":e.type==="scout"?"#30483a":"#343b31",skin="#c99068",boot="#171b18";
+  const shoulderW=e.w*(e.type==="heavy"?.57:.55),waistW=e.w*.37,legWidth=e.type==="heavy"?7:5.8,armWidth=e.type==="heavy"?6.8:5.8;
+
+  ctx.save();ctx.globalAlpha=.2;ctx.fillStyle="#06100b";ctx.beginPath();ctx.ellipse(e.x,e.y+e.h*.5-1,(e.type==="heavy"?17:14)*visualScale,3.7,0,0,TAU);ctx.fill();ctx.restore();
+  ctx.save();ctx.translate(e.x,e.y+bob);ctx.scale(facing*visualScale,visualScale);ctx.lineCap="round";ctx.lineJoin="round";
+
+  // Human legs: hips, knees, shins and boots now meet the platform instead of floating above it.
+  for(const side of [-1,1]){
+    const legPhase=gait+(side<0?0:Math.PI),legStride=Math.sin(legPhase)*6.2*run,stepLift=Math.max(0,-Math.cos(legPhase))*2.2*run;
+    const hipX=side*3.8,kneeX=hipX+legStride*.46,kneeY=hipY+(footY-hipY)*.53-stepLift*.15,shoeX=hipX+legStride,shoeY=footY-stepLift;
+    drawLimb(hipX,hipY,kneeX,kneeY,shoeX,shoeY,legWidth,pants);
+    ctx.strokeStyle=boot;ctx.lineWidth=legWidth*.72;ctx.beginPath();ctx.moveTo(shoeX-1,shoeY);ctx.lineTo(shoeX+5.5,shoeY);ctx.stroke();
+  }
+
+  let gunAngle=0;
+  if(e.alert>0){
+    const worldAim=Math.atan2(player.y-14-(e.y+bob),player.x-e.x);
+    gunAngle=facing>0?worldAim:Math.PI-worldAim;
+    gunAngle=clamp(Math.atan2(Math.sin(gunAngle),Math.cos(gunAngle)),-.5,.5);
+  }
+  const gunX=1,gunY=-e.h*.58,gunCos=Math.cos(gunAngle),gunSin=Math.sin(gunAngle);
+  const gunPoint=d=>({x:gunX+gunCos*d,y:gunY+gunSin*d});
+  const grip=gunPoint(7),foreGrip=gunPoint(18);
+  const rearShoulder={x:-shoulderW*.62,y:shoulderY+2},rearElbow={x:lerp(rearShoulder.x,grip.x,.55),y:lerp(rearShoulder.y,grip.y,.55)+3};
+  drawLimb(rearShoulder.x,rearShoulder.y,rearElbow.x,rearElbow.y,grip.x,grip.y,armWidth-1,skin);
+  drawLimb(rearShoulder.x,rearShoulder.y,lerp(rearShoulder.x,rearElbow.x,.6),lerp(rearShoulder.y,rearElbow.y,.6),rearElbow.x,rearElbow.y,armWidth,shirtDark);
+
+  // A tapered torso with shoulders, waist, vest and belt reads as a person instead of a block.
+  ctx.fillStyle=shirt;ctx.beginPath();ctx.moveTo(-shoulderW,shoulderY+1);ctx.quadraticCurveTo(-shoulderW-1,shoulderY+6,-waistW,waistY);ctx.lineTo(waistW,waistY);ctx.quadraticCurveTo(shoulderW+1,shoulderY+6,shoulderW,shoulderY+1);ctx.quadraticCurveTo(0,shoulderY-2,-shoulderW,shoulderY+1);ctx.fill();
+  ctx.fillStyle=shirtDark;roundRect(-shoulderW*.63,shoulderY+4,shoulderW*1.26,Math.max(7,waistY-shoulderY-6),2.5);ctx.fill();
+  ctx.fillStyle=e.type==="scout"?"#b8a45a":"#84704a";ctx.fillRect(-waistW,waistY-2,waistW*2,2.4);
+  if(e.type==="heavy"){
+    ctx.fillStyle="#756147";roundRect(-shoulderW-1,shoulderY+2,5.5,8,2);ctx.fill();roundRect(shoulderW-4.5,shoulderY+2,5.5,8,2);ctx.fill();
+    ctx.fillStyle="#a08b62";ctx.fillRect(-3,shoulderY+7,6,5);
+  }else if(e.type==="scout"){
+    ctx.strokeStyle="#8ebf79";ctx.lineWidth=1.7;ctx.beginPath();ctx.moveTo(-shoulderW*.55,shoulderY+4);ctx.lineTo(shoulderW*.35,waistY-1);ctx.stroke();
+  }else{
+    ctx.fillStyle="#78855b";ctx.fillRect(-shoulderW*.52,shoulderY+7,4.5,5);ctx.fillRect(shoulderW*.08,shoulderY+7,4.5,5);
+  }
+
+  const frontShoulder={x:shoulderW*.62,y:shoulderY+2},frontElbow={x:lerp(frontShoulder.x,foreGrip.x,.52),y:lerp(frontShoulder.y,foreGrip.y,.52)+3.5};
+  drawLimb(frontShoulder.x,frontShoulder.y,frontElbow.x,frontElbow.y,foreGrip.x,foreGrip.y,armWidth-1,skin);
+  drawLimb(frontShoulder.x,frontShoulder.y,lerp(frontShoulder.x,frontElbow.x,.6),lerp(frontShoulder.y,frontElbow.y,.6),frontElbow.x,frontElbow.y,armWidth,shirt);
+  ctx.fillStyle=skin;ctx.beginPath();ctx.arc(grip.x,grip.y,2.8,0,TAU);ctx.fill();ctx.beginPath();ctx.arc(foreGrip.x,foreGrip.y,2.8,0,TAU);ctx.fill();
+
+  // Neck, jaw, ear, nose and facial details give every poacher a readable human profile.
+  ctx.fillStyle=skin;roundRect(-3.4,headY+headR*.55,6.8,6,2.5);ctx.fill();
+  ctx.beginPath();ctx.ellipse(0,headY,headR*.8,headR,0,0,TAU);ctx.fill();
+  ctx.beginPath();ctx.arc(-headR*.67,headY+.4,2.3,0,TAU);ctx.fill();
+  ctx.beginPath();ctx.moveTo(headR*.66,headY-.8);ctx.lineTo(headR*1.02,headY+1.1);ctx.lineTo(headR*.62,headY+2.2);ctx.closePath();ctx.fill();
+  ctx.fillStyle="#171c16";ctx.beginPath();ctx.arc(headR*.32,headY-2.1,1.15,0,TAU);ctx.fill();
+  ctx.strokeStyle="#6e3929";ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(headR*.28,headY+3.5);ctx.lineTo(headR*.62,headY+3.2);ctx.stroke();
+  if(e.type==="heavy"){
+    ctx.fillStyle="#29332d";ctx.beginPath();ctx.arc(0,headY-1,headR+1.2,Math.PI,TAU);ctx.fill();ctx.fillRect(-headR-1,headY-2,headR*2+5,3.2);
+  }else if(e.type==="scout"){
+    ctx.fillStyle="#263e30";ctx.beginPath();ctx.arc(-1,headY-1,headR+.7,Math.PI,TAU);ctx.fill();ctx.fillRect(-headR,headY-2,headR*2+5,2.5);
+    ctx.strokeStyle="#d2bd61";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-headR,headY-2);ctx.lineTo(headR,headY-2);ctx.stroke();
+  }else{
+    ctx.fillStyle="#334432";ctx.beginPath();ctx.arc(0,headY-1,headR+.6,Math.PI,TAU);ctx.fill();
+    ctx.strokeStyle="#c07b48";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-headR*.9,headY-2);ctx.lineTo(headR*.9,headY-2);ctx.stroke();
+  }
+
+  // Compact rifle with stock, receiver, foregrip and barrel, held by both hands.
+  ctx.save();ctx.translate(gunX,gunY);ctx.rotate(gunAngle);
+  ctx.fillStyle="#59472f";ctx.beginPath();ctx.moveTo(-7,-3.5);ctx.lineTo(4,-3);ctx.lineTo(5,3);ctx.lineTo(-9,5);ctx.closePath();ctx.fill();
+  ctx.fillStyle="#242b27";roundRect(0,-3.5,17,7,2);ctx.fill();ctx.fillStyle="#6c765f";ctx.fillRect(13,-2,13,4);ctx.fillStyle="#171c19";ctx.fillRect(25,-1.35,6,2.7);ctx.fillRect(6,2.5,5,6);
+  ctx.fillStyle="#a58145";ctx.fillRect(15,2,4,5);ctx.restore();
   ctx.restore();
   if(e.alert>0||e.hp<e.maxHp){
-    const w=34;ctx.fillStyle="#130e0c";roundRect(e.x-w/2,e.y-e.h-16,w,5,3);ctx.fill();
-    ctx.fillStyle=e.hp/e.maxHp>.45?"#aee84c":"#ff684d";roundRect(e.x-w/2,e.y-e.h-16,w*clamp(e.hp/e.maxHp,0,1),5,3);ctx.fill();
+    const w=e.type==="heavy"?42:38,barY=e.y-(e.h+8)*visualScale-11;ctx.fillStyle="#130e0c";roundRect(e.x-w/2,barY,w,5,3);ctx.fill();
+    ctx.fillStyle=e.hp/e.maxHp>.45?"#aee84c":"#ff684d";roundRect(e.x-w/2,barY,w*clamp(e.hp/e.maxHp,0,1),5,3);ctx.fill();
   }
 }
 function drawBullets(){
@@ -927,6 +1127,7 @@ addEventListener("keydown",e=>{
   if(e.code==="KeyE"&&!e.repeat)startGrapple("smart");
   if(e.code==="KeyR"&&!e.repeat)reload();
   if(e.code==="Escape"){
+    if(!shop.classList.contains("hidden")){closeSkinShop();return}
     if(state==="playing"){state="paused";grapple=null;mouse.left=false;mouse.right=false;mouse.ctrlGrapple=false;show(pause,true);canvas.style.cursor="default"}
     else if(state==="paused"){state="playing";show(pause,false);canvas.style.cursor="none";last=performance.now()}
   }
@@ -935,13 +1136,15 @@ addEventListener("keyup",e=>{keys[e.code]=false;if((e.code==="KeyE"||e.code==="S
 addEventListener("blur",()=>{mouse.left=false;mouse.right=false;mouse.ctrlGrapple=false;grapple=null;Object.keys(keys).forEach(k=>keys[k]=false)});
 
 document.getElementById("play").onclick=resetGame;
+document.getElementById("openShop").onclick=openSkinShop;
+document.getElementById("closeShop").onclick=closeSkinShop;
 document.getElementById("how").onclick=()=>{show(menu,false);show(help,true)};
 document.getElementById("back").onclick=()=>{show(help,false);show(menu,true)};
 document.getElementById("resume").onclick=()=>{state="playing";show(pause,false);canvas.style.cursor="none";last=performance.now()};
 document.getElementById("quit").onclick=goMenu;
 document.getElementById("endMenu").onclick=goMenu;
 document.getElementById("again").onclick=resetGame;
-function goMenu(){state="menu";show(pause,false);show(ending,false);show(help,false);show(menu,true);canvas.style.cursor="default";mouse.left=false;mouse.right=false;mouse.ctrlGrapple=false;grapple=null;keys={};slowScale=1}
+function goMenu(){state="menu";show(pause,false);show(ending,false);show(help,false);show(shop,false);show(menu,true);updatePersistentUI();canvas.style.cursor="default";mouse.left=false;mouse.right=false;mouse.ctrlGrapple=false;grapple=null;keys={};slowScale=1}
 
 function loop(now){
   const realDt=Math.min(.033,Math.max(0,(now-last)/1000||0));last=now;
