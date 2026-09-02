@@ -36,17 +36,40 @@ button.secondary{color:#dcebdd;background:#173525;box-shadow:0 6px 0 #0b1c12,0 1
 .shop-panel{position:relative}
 .shop-copy{margin:8px 0 20px;color:#94aa99;font-size:13px;text-align:left}
 .skin-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:13px}
+.shop-section+.shop-section{margin-top:24px;padding-top:22px;border-top:1px solid rgba(218,255,165,.11)}
+.shop-section-title{display:flex;align-items:end;justify-content:space-between;gap:12px;margin:0 2px 11px;text-align:left}
+.shop-section-title h3{margin:0;color:#efffe5;font-size:18px;letter-spacing:.04em;text-transform:uppercase}
+.shop-section-title span{color:#718779;font-size:10px;font-weight:850;letter-spacing:.08em;text-transform:uppercase}
+.weapon-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
 .skin-card{position:relative;padding:13px;border:1px solid rgba(218,255,165,.12);border-radius:20px;background:linear-gradient(155deg,rgba(255,255,255,.055),rgba(255,255,255,.018));text-align:left;transition:transform .15s,border-color .15s,box-shadow .15s}
 .skin-card:hover{transform:translateY(-3px);border-color:rgba(218,255,165,.3);box-shadow:0 12px 30px #0005}
 .skin-card.equipped{border-color:#c9ff55aa;box-shadow:0 0 0 2px #9ee53425,0 12px 30px #0005}
 .skin-card.locked .skin-preview{filter:saturate(.72)}
-.skin-preview{display:block;width:100%;height:112px;border-radius:13px;background:radial-gradient(circle at 50% 42%,rgba(180,255,133,.13),rgba(3,11,7,.5));box-shadow:inset 0 0 0 1px #fff1}
+.skin-preview,.weapon-preview{position:static;inset:auto;display:block;width:100%;touch-action:auto}
+.skin-preview{height:112px;border-radius:13px;background:radial-gradient(circle at 50% 42%,rgba(180,255,133,.13),rgba(3,11,7,.5));box-shadow:inset 0 0 0 1px #fff1}
+.weapon-preview{height:96px;border-radius:13px;background:radial-gradient(circle at 55% 48%,rgba(255,208,92,.12),rgba(3,11,7,.58));box-shadow:inset 0 0 0 1px #fff1}
+.weapon-stats{display:flex;gap:6px;flex-wrap:wrap;margin:0 2px 11px}
+.weapon-stats span{padding:5px 7px;border:1px solid #c9ff5520;border-radius:999px;background:#0b1810;color:#9eb2a2;font-size:9px;font-weight:900;letter-spacing:.045em;text-transform:uppercase}
 .skin-name{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:12px 2px 4px;color:#f4ffe8;font-size:15px;font-weight:950;text-transform:uppercase;letter-spacing:.05em}
 .skin-badge{color:#b9cebc;font-size:9px;letter-spacing:.08em}
 .skin-note{min-height:32px;margin:0 2px 10px;color:#829587;font-size:11px;line-height:1.35}
 button.skin-action{width:100%;min-width:0;padding:11px 8px;border-radius:11px;font-size:11px}
 .shop-status{min-height:22px;margin:16px 0 2px;color:#b9cebc;font-size:12px;font-weight:800;letter-spacing:.05em}
 .shop-status.good{color:#caff6a}.shop-status.warn{color:#ffc36a}
+.leaderboard-panel{position:relative;width:min(850px,96vw);padding:clamp(20px,3vw,36px)}
+.leaderboard-summary{margin:5px 54px 0 0;padding:9px 14px;border:1px solid #c9ff5544;border-radius:999px;background:#17261a;color:#dfff9c;font-size:11px;font-weight:950;letter-spacing:.06em;white-space:nowrap}
+.leaderboard-columns,.leaderboard-row{display:grid;grid-template-columns:52px 125px 120px minmax(0,1fr);gap:12px;align-items:center}
+.leaderboard-columns{padding:0 15px 8px;color:#718779;font-size:9px;font-weight:900;letter-spacing:.1em;text-align:left;text-transform:uppercase}
+.leaderboard-list{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.leaderboard-row{min-height:63px;padding:10px 15px;border:1px solid #d8ffa51f;border-radius:15px;background:linear-gradient(145deg,#ffffff0c,#ffffff04);text-align:left}
+.leaderboard-row.current-run{border-color:#c9ff5599;box-shadow:0 0 0 2px #9ee53422,0 8px 25px #0005}
+.leaderboard-row.rank-1{border-left:4px solid #ffd85a}.leaderboard-row.rank-2{border-left:4px solid #c8d4d1}.leaderboard-row.rank-3{border-left:4px solid #c8864d}
+.lb-rank{font-size:18px;font-weight:1000;color:#a7b9aa}.rank-1 .lb-rank{color:#ffd85a}.rank-2 .lb-rank{color:#dce6e3}.rank-3 .lb-rank{color:#e3a166}
+.lb-time{font-size:20px;font-weight:1000;color:#fff2b3;font-variant-numeric:tabular-nums}.lb-score{font-weight:900;color:#e8f3e8;font-variant-numeric:tabular-nums}
+.lb-meta{color:#8fa392;font-size:11px;line-height:1.45}.placement-badge{display:block;margin-top:3px;color:#caff6a;font-size:8px;font-weight:1000;letter-spacing:.1em;text-transform:uppercase}
+.leaderboard-empty{padding:36px 20px;border:1px dashed #bfff6438;border-radius:20px;color:#9caf9f}.leaderboard-empty[hidden]{display:none}.leaderboard-empty h3{margin:8px 0;color:#efffe5}.leaderboard-empty p{margin:0 0 20px}.empty-stopwatch{font-size:42px}
+.latest-run-wrap{margin-top:16px;padding-top:14px;border-top:1px solid #fff1}.latest-run-wrap[hidden]{display:none}.latest-run-label{margin-bottom:8px;color:#ffc96b;font-size:10px;font-weight:900;letter-spacing:.08em;text-align:left;text-transform:uppercase}
+.rank-result{display:inline-block;margin:-8px auto 18px;padding:8px 14px;border:1px solid #c9ff5555;border-radius:999px;background:#17261a;color:#dfff9c;font-size:11px;font-weight:1000;letter-spacing:.08em;text-transform:uppercase}.rank-result[hidden]{display:none}
 .reward-card{display:flex;align-items:center;justify-content:center;gap:12px;width:min(390px,100%);margin:-8px auto 22px;padding:13px 18px;border:1px solid #ffd75c55;border-radius:16px;background:linear-gradient(135deg,#2b3119,#172017);color:#ffe99e;box-shadow:0 10px 28px #0006;animation:rewardPop .5s cubic-bezier(.2,1.4,.4,1)}
 .reward-card[hidden]{display:none}.reward-card strong{font-size:23px;color:#fff2a5}.reward-detail{display:block;color:#8fa08f;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
 @keyframes rewardPop{from{opacity:0;transform:scale(.72) rotate(-2deg)}to{opacity:1;transform:scale(1) rotate(0)}}
@@ -59,7 +82,8 @@ kbd{display:inline-grid;place-items:center;min-width:27px;height:25px;padding:0 
 #pause{background:rgba(2,7,5,.55)}
 #pause .panel{width:min(430px,92vw)}
 .credit{position:fixed;right:14px;bottom:10px;z-index:2;color:#d9f6dd55;font-size:10px;letter-spacing:.12em;pointer-events:none}
-@media(max-width:600px){.help-grid{grid-template-columns:1fr}.panel{border-radius:24px;padding:24px}button{min-width:135px}.credit{display:none}.shop-head{display:block;padding-right:30px}.shop-head .wallet{margin:10px 0}.skin-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.skin-card{padding:9px}.skin-preview{height:86px}.skin-note{display:none}.close-button{top:16px;right:16px}}
+@media(max-width:600px){.help-grid{grid-template-columns:1fr}.panel{border-radius:24px;padding:24px}button{min-width:135px}.credit{display:none}.shop-head{display:block;padding-right:30px}.shop-head .wallet{margin:10px 0}.weapon-grid,.skin-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.skin-card{padding:9px}.weapon-preview,.skin-preview{height:86px}.skin-note{display:none}.shop-section-title span{display:none}.close-button{top:16px;right:16px}.leaderboard-panel{width:96vw;max-height:96dvh;padding:16px}.leaderboard-summary{display:inline-block;margin:10px 0 0}.leaderboard-columns{display:none}.leaderboard-row{grid-template-columns:40px minmax(0,1fr) auto;gap:7px 10px;padding:10px}.lb-rank{grid-column:1;grid-row:1 / span 2}.lb-time-wrap{grid-column:2;grid-row:1}.lb-score{grid-column:3;grid-row:1}.lb-meta{grid-column:2 / -1;grid-row:2}}
+@media(max-width:450px){.weapon-grid{grid-template-columns:1fr}}
 @media(max-width:390px){.skin-grid{grid-template-columns:1fr 1fr}.skin-name{font-size:12px}.skin-badge{font-size:8px}}
 </style>
 </head>
@@ -74,7 +98,8 @@ kbd{display:inline-grid;place-items:center;min-width:27px;height:25px;padding:0 
     <div class="wallet" aria-label="Coin balance"><span class="coin">C</span><span id="menuCoins">0</span> COINS</div>
     <div class="actions">
       <button id="play">Drop In</button>
-      <button id="openShop" class="secondary">Skin Shop</button>
+      <button id="openShop" class="secondary">Outfitter</button>
+      <button id="openLeaderboard" class="secondary">Fastest Runs</button>
       <button id="how" class="secondary">How To Play</button>
     </div>
     <div id="best" class="best"></div>
@@ -88,7 +113,7 @@ kbd{display:inline-grid;place-items:center;min-width:27px;height:25px;padding:0 
     <div class="help-grid">
       <div class="help-card"><b><kbd>A</kbd> <kbd>D</kbd> Move</b><span>Run along branches. Press <kbd>W</kbd> or <kbd>↑</kbd> twice to double jump. Keep moving while swinging to pump momentum.</span></div>
       <div class="help-card"><b><kbd>Space</kbd> Grapple</b><span>Hold Space to smart-hook a glowing knot, swing through the arc, then release to launch. Right mouse and <kbd>E</kbd> also work.</span></div>
-      <div class="help-card"><b>Left Mouse Fire</b><span>Aim with the mouse and hold to fire. Headshots hit harder. Press <kbd>R</kbd> to reload.</span></div>
+      <div class="help-card"><b>Left Mouse Fire</b><span>Aim with the mouse and hold to fire your equipped weapon. You begin with a pistol; headshots hit harder. Press <kbd>R</kbd> to reload.</span></div>
       <div class="help-card"><b><kbd>Shift</kbd> Slow Motion</b><span>Hold to bend time while aiming or dodging. The yellow meter refills whenever time is moving normally.</span></div>
     </div>
     <p class="tag">Defeat every poacher, then reach the green extraction flare. Falling costs health but returns you to your last checkpoint.</p>
@@ -98,17 +123,39 @@ kbd{display:inline-grid;place-items:center;min-width:27px;height:25px;padding:0 
 
 <section id="shop" class="layer hidden" aria-labelledby="shopTitle">
   <div class="panel shop-panel">
-    <button id="closeShop" class="close-button" aria-label="Close skin shop">×</button>
+    <button id="closeShop" class="close-button" aria-label="Close outfitter shop">×</button>
     <div class="shop-head">
       <div>
         <div class="eyebrow">Canopy Outfitters</div>
-        <h2 id="shopTitle">Skin Shop</h2>
+        <h2 id="shopTitle">Outfitter Shop</h2>
       </div>
       <div class="wallet" aria-label="Shop coin balance"><span class="coin">C</span><span id="shopCoins">0</span> COINS</div>
     </div>
-    <p class="shop-copy">Finish the jungle faster to earn more coins. Buy a look once, then equip it whenever you want.</p>
-    <div id="skinGrid" class="skin-grid"></div>
-    <p id="shopStatus" class="shop-status" role="status" aria-live="polite">Select a skin to preview your next run.</p>
+    <p class="shop-copy">Finish the jungle faster to earn coins. Weapons and skins are permanent once purchased.</p>
+    <div class="shop-section">
+      <div class="shop-section-title"><h3>Weapons</h3><span>Changes your combat loadout</span></div>
+      <div id="weaponGrid" class="weapon-grid"></div>
+    </div>
+    <div class="shop-section">
+      <div class="shop-section-title"><h3>Skins</h3><span>Changes your jungle style</span></div>
+      <div id="skinGrid" class="skin-grid"></div>
+    </div>
+    <p id="shopStatus" class="shop-status" role="status" aria-live="polite">Choose gear for your next run.</p>
+  </div>
+</section>
+
+<section id="leaderboard" class="layer hidden" role="dialog" aria-modal="true" aria-labelledby="leaderboardTitle" aria-describedby="leaderboardCopy">
+  <div class="panel leaderboard-panel">
+    <button id="closeLeaderboard" class="close-button" aria-label="Close fastest runs">×</button>
+    <div class="shop-head">
+      <div><div class="eyebrow">Local Records</div><h2 id="leaderboardTitle">Fastest Extractions</h2></div>
+      <div id="leaderboardSummary" class="leaderboard-summary"></div>
+    </div>
+    <p id="leaderboardCopy" class="shop-copy">Your 10 fastest successful runs, saved only in this browser.</p>
+    <div class="leaderboard-columns" aria-hidden="true"><span>Rank</span><span>Time</span><span>Score</span><span>Run details</span></div>
+    <ol id="leaderboardRows" class="leaderboard-list" aria-label="Ten fastest successful runs"></ol>
+    <div id="leaderboardEmpty" class="leaderboard-empty" role="status" hidden><div class="empty-stopwatch" aria-hidden="true">⏱</div><h3>No extractions yet</h3><p>Complete a run to claim the first spot.</p><button id="leaderboardPlay">Start a Run</button></div>
+    <div id="latestRunWrap" class="latest-run-wrap" hidden><div class="latest-run-label">Latest run — just outside the Top 10</div><div id="latestRunRow"></div></div>
   </div>
 </section>
 
@@ -127,8 +174,9 @@ kbd{display:inline-grid;place-items:center;min-width:27px;height:25px;padding:0 
     <h2 id="endTitle">Jungle Secured</h2>
     <div id="endScore" class="end-stat">0</div>
     <div id="endReward" class="reward-card" hidden><span class="coin">C</span><div><strong>+<span id="endCoins">0</span> coins</strong><span id="endRewardDetail" class="reward-detail"></span></div></div>
+    <div id="endRank" class="rank-result" hidden></div>
     <p id="endText" class="tag"></p>
-    <div class="actions"><button id="again">Run Again</button><button id="endMenu" class="secondary">Main Menu</button></div>
+    <div class="actions"><button id="again">Run Again</button><button id="endLeaderboard" class="secondary">Fastest Runs</button><button id="endMenu" class="secondary">Main Menu</button></div>
   </div>
 </section>
 
@@ -160,8 +208,14 @@ const WORLD_W=7200,DEATH_Y=1250,GRAVITY=1450,GRAPPLE_RANGE=720;
 let state="menu",last=0,worldTime=0,runTime=0,realRunTime=0,slowScale=1,shake=0,flash=0,freeze=0;
 let player,camera={x:0,y:0,leadX:0,leadY:0,shakePhase:0},bullets=[],enemies=[],particles=[],texts=[],pickups=[],grapple=null;
 let keys={},mouse={x:W*.65,y:H*.45,wx:0,wy:0,left:false,right:false,ctrlGrapple:false},anchors=[],platforms=[],trees=[],checkpoints=[];
-let audio=null,audioUnavailable=false,muted=false,musicClock=0,score=0,kills=0,totalEnemies=0,combo=0,comboTimer=0,tutorialTime=0,runCoinAwarded=false;
-const PROFILE_KEY="canopyCaliberProfileV1";
+let audio=null,audioUnavailable=false,muted=false,musicClock=0,score=0,kills=0,totalEnemies=0,combo=0,comboTimer=0,tutorialTime=0,runCoinAwarded=false,runResultRecorded=false,activeRunId="",runIdCounter=0,lastCompletedRun=null,leaderboardReturn="menu";
+const PROFILE_KEY="canopyCaliberProfileV1",LEADERBOARD_KEY="canopyCaliberLeaderboardV1";
+const WEAPONS=[
+  {id:"pistol",name:"Trail Pistol",label:"PISTOL",price:0,note:"A precise sidearm with a compact three-shot magazine.",stats:["3 rounds","Accurate","Quick reload"],damage:22,fireDelay:.24,mag:3,reserve:56,reloadTime:.85,bulletSpeed:1250,spread:.012,recoilX:16,recoilY:8,shake:2.5,muzzle:29},
+  {id:"carbine",name:"Canopy Carbine",label:"CARBINE",price:500,note:"Rapid fire, a bigger magazine and deep reserves.",stats:["10 rounds","Rapid fire","70 reserve"],damage:25,fireDelay:.115,mag:10,reserve:70,reloadTime:1.05,bulletSpeed:1320,spread:.018,recoilX:12,recoilY:7,shake:2.2,muzzle:55}
+];
+const WEAPON_BY_ID=Object.fromEntries(WEAPONS.map(w=>[w.id,w]));
+const isWeaponId=id=>typeof id==="string"&&Object.prototype.hasOwnProperty.call(WEAPON_BY_ID,id);
 const SKINS=[
   {id:"classic",name:"Classic",price:0,note:"The original jungle legend.",colors:{dark:"#492a18",fur:"#8d542b",light:"#a56a35",face:"#d8a35e",belly:"#d7a05a",accent:"#bfff64"}},
   {id:"sunset",name:"Sunset",price:200,note:"Hot coral fur and a golden band.",colors:{dark:"#54243a",fur:"#ad4648",light:"#e4774b",face:"#ffc083",belly:"#ffd09b",accent:"#ffe45c"}},
@@ -174,31 +228,75 @@ const SKIN_BY_ID=Object.fromEntries(SKINS.map(s=>[s.id,s]));
 const isSkinId=id=>typeof id==="string"&&Object.prototype.hasOwnProperty.call(SKIN_BY_ID,id);
 function readBest(){try{return +(localStorage.getItem("canopyCaliberBest")||0)}catch(e){return 0}}
 function writeBest(value){try{localStorage.setItem("canopyCaliberBest",String(value))}catch(e){}}
-function freshProfile(){return{version:1,coins:0,lifetimeCoins:0,wins:0,bestTime:null,ownedSkins:["classic"],selectedSkin:"classic"}}
+function freshProfile(){return{version:1,coins:0,lifetimeCoins:0,wins:0,bestTime:null,ownedSkins:["classic"],selectedSkin:"classic",ownedWeapons:["pistol"],selectedWeapon:"pistol"}}
 function readProfile(){
   const base=freshProfile();
   try{
     const saved=JSON.parse(localStorage.getItem(PROFILE_KEY)||"null");if(!saved||typeof saved!=="object")return base;
     const owned=[...new Set(["classic",...(Array.isArray(saved.ownedSkins)?saved.ownedSkins:[])])].filter(isSkinId);
     const selected=typeof saved.selectedSkin==="string"&&owned.includes(saved.selectedSkin)?saved.selectedSkin:"classic";
+    const ownedWeapons=[...new Set(["pistol",...(Array.isArray(saved.ownedWeapons)?saved.ownedWeapons:[])])].filter(isWeaponId);
+    const selectedWeapon=typeof saved.selectedWeapon==="string"&&ownedWeapons.includes(saved.selectedWeapon)?saved.selectedWeapon:"pistol";
     const bestTime=Number(saved.bestTime);
-    return{version:1,coins:clamp(Math.floor(Number(saved.coins)||0),0,9999999),lifetimeCoins:clamp(Math.floor(Number(saved.lifetimeCoins)||0),0,99999999),wins:clamp(Math.floor(Number(saved.wins)||0),0,999999),bestTime:Number.isFinite(bestTime)&&bestTime>0?bestTime:null,ownedSkins:owned,selectedSkin:selected};
+    return{version:1,coins:clamp(Math.floor(Number(saved.coins)||0),0,9999999),lifetimeCoins:clamp(Math.floor(Number(saved.lifetimeCoins)||0),0,99999999),wins:clamp(Math.floor(Number(saved.wins)||0),0,999999),bestTime:Number.isFinite(bestTime)&&bestTime>0?bestTime:null,ownedSkins:owned,selectedSkin:selected,ownedWeapons:ownedWeapons,selectedWeapon:selectedWeapon};
   }catch(e){return base}
 }
 function saveProfile(){try{localStorage.setItem(PROFILE_KEY,JSON.stringify(profile))}catch(e){}}
+function freshLeaderboard(){return{version:1,nextOrdinal:1,migratedFromProfileV1:true,entries:[]}}
+function sanitizeRunEntry(raw,index=0){
+  if(!raw||typeof raw!=="object"||typeof raw.id!=="string"||!raw.id||raw.id.length>80)return null;
+  const timeMs=Math.round(Number(raw.timeMs));if(!Number.isFinite(timeMs)||timeMs<1||timeMs>86400000)return null;
+  const nullableInt=(value,min,max)=>value===null||value===undefined?null:clamp(Math.floor(Number(value)||0),min,max);
+  const completedAt=Math.round(Number(raw.completedAt)),rawOrdinal=Number(raw.ordinal),ordinal=clamp(Number.isFinite(rawOrdinal)&&rawOrdinal>=0?Math.floor(rawOrdinal):index+1,0,999999999);
+  return{id:raw.id,timeMs:timeMs,score:nullableInt(raw.score,0,999999999),health:nullableInt(raw.health,0,100),skinId:isSkinId(raw.skinId)?raw.skinId:"classic",earnedCoins:nullableInt(raw.earnedCoins,0,9999999),completedAt:Number.isFinite(completedAt)&&completedAt>0&&completedAt<=8640000000000000?completedAt:null,ordinal:ordinal,legacy:raw.legacy===true};
+}
+function compareRunEntries(a,b){
+  return a.timeMs-b.timeMs||(b.score??-1)-(a.score??-1)||(b.health??-1)-(a.health??-1)||a.ordinal-b.ordinal||a.id.localeCompare(b.id);
+}
+function writeLeaderboard(data){try{localStorage.setItem(LEADERBOARD_KEY,JSON.stringify(data))}catch(e){}}
+function readLeaderboard(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(LEADERBOARD_KEY)||"null");
+    if(saved&&typeof saved==="object"&&Array.isArray(saved.entries)){
+      const ids=new Set(),entries=[];for(let i=0;i<saved.entries.length;i++){const entry=sanitizeRunEntry(saved.entries[i],i);if(entry&&!ids.has(entry.id)){ids.add(entry.id);entries.push(entry)}}
+      entries.sort(compareRunEntries);entries.splice(10);const maxOrdinal=entries.reduce((m,e)=>Math.max(m,e.ordinal),0),nextOrdinal=clamp(Math.max(Math.floor(Number(saved.nextOrdinal)||1),maxOrdinal+1),1,999999999);
+      return{version:1,nextOrdinal:nextOrdinal,migratedFromProfileV1:saved.migratedFromProfileV1!==false,entries:entries};
+    }
+  }catch(e){}
+  const data=freshLeaderboard();
+  if(profile&&Number.isFinite(profile.bestTime)&&profile.bestTime>0){data.entries.push({id:"legacy-v1-best",timeMs:Math.max(1,Math.round(profile.bestTime*1000)),score:null,health:null,skinId:isSkinId(profile.selectedSkin)?profile.selectedSkin:"classic",earnedCoins:null,completedAt:null,ordinal:0,legacy:true})}
+  writeLeaderboard(data);return data;
+}
+function saveLeaderboard(){writeLeaderboard(leaderboardState)}
+function makeRunId(){
+  runIdCounter++;try{if(typeof crypto!=="undefined"&&crypto&&typeof crypto.randomUUID==="function")return crypto.randomUUID()}catch(e){}
+  return"run-"+Date.now().toString(36)+"-"+runIdCounter.toString(36)+"-"+Math.floor(Math.random()*1000000000).toString(36);
+}
+function recordSuccessfulRun(seconds,finalScore,health,earnedCoins){
+  if(runResultRecorded||!activeRunId)return null;runResultRecorded=true;
+  const existing=leaderboardState.entries.find(e=>e.id===activeRunId);if(existing){const rank=leaderboardState.entries.indexOf(existing)+1;lastCompletedRun={entry:existing,rank:rank,madeTopTen:rank>0};return lastCompletedRun}
+  const timeMs=clamp(Math.round(Number(seconds)*1000),1,86400000),entry={id:activeRunId,timeMs:timeMs,score:clamp(Math.floor(Number(finalScore)||0),0,999999999),health:clamp(Math.round(Number(health)||0),0,100),skinId:isSkinId(profile.selectedSkin)?profile.selectedSkin:"classic",earnedCoins:clamp(Math.floor(Number(earnedCoins)||0),0,9999999),completedAt:Date.now(),ordinal:leaderboardState.nextOrdinal,legacy:false};
+  const ranked=leaderboardState.entries.filter(e=>!(e.legacy&&e.timeMs===entry.timeMs));ranked.push(entry);ranked.sort(compareRunEntries);const rank=ranked.findIndex(e=>e.id===entry.id)+1;
+  leaderboardState.entries=ranked.slice(0,10);leaderboardState.nextOrdinal=clamp(leaderboardState.nextOrdinal+1,1,999999999);saveLeaderboard();lastCompletedRun={entry:entry,rank:rank,madeTopTen:rank>0&&rank<=10};
+  const oldBestMs=profile.bestTime?Math.round(profile.bestTime*1000):null;if(oldBestMs===null||timeMs<oldBestMs){profile.bestTime=timeMs/1000;saveProfile();updatePersistentUI()}
+  return lastCompletedRun;
+}
 let bestScore=readBest();
 let profile=readProfile();
-const menu=document.getElementById("menu"),help=document.getElementById("help"),shop=document.getElementById("shop"),pause=document.getElementById("pause"),ending=document.getElementById("ending");
-const bestEl=document.getElementById("best"),menuCoinsEl=document.getElementById("menuCoins"),shopCoinsEl=document.getElementById("shopCoins"),skinGrid=document.getElementById("skinGrid"),shopStatus=document.getElementById("shopStatus");
+let leaderboardState=readLeaderboard();
+const menu=document.getElementById("menu"),help=document.getElementById("help"),shop=document.getElementById("shop"),leaderboard=document.getElementById("leaderboard"),pause=document.getElementById("pause"),ending=document.getElementById("ending");
+const bestEl=document.getElementById("best"),menuCoinsEl=document.getElementById("menuCoins"),shopCoinsEl=document.getElementById("shopCoins"),weaponGrid=document.getElementById("weaponGrid"),skinGrid=document.getElementById("skinGrid"),shopStatus=document.getElementById("shopStatus"),leaderboardRows=document.getElementById("leaderboardRows"),leaderboardEmpty=document.getElementById("leaderboardEmpty"),leaderboardSummary=document.getElementById("leaderboardSummary"),latestRunWrap=document.getElementById("latestRunWrap"),latestRunRow=document.getElementById("latestRunRow");
 
 function show(el,on){el.classList.toggle("hidden",!on);if(el.setAttribute)el.setAttribute("aria-hidden",String(!on));if("inert" in el)el.inert=!on}
 function updatePersistentUI(){
   menuCoinsEl.textContent=profile.coins.toLocaleString();shopCoinsEl.textContent=profile.coins.toLocaleString();
-  const stats=[];if(bestScore)stats.push("BEST FIELD SCORE  "+bestScore.toLocaleString());if(profile.bestTime)stats.push("BEST EXTRACTION  "+formatTime(profile.bestTime));
+  const stats=["LOADOUT  "+selectedWeapon().name.toUpperCase()];if(bestScore)stats.push("BEST FIELD SCORE  "+bestScore.toLocaleString());if(profile.bestTime)stats.push("BEST EXTRACTION  "+formatTime(profile.bestTime));
   bestEl.textContent=stats.length?stats.join("  •  "):"NO RUNS RECORDED — YET";
 }
 function selectedSkin(){return isSkinId(profile.selectedSkin)?SKIN_BY_ID[profile.selectedSkin]:SKINS[0]}
-updatePersistentUI();[help,shop,pause,ending].forEach(el=>show(el,false));show(menu,true);
+function selectedWeapon(){return isWeaponId(profile.selectedWeapon)?WEAPON_BY_ID[profile.selectedWeapon]:WEAPONS[0]}
+function playerWeapon(){return player&&isWeaponId(player.weaponId)?WEAPON_BY_ID[player.weaponId]:selectedWeapon()}
+updatePersistentUI();[help,shop,leaderboard,pause,ending].forEach(el=>show(el,false));show(menu,true);
 function disableAudio(){
   const old=audio;audio=null;audioUnavailable=true;
   if(old&&old.state!=="closed")try{const closing=old.close();if(closing&&closing.catch)closing.catch(()=>{})}catch(e){}
@@ -235,6 +333,7 @@ function noise(dur,vol,cut){
 }
 function sfx(name){
   if(name==="shot"){noise(.07,.07,2500);tone(115,.08,"square",.025,55)}
+  if(name==="pistol"){noise(.09,.085,2200);tone(145,.09,"square",.03,62)}
   if(name==="grapple"){tone(330,.12,"triangle",.05,760);tone(110,.16,"sine",.03,180)}
   if(name==="release")tone(420,.1,"sine",.025,230);
   if(name==="reload"){tone(180,.05,"square",.025,260);setTimeout(()=>tone(290,.06,"square",.02,380),320)}
@@ -249,7 +348,7 @@ function sfx(name){
   if(name==="deny")tone(105,.12,"square",.025,75);
 }
 
-function drawSkinPreview(canvasEl,skin){
+function drawSkinPreview(canvasEl,skin,weapon=selectedWeapon()){
   const pc=canvasEl.getContext("2d"),c=skin.colors,w=canvasEl.width,h=canvasEl.height;if(!pc)return;
   pc.clearRect(0,0,w,h);pc.save();pc.translate(w*.5-2,2);pc.lineCap="round";pc.lineJoin="round";
   pc.globalAlpha=.3;pc.fillStyle="#020704";pc.beginPath();pc.ellipse(0,99,37,7,0,0,TAU);pc.fill();pc.globalAlpha=1;
@@ -259,14 +358,50 @@ function drawSkinPreview(canvasEl,skin){
   pc.strokeStyle=c.fur;pc.lineWidth=9;pc.beginPath();pc.moveTo(8,49);pc.lineTo(28,61);pc.lineTo(42,57);pc.stroke();pc.fillStyle=c.face;pc.beginPath();pc.arc(42,57,4,0,TAU);pc.fill();
   pc.fillStyle=c.dark;pc.beginPath();pc.arc(-12,31,9,0,TAU);pc.arc(12,31,9,0,TAU);pc.fill();pc.beginPath();pc.ellipse(0,30,20,19,0,0,TAU);pc.fill();pc.fillStyle=c.face;pc.beginPath();pc.ellipse(7,33,12,10,0,0,TAU);pc.fill();pc.fillStyle="#17110b";pc.beginPath();pc.arc(8,25,2.2,0,TAU);pc.arc(16,33,1.8,0,TAU);pc.fill();
   pc.strokeStyle=c.accent;pc.lineWidth=4;pc.beginPath();pc.arc(0,29,19,Math.PI*.98,Math.PI*2.03);pc.stroke();pc.beginPath();pc.moveTo(-17,27);pc.quadraticCurveTo(-30,18,-37,28);pc.stroke();
-  pc.fillStyle="#202925";pc.save();pc.translate(37,54);pc.rotate(-.1);pc.fillRect(-5,-5,34,9);pc.fillStyle="#748078";pc.fillRect(22,-2,20,4);pc.restore();
+  pc.fillStyle="#202925";pc.save();pc.translate(37,54);pc.rotate(-.1);
+  if(weapon.id==="pistol"){pc.fillRect(-5,-5,25,9);pc.fillStyle="#748078";pc.fillRect(12,-2,16,4);pc.fillStyle="#8f6035";pc.beginPath();pc.moveTo(-2,3);pc.lineTo(8,3);pc.lineTo(5,15);pc.lineTo(-5,13);pc.closePath();pc.fill()}
+  else{pc.fillRect(-5,-5,34,9);pc.fillStyle="#748078";pc.fillRect(22,-2,20,4)}pc.restore();
+  pc.restore();
+}
+function drawWeaponPreview(canvasEl,weapon){
+  const pc=canvasEl.getContext("2d"),w=canvasEl.width,h=canvasEl.height;if(!pc)return;
+  pc.clearRect(0,0,w,h);pc.save();pc.translate(w*.5,h*.5-3);pc.lineJoin="round";
+  pc.globalAlpha=.28;pc.fillStyle="#020704";pc.beginPath();pc.ellipse(4,30,weapon.id==="carbine"?82:55,8,0,0,TAU);pc.fill();pc.globalAlpha=1;
+  if(weapon.id==="pistol"){
+    pc.fillStyle="#202925";pc.beginPath();pc.moveTo(-45,-17);pc.lineTo(34,-17);pc.lineTo(43,-9);pc.lineTo(40,1);pc.lineTo(-45,1);pc.closePath();pc.fill();
+    pc.fillStyle="#77837b";pc.fillRect(-34,-12,67,7);pc.fillStyle="#111814";pc.fillRect(31,-9,24,6);
+    pc.fillStyle="#936034";pc.beginPath();pc.moveTo(-21,0);pc.lineTo(3,0);pc.lineTo(-4,30);pc.lineTo(-26,26);pc.closePath();pc.fill();
+    pc.fillStyle="#1a231e";pc.beginPath();pc.moveTo(-5,0);pc.lineTo(15,0);pc.quadraticCurveTo(14,15,2,16);pc.lineTo(-1,11);pc.quadraticCurveTo(7,10,8,5);pc.closePath();pc.fill();
+    pc.fillStyle="#ffd76b";pc.fillRect(-38,-15,18,2);
+  }else{
+    pc.fillStyle="#8f6035";pc.beginPath();pc.moveTo(-77,-11);pc.lineTo(-36,-9);pc.lineTo(-31,11);pc.lineTo(-78,17);pc.closePath();pc.fill();
+    pc.fillStyle="#1b2520";pc.beginPath();pc.moveTo(-40,-15);pc.lineTo(25,-15);pc.quadraticCurveTo(34,-15,34,-6);pc.lineTo(34,8);pc.quadraticCurveTo(34,14,25,14);pc.lineTo(-40,14);pc.closePath();pc.fill();
+    pc.fillStyle="#748078";pc.fillRect(14,-7,77,8);pc.fillStyle="#101713";pc.fillRect(82,-5,29,4);
+    pc.fillStyle="#172019";pc.fillRect(-12,10,17,27);pc.fillStyle="#b37a3b";pc.fillRect(29,7,13,17);
+    pc.fillStyle="#ffd76b";pc.fillRect(-29,-11,31,2);
+  }
   pc.restore();
 }
 function setShopStatus(text,toneClass=""){
   shopStatus.textContent=text;shopStatus.className="shop-status"+(toneClass?" "+toneClass:"");
 }
 function renderShop(){
-  skinGrid.textContent="";updatePersistentUI();
+  weaponGrid.textContent="";skinGrid.textContent="";updatePersistentUI();
+  for(const weapon of WEAPONS){
+    const owned=profile.ownedWeapons.includes(weapon.id),equipped=profile.selectedWeapon===weapon.id,affordable=profile.coins>=weapon.price;
+    const card=document.createElement("article");card.className="skin-card"+(equipped?" equipped":"")+(!owned?" locked":"");card.dataset.weaponId=weapon.id;
+    const preview=document.createElement("canvas");preview.className="weapon-preview";preview.width=360;preview.height=96;preview.setAttribute("aria-hidden","true");
+    const title=document.createElement("div");title.className="skin-name";const name=document.createElement("span");name.textContent=weapon.name;const badge=document.createElement("span");badge.className="skin-badge";badge.textContent=equipped?"EQUIPPED":owned?"OWNED":weapon.price.toLocaleString()+" C";title.append(name,badge);
+    const note=document.createElement("p");note.className="skin-note";note.textContent=weapon.note;
+    const stats=document.createElement("div");stats.className="weapon-stats";for(const label of weapon.stats){const chip=document.createElement("span");chip.textContent=label;stats.append(chip)}
+    const action=document.createElement("button");action.className="skin-action";action.dataset.weaponAction="";action.dataset.weaponId=weapon.id;
+    if(equipped){action.textContent="Equipped";action.disabled=true}
+    else if(owned)action.textContent="Equip";
+    else if(affordable)action.textContent="Buy • "+weapon.price.toLocaleString();
+    else{action.textContent="Need "+(weapon.price-profile.coins).toLocaleString()+" more";action.disabled=true}
+    action.setAttribute("aria-label",equipped?weapon.name+" equipped":owned?"Equip "+weapon.name:affordable?"Buy "+weapon.name+" for "+weapon.price+" coins":"Need "+(weapon.price-profile.coins)+" more coins to buy "+weapon.name);
+    action.addEventListener("click",()=>buyOrEquipWeapon(weapon.id));card.append(preview,title,note,stats,action);weaponGrid.append(card);drawWeaponPreview(preview,weapon);
+  }
   for(const skin of SKINS){
     const owned=profile.ownedSkins.includes(skin.id),equipped=profile.selectedSkin===skin.id,affordable=profile.coins>=skin.price;
     const card=document.createElement("article");card.className="skin-card"+(equipped?" equipped":"")+(!owned?" locked":"");card.dataset.skinId=skin.id;
@@ -281,6 +416,14 @@ function renderShop(){
     action.addEventListener("click",()=>buyOrEquipSkin(skin.id));card.append(preview,title,note,action);skinGrid.append(card);drawSkinPreview(preview,skin);
   }
 }
+function buyOrEquipWeapon(id){
+  if(!isWeaponId(id))return;const weapon=WEAPON_BY_ID[id];initAudio();resumeAudio();
+  if(profile.ownedWeapons.includes(id)){
+    if(profile.selectedWeapon===id)return;profile.selectedWeapon=id;saveProfile();updatePersistentUI();renderShop();setShopStatus(weapon.name+" equipped for your next run.","good");sfx("equip");return;
+  }
+  if(profile.coins<weapon.price){saveProfile();setShopStatus("You need "+(weapon.price-profile.coins).toLocaleString()+" more coins for the "+weapon.name+".","warn");sfx("deny");return}
+  profile.coins-=weapon.price;profile.ownedWeapons.push(id);profile.selectedWeapon=id;saveProfile();updatePersistentUI();renderShop();setShopStatus(weapon.name+" purchased and equipped!","good");sfx("coin");
+}
 function buyOrEquipSkin(id){
   if(!isSkinId(id))return;const skin=SKIN_BY_ID[id];initAudio();resumeAudio();
   if(profile.ownedSkins.includes(id)){
@@ -290,17 +433,43 @@ function buyOrEquipSkin(id){
   profile.coins-=skin.price;profile.ownedSkins.push(id);profile.selectedSkin=id;saveProfile();updatePersistentUI();renderShop();setShopStatus(skin.name+" unlocked and equipped!","good");sfx("coin");
 }
 function openSkinShop(){
-  initAudio();resumeAudio();renderShop();setShopStatus("Finish faster to earn a bigger speed bonus.");show(menu,false);show(shop,true);document.getElementById("closeShop").focus();
+  initAudio();resumeAudio();renderShop();setShopStatus(selectedWeapon().name+" is equipped for your next run.");show(menu,false);show(shop,true);document.getElementById("closeShop").focus();
 }
 function closeSkinShop(){show(shop,false);show(menu,true);document.getElementById("openShop").focus()}
+function formatLeaderboardTime(ms){
+  const minutes=Math.floor(ms/60000),seconds=Math.floor(ms/1000)%60,millis=Math.floor(ms%1000);return minutes+":"+String(seconds).padStart(2,"0")+"."+String(millis).padStart(3,"0");
+}
+function formatRunDate(stamp){
+  if(!stamp)return"Previous personal best";try{return new Date(stamp).toLocaleDateString(undefined,{month:"short",day:"numeric"})}catch(e){return"Completed run"}
+}
+function createLeaderboardRow(entry,rank,current=false){
+  const row=document.createElement("li");row.className="leaderboard-row"+(rank<=3?" rank-"+rank:"")+(current?" current-run":"");row.dataset.runId=entry.id;if(current)row.setAttribute("aria-current","true");
+  const rankEl=document.createElement("span");rankEl.className="lb-rank";rankEl.textContent="#"+rank;
+  const timeWrap=document.createElement("div");timeWrap.className="lb-time-wrap";const time=document.createElement("time");time.className="lb-time";time.dateTime="PT"+(entry.timeMs/1000)+"S";time.textContent=formatLeaderboardTime(entry.timeMs);timeWrap.append(time);
+  if(current||entry.legacy){const badge=document.createElement("span");badge.className="placement-badge";badge.textContent=current?(rank===1?"NEW #1":"JUST NOW"):"LEGACY BEST";timeWrap.append(badge)}
+  const scoreEl=document.createElement("span");scoreEl.className="lb-score";scoreEl.textContent=entry.score===null?"—":entry.score.toLocaleString();
+  const skin=SKIN_BY_ID[entry.skinId]||SKINS[0],details=[];if(entry.health!==null)details.push(entry.health+" health");if(entry.earnedCoins!==null)details.push("+"+entry.earnedCoins+" coins");details.push(skin.name);details.push(formatRunDate(entry.completedAt));
+  const meta=document.createElement("span");meta.className="lb-meta";meta.textContent=details.join(" • ");row.append(rankEl,timeWrap,scoreEl,meta);return row;
+}
+function renderLeaderboard(){
+  leaderboardRows.textContent="";latestRunRow.textContent="";for(let i=0;i<leaderboardState.entries.length;i++){const entry=leaderboardState.entries[i],current=!!lastCompletedRun&&lastCompletedRun.madeTopTen&&lastCompletedRun.entry.id===entry.id;leaderboardRows.append(createLeaderboardRow(entry,i+1,current))}
+  const count=leaderboardState.entries.length,best=count?formatLeaderboardTime(leaderboardState.entries[0].timeMs):"—";leaderboardSummary.textContent=count+" / 10 RUNS  •  BEST "+best;leaderboardEmpty.hidden=count>0;
+  const showLatest=!!lastCompletedRun&&!lastCompletedRun.madeTopTen;latestRunWrap.hidden=!showLatest;if(showLatest)latestRunRow.append(createLeaderboardRow(lastCompletedRun.entry,lastCompletedRun.rank,true));
+}
+function openLeaderboard(returnTo="menu"){
+  leaderboardReturn=returnTo==="ending"?"ending":"menu";renderLeaderboard();show(menu,false);show(ending,false);show(shop,false);show(leaderboard,true);document.getElementById("closeLeaderboard").focus();
+}
+function closeLeaderboard(){
+  show(leaderboard,false);if(leaderboardReturn==="ending"){show(ending,true);document.getElementById("endLeaderboard").focus()}else{show(menu,true);document.getElementById("openLeaderboard").focus()}
+}
 function calculateRunReward(seconds){
   const base=50,speedBonus=Math.round(150*clamp((240-seconds)/180,0,1));return{base:base,speedBonus:speedBonus,total:base+speedBonus};
 }
 function awardRunCoins(seconds){
   if(runCoinAwarded)return null;runCoinAwarded=true;
-  const reward=calculateRunReward(seconds),firstClear=profile.wins===0?100:0,newBest=profile.bestTime===null||seconds<profile.bestTime-.25,pbBonus=profile.wins>0&&newBest?25:0,total=reward.total+firstClear+pbBonus;
+  const reward=calculateRunReward(seconds),timeMs=Math.max(1,Math.round(seconds*1000)),oldBestMs=profile.bestTime===null?null:Math.round(profile.bestTime*1000),firstClear=profile.wins===0?100:0,newBest=oldBestMs===null||timeMs<oldBestMs,pbBonus=profile.wins>0&&oldBestMs!==null&&timeMs<=oldBestMs-250?25:0,total=reward.total+firstClear+pbBonus;
   profile.coins=clamp(profile.coins+total,0,9999999);profile.lifetimeCoins=clamp(profile.lifetimeCoins+total,0,99999999);profile.wins++;
-  if(newBest)profile.bestTime=seconds;saveProfile();updatePersistentUI();return{base:reward.base,speedBonus:reward.speedBonus,firstClear:firstClear,pbBonus:pbBonus,total:total,newBest:newBest};
+  if(newBest)profile.bestTime=timeMs/1000;saveProfile();updatePersistentUI();return{base:reward.base,speedBonus:reward.speedBonus,firstClear:firstClear,pbBonus:pbBonus,total:total,newBest:newBest};
 }
 
 function makeWorld(){
@@ -363,19 +532,20 @@ function makeEnemy(x,y,type,id){
 }
 function resetGame(){
   makeWorld();bullets=[];particles=[];texts=[];grapple=null;
+  const weapon=selectedWeapon();
   player={x:170,y:700,vx:0,vy:0,w:30,h:66,ground:false,plat:null,face:1,hp:100,maxHp:100,
-    ammo:10,mag:10,reserve:70,reload:0,shoot:0,slow:100,invuln:0,checkpoint:0,landSquash:0,
+    weaponId:weapon.id,ammo:weapon.mag,mag:weapon.mag,reserve:weapon.reserve,reload:0,shoot:0,slow:100,invuln:0,checkpoint:0,landSquash:0,
     walk:0,gunKick:0,muzzleFlash:0,coyote:0,jumpBuffer:0,jumpHeld:false,airJumps:1,airJumpFlash:0,
     takeoffPulse:0,landImpact:0,launchPulse:0,visualFacing:1,lean:0,dustTimer:0,grappleCooldown:0};
   camera.x=player.x-W*.42;camera.y=player.y-H*.54;
   camera.leadX=0;camera.leadY=0;camera.shakePhase=0;
   mouse.wx=mouse.x+camera.x;mouse.wy=mouse.y+camera.y;
-  score=0;kills=0;combo=0;comboTimer=0;tutorialTime=11;runTime=0;realRunTime=0;worldTime=0;shake=0;flash=0;freeze=0;runCoinAwarded=false;keys={};
+  score=0;kills=0;combo=0;comboTimer=0;tutorialTime=11;runTime=0;realRunTime=0;worldTime=0;shake=0;flash=0;freeze=0;runCoinAwarded=false;runResultRecorded=false;activeRunId=makeRunId();lastCompletedRun=null;keys={};
   mouse.left=false;mouse.right=false;mouse.ctrlGrapple=false;slowScale=1;state="playing";
-  show(menu,false);show(help,false);show(pause,false);show(ending,false);
+  show(menu,false);show(help,false);show(shop,false);show(leaderboard,false);show(pause,false);show(ending,false);
   canvas.style.cursor="none";
   initAudio();resumeAudio();
-  toast("CLEAR THE POACHERS", "#d8ff78", 20);
+  toast(weapon.name.toUpperCase()+" READY", "#d8ff78", 18);
 }
 
 function anchorState(a){
@@ -421,19 +591,18 @@ function stopGrapple(){
 }
 function reload(){
   if(state!=="playing"||player.reload>0||player.ammo>=player.mag||player.reserve<=0)return;
-  player.reload=1.05;sfx("reload");
+  player.reload=playerWeapon().reloadTime;sfx("reload");
 }
 function shoot(){
   if(state!=="playing"||player.reload>0||player.shoot>0)return;
   if(player.ammo<=0){reload();tone(80,.04,"square",.02,60);return}
-  const ox=player.x,oy=player.y-12,ang=Math.atan2(mouse.wy-oy,mouse.wx-ox);
-  const spread=(Math.random()-.5)*.018;
-  player.ammo--;player.shoot=.115;player.gunKick=1;player.muzzleFlash=.09;player.face=Math.cos(ang)>=0?1:-1;
-  bullets.push({x:ox+Math.cos(ang)*31,y:oy+Math.sin(ang)*31,px:ox,py:oy,
-    vx:Math.cos(ang+spread)*1320,vy:Math.sin(ang+spread)*1320,life:1.15,friendly:true,damage:25});
-  player.vx-=Math.cos(ang)*12;player.vy-=Math.sin(ang)*7;
-  burst(ox+Math.cos(ang)*32,oy+Math.sin(ang)*32,5,"#ffe596",210);
-  shake=Math.max(shake,2.2);sfx("shot");
+  const weapon=playerWeapon(),ox=player.x,oy=player.y-12,ang=Math.atan2(mouse.wy-oy,mouse.wx-ox),spread=(Math.random()-.5)*weapon.spread,muzzle=weapon.muzzle;
+  player.ammo--;player.shoot=weapon.fireDelay;player.gunKick=1;player.muzzleFlash=.09;player.face=Math.cos(ang)>=0?1:-1;
+  bullets.push({x:ox+Math.cos(ang)*muzzle,y:oy+Math.sin(ang)*muzzle,px:ox,py:oy,
+    vx:Math.cos(ang+spread)*weapon.bulletSpeed,vy:Math.sin(ang+spread)*weapon.bulletSpeed,life:1.15,friendly:true,damage:weapon.damage,weaponId:weapon.id});
+  player.vx-=Math.cos(ang)*weapon.recoilX;player.vy-=Math.sin(ang)*weapon.recoilY;
+  burst(ox+Math.cos(ang)*muzzle,oy+Math.sin(ang)*muzzle,weapon.id==="pistol"?6:5,"#ffe596",weapon.id==="pistol"?250:210);
+  shake=Math.max(shake,weapon.shake);sfx(weapon.id==="pistol"?"pistol":"shot");
   if(player.ammo===0&&player.reserve>0)setTimeout(()=>{if(state==="playing")reload()},180);
 }
 function enemyShoot(e){
@@ -719,13 +888,15 @@ function finish(win){
     document.getElementById("endReward").hidden=false;document.getElementById("endCoins").textContent=reward.total.toLocaleString();document.getElementById("endRewardDetail").textContent=rewardParts.join(" + ")+" • "+profile.coins.toLocaleString()+" banked";
     const timeBonus=Math.max(0,24000-Math.floor(realRunTime*95));score+=timeBonus+Math.round(player.hp)*40;
     if(score>bestScore){bestScore=score;writeBest(bestScore);updatePersistentUI()}
+    const placement=recordSuccessfulRun(realRunTime,score,player.hp,reward.total),endRank=document.getElementById("endRank");endRank.hidden=!placement;
+    if(placement)endRank.textContent=placement.madeTopTen?(placement.rank===1?"New fastest run — #1":"Fastest run — #"+placement.rank):"Run ranked #"+placement.rank+" — keep pushing";
     document.getElementById("endEyebrow").textContent="Run complete";
     document.getElementById("endTitle").textContent="Jungle Secured";
     document.getElementById("endScore").textContent=score.toLocaleString();
     document.getElementById("endText").textContent=kills+" poachers cleared • "+formatTime(realRunTime)+" • "+Math.ceil(player.hp)+" health remaining"+(reward.newBest?" • NEW BEST TIME":"");
     sfx("win");setTimeout(()=>sfx("coin"),520);
   }else{
-    document.getElementById("endReward").hidden=true;
+    document.getElementById("endReward").hidden=true;document.getElementById("endRank").hidden=true;
     document.getElementById("endEyebrow").textContent="Run ended";
     document.getElementById("endTitle").textContent="Monkey Down";
     document.getElementById("endScore").textContent=score.toLocaleString();
@@ -905,13 +1076,23 @@ function drawPlayer(){
   ctx.strokeStyle="#25160e";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(aimFace*3,-46);ctx.lineTo(aimFace*10,-44);ctx.stroke();
   ctx.strokeStyle=skin.accent;ctx.lineWidth=4;ctx.beginPath();ctx.arc(0,-39,18,Math.PI*.96,Math.PI*2.04);ctx.stroke();const ribbon=-moveFace;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(ribbon*15,-42);ctx.quadraticCurveTo(ribbon*(28+Math.abs(p.vx)*.025),-48+tailLift*.3,ribbon*(36+Math.abs(p.vx)*.04),-41+tailLift*.5);ctx.stroke();
   ctx.restore();
-  const reloadT=p.reload>0?1-p.reload/1.05:0,reloadWave=p.reload>0?Math.sin(reloadT*Math.PI):0,gunAngle=aim+reloadWave*(aimFace>0?.68:-.68),gunY=reloadWave*8,kick=p.gunKick*6;
-  const gx=p.x-Math.cos(gunAngle)*kick,gy=p.y-13+gunY-Math.sin(gunAngle)*kick,grip={x:gx+Math.cos(gunAngle)*5,y:gy+Math.sin(gunAngle)*5},support={x:gx+Math.cos(gunAngle)*21,y:gy+Math.sin(gunAngle)*21};
+  const weapon=playerWeapon(),reloadT=p.reload>0?1-p.reload/weapon.reloadTime:0,reloadWave=p.reload>0?Math.sin(reloadT*Math.PI):0,gunAngle=aim+reloadWave*(aimFace>0?.68:-.68),gunY=reloadWave*8,kick=p.gunKick*(weapon.id==="pistol"?8:6);
+  const gx=p.x-Math.cos(gunAngle)*kick,gy=p.y-13+gunY-Math.sin(gunAngle)*kick,grip={x:gx+Math.cos(gunAngle)*4,y:gy+Math.sin(gunAngle)*4},support={x:gx+Math.cos(gunAngle)*21,y:gy+Math.sin(gunAngle)*21};
   const shoulder1=posePoint(aimFace*8,-18),elbow1={x:lerp(shoulder1.x,grip.x,.55),y:lerp(shoulder1.y,grip.y,.55)+aimFace*3};drawLimb(shoulder1.x,shoulder1.y,elbow1.x,elbow1.y,grip.x,grip.y,9,skin.dark);
-  if(!grapple){const shoulder2=posePoint(-aimFace*7,-17),elbow2={x:lerp(shoulder2.x,support.x,.55),y:lerp(shoulder2.y,support.y,.55)+5};drawLimb(shoulder2.x,shoulder2.y,elbow2.x,elbow2.y,support.x,support.y,8,skin.fur)}
-  ctx.save();ctx.translate(gx,gy);ctx.rotate(gunAngle);ctx.fillStyle="#1b2520";roundRect(-7,-6,42,12,3);ctx.fill();ctx.fillStyle="#6f7e75";ctx.fillRect(15,-3,31,6);ctx.fillStyle="#101713";ctx.fillRect(41,-2,14,4);ctx.fillStyle="#9c6533";ctx.beginPath();ctx.moveTo(-10,-5);ctx.lineTo(7,-4);ctx.lineTo(2,8);ctx.lineTo(-12,8);ctx.fill();ctx.fillStyle="#172019";ctx.fillRect(8,3,8,12);
-  if(p.reload>0){const drop=Math.sin(clamp((reloadT-.18)/.58,0,1)*Math.PI);ctx.save();ctx.translate(11,7+drop*8);ctx.rotate(drop*.25);ctx.fillStyle="#334139";ctx.fillRect(-4,0,9,13);ctx.restore()}
-  if(p.muzzleFlash>0){const a=clamp(p.muzzleFlash/.09,0,1);ctx.globalAlpha=a;ctx.fillStyle="#fff3a0";ctx.shadowBlur=16;ctx.shadowColor="#ffb53d";ctx.beginPath();ctx.moveTo(56,0);ctx.lineTo(43,-7*a);ctx.lineTo(47,0);ctx.lineTo(43,7*a);ctx.closePath();ctx.fill()}ctx.restore();
+  if(!grapple){
+    const shoulder2=posePoint(-aimFace*7,-17);
+    if(weapon.id==="carbine"){const elbow2={x:lerp(shoulder2.x,support.x,.55),y:lerp(shoulder2.y,support.y,.55)+5};drawLimb(shoulder2.x,shoulder2.y,elbow2.x,elbow2.y,support.x,support.y,8,skin.fur)}
+    else{const pistolSupport={x:gx+Math.cos(gunAngle)*1-Math.sin(gunAngle)*4,y:gy+Math.sin(gunAngle)*1+Math.cos(gunAngle)*4},elbow2={x:lerp(shoulder2.x,pistolSupport.x,.56),y:lerp(shoulder2.y,pistolSupport.y,.56)+4};drawLimb(shoulder2.x,shoulder2.y,elbow2.x,elbow2.y,pistolSupport.x,pistolSupport.y,8,skin.fur)}
+  }
+  ctx.save();ctx.translate(gx,gy);ctx.rotate(gunAngle);
+  if(weapon.id==="pistol"){
+    ctx.fillStyle="#202925";roundRect(-7,-6,28,10,2);ctx.fill();ctx.fillStyle="#77837b";ctx.fillRect(-2,-3,22,4);ctx.fillStyle="#101713";ctx.fillRect(18,-2,11,3);
+    ctx.fillStyle="#9c6533";ctx.beginPath();ctx.moveTo(-4,3);ctx.lineTo(9,3);ctx.lineTo(5,16);ctx.lineTo(-7,14);ctx.closePath();ctx.fill();ctx.strokeStyle="#172019";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(7,3);ctx.lineTo(16,3);ctx.quadraticCurveTo(15,11,9,11);ctx.stroke();
+  }else{
+    ctx.fillStyle="#1b2520";roundRect(-7,-6,42,12,3);ctx.fill();ctx.fillStyle="#6f7e75";ctx.fillRect(15,-3,31,6);ctx.fillStyle="#101713";ctx.fillRect(41,-2,14,4);ctx.fillStyle="#9c6533";ctx.beginPath();ctx.moveTo(-10,-5);ctx.lineTo(7,-4);ctx.lineTo(2,8);ctx.lineTo(-12,8);ctx.fill();ctx.fillStyle="#172019";ctx.fillRect(8,3,8,12);
+  }
+  if(p.reload>0){const drop=Math.sin(clamp((reloadT-.18)/.58,0,1)*Math.PI),magX=weapon.id==="pistol"?1:11;ctx.save();ctx.translate(magX,7+drop*8);ctx.rotate(drop*.25);ctx.fillStyle="#334139";ctx.fillRect(-4,0,weapon.id==="pistol"?7:9,weapon.id==="pistol"?10:13);ctx.restore()}
+  if(p.muzzleFlash>0){const a=clamp(p.muzzleFlash/.09,0,1),m=weapon.muzzle;ctx.globalAlpha=a;ctx.fillStyle="#fff3a0";ctx.shadowBlur=16;ctx.shadowColor="#ffb53d";ctx.beginPath();ctx.moveTo(m+3,0);ctx.lineTo(m-10,-7*a);ctx.lineTo(m-6,0);ctx.lineTo(m-10,7*a);ctx.closePath();ctx.fill()}ctx.restore();
   ctx.globalAlpha=1;
 }
 function drawEnemy(e){
@@ -1032,7 +1213,7 @@ function drawParticles(){
 }
 function drawHUD(){
   if(state==="menu")return;
-  const compact=W<620,tiny=W<480,pad=compact?12:22,barW=tiny?105:compact?130:190;
+  const compact=W<620,tiny=W<480,pad=compact?12:22,barW=tiny?105:compact?130:190,weapon=playerWeapon();
   // status plate
   ctx.fillStyle="rgba(4,13,9,.76)";roundRect(pad,pad,barW+32,compact?94:110,16);ctx.fill();
   ctx.strokeStyle="rgba(220,255,190,.12)";ctx.lineWidth=1;roundRect(pad+.5,pad+.5,barW+31,compact?93:109,16);ctx.stroke();
@@ -1042,7 +1223,7 @@ function drawHUD(){
   bar(pad+16,pad+59,barW,8,player.slow/100,"#ffc84d");
   ctx.font="900 16px system-ui";ctx.fillStyle="#f5ffe9";ctx.fillText(player.ammo+" / "+player.reserve,pad+16,pad+(compact?87:96));
   ctx.font="800 9px system-ui";ctx.fillStyle=player.reload>0?"#ffc85d":"#718479";
-  ctx.fillText(player.reload>0?"RELOADING":"CARBINE",pad+79,pad+(compact?87:96));
+  ctx.fillText(player.reload>0?"RELOADING":weapon.label,pad+79,pad+(compact?87:96));
   // mission plate
   const mw=tiny?115:compact?150:225,mx=W-pad-mw;
   ctx.fillStyle="rgba(4,13,9,.76)";roundRect(mx,pad,mw,compact?67:76,16);ctx.fill();
@@ -1063,7 +1244,7 @@ function drawHUD(){
     ctx.fillStyle=toastText.color;ctx.fillText(toastText.text,W/2,H*.16+2);ctx.globalAlpha=1;
   }
   if(player.reload>0){
-    const rw=Math.min(260,W*.45),v=1-player.reload/1.05;ctx.fillStyle="#09130e";roundRect(W/2-rw/2,H-42,rw,8,4);ctx.fill();
+    const rw=Math.min(260,W*.45),v=1-player.reload/weapon.reloadTime;ctx.fillStyle="#09130e";roundRect(W/2-rw/2,H-42,rw,8,4);ctx.fill();
     ctx.fillStyle="#ffd55d";roundRect(W/2-rw/2,H-42,rw*clamp(v,0,1),8,4);ctx.fill();
   }
   if(tutorialTime>0&&state==="playing"){
@@ -1127,6 +1308,7 @@ addEventListener("keydown",e=>{
   if(e.code==="KeyE"&&!e.repeat)startGrapple("smart");
   if(e.code==="KeyR"&&!e.repeat)reload();
   if(e.code==="Escape"){
+    if(!leaderboard.classList.contains("hidden")){closeLeaderboard();return}
     if(!shop.classList.contains("hidden")){closeSkinShop();return}
     if(state==="playing"){state="paused";grapple=null;mouse.left=false;mouse.right=false;mouse.ctrlGrapple=false;show(pause,true);canvas.style.cursor="default"}
     else if(state==="paused"){state="playing";show(pause,false);canvas.style.cursor="none";last=performance.now()}
@@ -1138,13 +1320,17 @@ addEventListener("blur",()=>{mouse.left=false;mouse.right=false;mouse.ctrlGrappl
 document.getElementById("play").onclick=resetGame;
 document.getElementById("openShop").onclick=openSkinShop;
 document.getElementById("closeShop").onclick=closeSkinShop;
+document.getElementById("openLeaderboard").onclick=()=>openLeaderboard("menu");
+document.getElementById("closeLeaderboard").onclick=closeLeaderboard;
+document.getElementById("endLeaderboard").onclick=()=>openLeaderboard("ending");
+document.getElementById("leaderboardPlay").onclick=resetGame;
 document.getElementById("how").onclick=()=>{show(menu,false);show(help,true)};
 document.getElementById("back").onclick=()=>{show(help,false);show(menu,true)};
 document.getElementById("resume").onclick=()=>{state="playing";show(pause,false);canvas.style.cursor="none";last=performance.now()};
 document.getElementById("quit").onclick=goMenu;
 document.getElementById("endMenu").onclick=goMenu;
 document.getElementById("again").onclick=resetGame;
-function goMenu(){state="menu";show(pause,false);show(ending,false);show(help,false);show(shop,false);show(menu,true);updatePersistentUI();canvas.style.cursor="default";mouse.left=false;mouse.right=false;mouse.ctrlGrapple=false;grapple=null;keys={};slowScale=1}
+function goMenu(){state="menu";show(pause,false);show(ending,false);show(help,false);show(shop,false);show(leaderboard,false);show(menu,true);updatePersistentUI();canvas.style.cursor="default";mouse.left=false;mouse.right=false;mouse.ctrlGrapple=false;grapple=null;keys={};slowScale=1}
 
 function loop(now){
   const realDt=Math.min(.033,Math.max(0,(now-last)/1000||0));last=now;
