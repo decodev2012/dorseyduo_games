@@ -58,6 +58,12 @@ button.skin-action{width:100%;min-width:0;padding:11px 8px;border-radius:11px;fo
 .shop-status.good{color:#caff6a}.shop-status.warn{color:#ffc36a}
 .leaderboard-panel{position:relative;width:min(850px,96vw);padding:clamp(20px,3vw,36px)}
 .leaderboard-summary{margin:5px 54px 0 0;padding:9px 14px;border:1px solid #c9ff5544;border-radius:999px;background:#17261a;color:#dfff9c;font-size:11px;font-weight:950;letter-spacing:.06em;white-space:nowrap}
+.leaderboard-summary[hidden]{display:none}
+.leaderboard-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;margin:18px 0;padding:5px;border:1px solid #c9ff5526;border-radius:15px;background:#06100b}
+button.leaderboard-tab{min-width:0;padding:11px 14px;border:0;border-radius:10px;background:transparent;color:#879b8c;box-shadow:none;font-size:11px;transition:background .15s,color .15s,box-shadow .15s,transform .12s}
+button.leaderboard-tab:hover{transform:none;background:#14251a;color:#dbead9;box-shadow:none;filter:none}
+button.leaderboard-tab[aria-selected="true"]{background:linear-gradient(145deg,#284726,#1a331e);color:#eaffd1;box-shadow:inset 0 0 0 1px #c9ff5542,0 5px 15px #0005}
+.leaderboard-view[hidden],.global-board-state[hidden],.global-board-skeleton[hidden],.global-submit-card[hidden]{display:none}
 .leaderboard-columns,.leaderboard-row{display:grid;grid-template-columns:52px 125px 120px minmax(0,1fr);gap:12px;align-items:center}
 .leaderboard-columns{padding:0 15px 8px;color:#718779;font-size:9px;font-weight:900;letter-spacing:.1em;text-align:left;text-transform:uppercase}
 .leaderboard-list{display:grid;gap:8px;margin:0;padding:0;list-style:none}
@@ -69,6 +75,22 @@ button.skin-action{width:100%;min-width:0;padding:11px 8px;border-radius:11px;fo
 .lb-meta{color:#8fa392;font-size:11px;line-height:1.45}.placement-badge{display:block;margin-top:3px;color:#caff6a;font-size:8px;font-weight:1000;letter-spacing:.1em;text-transform:uppercase}
 .leaderboard-empty{padding:36px 20px;border:1px dashed #bfff6438;border-radius:20px;color:#9caf9f}.leaderboard-empty[hidden]{display:none}.leaderboard-empty h3{margin:8px 0;color:#efffe5}.leaderboard-empty p{margin:0 0 20px}.empty-stopwatch{font-size:42px}
 .latest-run-wrap{margin-top:16px;padding-top:14px;border-top:1px solid #fff1}.latest-run-wrap[hidden]{display:none}.latest-run-label{margin-bottom:8px;color:#ffc96b;font-size:10px;font-weight:900;letter-spacing:.08em;text-align:left;text-transform:uppercase}
+.global-board-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px}
+.global-board-toolbar .leaderboard-summary{margin:0}
+button.global-refresh{min-width:0;padding:10px 14px;border-radius:11px;font-size:10px;box-shadow:0 4px 0 #0b1c12,0 8px 18px #0005}
+.global-board-state{margin:0 0 12px;padding:10px 13px;border:1px solid #a8c6af26;border-radius:12px;background:#09150e;color:#a8b9ab;font-size:11px;font-weight:800;line-height:1.4;text-align:left}
+.global-board-state.offline,.global-board-state.warning{border-color:#ffc35c44;color:#ffd58b}.global-board-state.error{border-color:#ff7f6844;color:#ffab9b}.global-board-state.good{border-color:#bfff6444;color:#d8ff98}
+.global-columns,.global-row{grid-template-columns:52px minmax(125px,1fr) 125px minmax(220px,1.5fr)}
+.global-runner{min-width:0;color:#edffe5;font-size:14px;font-weight:950;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.global-runner-wrap{min-width:0}.global-you{display:block;margin-top:3px;color:#caff6a;font-size:8px;font-weight:1000;letter-spacing:.1em;text-transform:uppercase}
+.global-board-skeleton{display:grid;gap:8px;margin-bottom:10px}.global-skeleton-row{height:63px;border:1px solid #d8ffa514;border-radius:15px;background:linear-gradient(105deg,#ffffff07 20%,#ffffff12 40%,#ffffff07 60%);background-size:220% 100%;animation:globalShimmer 1.15s linear infinite}
+@keyframes globalShimmer{to{background-position:-220% 0}}
+.global-empty-actions{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+.global-submit-card{width:min(520px,100%);margin:0 auto 22px;padding:17px;border:1px solid #79eaff3b;border-radius:18px;background:linear-gradient(145deg,#102724,#0b1813);text-align:left;box-shadow:0 12px 32px #0005}
+.global-submit-card h3{margin:0 0 5px;color:#effff2;font-size:17px}.global-submit-copy{margin:0 0 14px;color:#9eb3a4;font-size:11px;line-height:1.45}
+.global-name-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end}.global-name-field label{display:block;margin:0 0 6px;color:#d9ebdb;font-size:10px;font-weight:950;letter-spacing:.08em;text-transform:uppercase}
+.global-name-field input{width:100%;height:45px;padding:0 13px;border:1px solid #7f9d895c;border-radius:11px;outline:0;background:#07110d;color:#f5ffef;font:800 16px/1 inherit;box-shadow:inset 0 2px 8px #0005}.global-name-field input:focus{border-color:#c9ff55;box-shadow:0 0 0 3px #c9ff5524,inset 0 2px 8px #0005}.global-name-field input[aria-invalid="true"]{border-color:#ff806b}
+button.global-submit{min-width:148px;padding:15px 17px}.global-form-actions{display:flex;gap:10px;align-items:center;margin-top:11px}.global-form-actions button{min-width:0;padding:10px 13px;font-size:10px}
+.global-name-hint,.global-name-error,.global-submit-status{margin:7px 0 0;font-size:10px;line-height:1.4}.global-name-hint{color:#819486}.global-name-error{min-height:14px;color:#ff9e8b;font-weight:850}.global-submit-status{min-height:16px;color:#b6c9b8;font-weight:850}.global-submit-status.good{color:#caff6a}.global-submit-status.warn{color:#ffd17e}.global-submit-status.error{color:#ff9e8b}
 .rank-result{display:inline-block;margin:-8px auto 18px;padding:8px 14px;border:1px solid #c9ff5555;border-radius:999px;background:#17261a;color:#dfff9c;font-size:11px;font-weight:1000;letter-spacing:.08em;text-transform:uppercase}.rank-result[hidden]{display:none}
 .reward-card{display:flex;align-items:center;justify-content:center;gap:12px;width:min(390px,100%);margin:-8px auto 22px;padding:13px 18px;border:1px solid #ffd75c55;border-radius:16px;background:linear-gradient(135deg,#2b3119,#172017);color:#ffe99e;box-shadow:0 10px 28px #0006;animation:rewardPop .5s cubic-bezier(.2,1.4,.4,1)}
 .reward-card[hidden]{display:none}.reward-card strong{font-size:23px;color:#fff2a5}.reward-detail{display:block;color:#8fa08f;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
@@ -82,9 +104,11 @@ kbd{display:inline-grid;place-items:center;min-width:27px;height:25px;padding:0 
 #pause{background:rgba(2,7,5,.55)}
 #pause .panel{width:min(430px,92vw)}
 .credit{position:fixed;right:14px;bottom:10px;z-index:2;color:#d9f6dd55;font-size:10px;letter-spacing:.12em;pointer-events:none}
-@media(max-width:600px){.help-grid{grid-template-columns:1fr}.panel{border-radius:24px;padding:24px}button{min-width:135px}.credit{display:none}.shop-head{display:block;padding-right:30px}.shop-head .wallet{margin:10px 0}.weapon-grid,.skin-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.skin-card{padding:9px}.weapon-preview,.skin-preview{height:86px}.skin-note{display:none}.shop-section-title span{display:none}.close-button{top:16px;right:16px}.leaderboard-panel{width:96vw;max-height:96dvh;padding:16px}.leaderboard-summary{display:inline-block;margin:10px 0 0}.leaderboard-columns{display:none}.leaderboard-row{grid-template-columns:40px minmax(0,1fr) auto;gap:7px 10px;padding:10px}.lb-rank{grid-column:1;grid-row:1 / span 2}.lb-time-wrap{grid-column:2;grid-row:1}.lb-score{grid-column:3;grid-row:1}.lb-meta{grid-column:2 / -1;grid-row:2}}
+@media(max-width:600px){.help-grid{grid-template-columns:1fr}.panel{border-radius:24px;padding:24px}button{min-width:135px}.credit{display:none}.shop-head{display:block;padding-right:30px}.shop-head .wallet{margin:10px 0}.weapon-grid,.skin-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.skin-card{padding:9px}.weapon-preview,.skin-preview{height:86px}.skin-note{display:none}.shop-section-title span{display:none}.close-button{top:16px;right:16px}.leaderboard-panel{width:96vw;max-height:96dvh;padding:16px}.leaderboard-summary{display:inline-block;margin:10px 0 0}.leaderboard-columns{display:none}.leaderboard-row{grid-template-columns:40px minmax(0,1fr) auto;gap:7px 10px;padding:10px}.lb-rank{grid-column:1;grid-row:1 / span 2}.lb-time-wrap{grid-column:2;grid-row:1}.lb-score{grid-column:3;grid-row:1}.lb-meta{grid-column:2 / -1;grid-row:2}.global-row{grid-template-columns:40px minmax(0,1fr) auto}.global-row .lb-rank{grid-column:1;grid-row:1 / span 2}.global-runner-wrap{grid-column:2;grid-row:1}.global-row .lb-time-wrap{grid-column:3;grid-row:1;text-align:right}.global-row .lb-meta{grid-column:2 / -1;grid-row:2}.global-board-toolbar{align-items:flex-start}.global-board-toolbar .leaderboard-summary{font-size:9px}.global-name-row{grid-template-columns:1fr}.global-name-row button{width:100%}.global-form-actions{justify-content:center}.global-submit-card{padding:14px}.leaderboard-tabs{margin:14px 0}}
 @media(max-width:450px){.weapon-grid{grid-template-columns:1fr}}
 @media(max-width:390px){.skin-grid{grid-template-columns:1fr 1fr}.skin-name{font-size:12px}.skin-badge{font-size:8px}}
+@media(max-width:360px){.global-row{grid-template-columns:36px minmax(0,1fr)}.global-row .lb-time-wrap{grid-column:2;grid-row:2;text-align:left}.global-row .lb-meta{grid-column:2;grid-row:3}.global-board-toolbar{display:block}.global-board-toolbar button{margin-top:9px;width:100%}}
+@media(prefers-reduced-motion:reduce){.global-skeleton-row{animation:none}.leaderboard-tab,.leaderboard-row,.global-submit-card{transition:none!important}}
 </style>
 </head>
 <body>
@@ -148,14 +172,31 @@ kbd{display:inline-grid;place-items:center;min-width:27px;height:25px;padding:0 
   <div class="panel leaderboard-panel">
     <button id="closeLeaderboard" class="close-button" aria-label="Close fastest runs">×</button>
     <div class="shop-head">
-      <div><div class="eyebrow">Local Records</div><h2 id="leaderboardTitle">Fastest Extractions</h2></div>
+      <div><div class="eyebrow">Run Records</div><h2 id="leaderboardTitle">Fastest Extractions</h2></div>
       <div id="leaderboardSummary" class="leaderboard-summary"></div>
     </div>
-    <p id="leaderboardCopy" class="shop-copy">Your 10 fastest successful runs, saved only in this browser.</p>
-    <div class="leaderboard-columns" aria-hidden="true"><span>Rank</span><span>Time</span><span>Score</span><span>Run details</span></div>
-    <ol id="leaderboardRows" class="leaderboard-list" aria-label="Ten fastest successful runs"></ol>
-    <div id="leaderboardEmpty" class="leaderboard-empty" role="status" hidden><div class="empty-stopwatch" aria-hidden="true">⏱</div><h3>No extractions yet</h3><p>Complete a run to claim the first spot.</p><button id="leaderboardPlay">Start a Run</button></div>
-    <div id="latestRunWrap" class="latest-run-wrap" hidden><div class="latest-run-label">Latest run — just outside the Top 10</div><div id="latestRunRow"></div></div>
+    <p id="leaderboardCopy" class="shop-copy">Compare runs saved on this device or opt in to the Global Community board.</p>
+    <div id="leaderboardTabs" class="leaderboard-tabs" role="tablist" aria-label="Leaderboard view">
+      <button id="localLeaderboardTab" class="leaderboard-tab" type="button" role="tab" aria-selected="true" aria-controls="localLeaderboardPanel">This Device</button>
+      <button id="globalLeaderboardTab" class="leaderboard-tab" type="button" role="tab" aria-selected="false" aria-controls="globalLeaderboardPanel" tabindex="-1">Global Community</button>
+    </div>
+    <section id="localLeaderboardPanel" class="leaderboard-view" role="tabpanel" aria-labelledby="localLeaderboardTab">
+      <div class="leaderboard-columns" aria-hidden="true"><span>Rank</span><span>Time</span><span>Score</span><span>Run details</span></div>
+      <ol id="leaderboardRows" class="leaderboard-list" aria-label="Ten fastest successful runs on this device"></ol>
+      <div id="leaderboardEmpty" class="leaderboard-empty" role="status" hidden><div class="empty-stopwatch" aria-hidden="true">⏱</div><h3>No extractions yet</h3><p>Complete a run to claim the first spot.</p><button id="leaderboardPlay">Start a Run</button></div>
+      <div id="latestRunWrap" class="latest-run-wrap" hidden><div class="latest-run-label">Latest run — just outside the Top 10</div><div id="latestRunRow"></div></div>
+    </section>
+    <section id="globalLeaderboardPanel" class="leaderboard-view" role="tabpanel" aria-labelledby="globalLeaderboardTab" aria-busy="false" hidden>
+      <div class="global-board-toolbar">
+        <div id="globalLeaderboardSummary" class="leaderboard-summary">COMMUNITY TOP 10</div>
+        <button id="refreshGlobalLeaderboard" class="secondary global-refresh" type="button">Refresh</button>
+      </div>
+      <p id="globalLeaderboardState" class="global-board-state" role="status" aria-live="polite" hidden></p>
+      <div id="globalLeaderboardSkeleton" class="global-board-skeleton" aria-hidden="true" hidden><div class="global-skeleton-row"></div><div class="global-skeleton-row"></div><div class="global-skeleton-row"></div></div>
+      <div class="leaderboard-columns global-columns" aria-hidden="true"><span>Rank</span><span>Runner</span><span>Time</span><span>Run details</span></div>
+      <ol id="globalLeaderboardRows" class="leaderboard-list" aria-label="Ten fastest Global Community runs"></ol>
+      <div id="globalLeaderboardEmpty" class="leaderboard-empty" hidden><div class="empty-stopwatch" aria-hidden="true">◎</div><h3 id="globalEmptyTitle">No community runs yet</h3><p id="globalEmptyText">Be the first runner on the board.</p><div class="global-empty-actions"><button id="globalLeaderboardRetry" class="secondary" type="button">Try Again</button></div></div>
+    </section>
   </div>
 </section>
 
@@ -176,6 +217,23 @@ kbd{display:inline-grid;place-items:center;min-width:27px;height:25px;padding:0 
     <div id="endReward" class="reward-card" hidden><span class="coin">C</span><div><strong>+<span id="endCoins">0</span> coins</strong><span id="endRewardDetail" class="reward-detail"></span></div></div>
     <div id="endRank" class="rank-result" hidden></div>
     <p id="endText" class="tag"></p>
+    <section id="globalSubmitCard" class="global-submit-card" aria-labelledby="globalSubmitTitle" hidden>
+      <h3 id="globalSubmitTitle">Post this run globally?</h3>
+      <p class="global-submit-copy">Optional: use a nickname, not your real name. Your nickname, run stats and equipped gear will be public.</p>
+      <form id="globalSubmitForm" novalidate>
+        <div class="global-name-row">
+          <div class="global-name-field">
+            <label for="leaderboardName">Leaderboard nickname</label>
+            <input id="leaderboardName" name="nickname" type="text" minlength="2" maxlength="16" autocomplete="nickname" autocapitalize="words" spellcheck="false" aria-describedby="leaderboardNameHint leaderboardNameError">
+          </div>
+          <button id="submitGlobalRun" class="global-submit" type="submit">Submit Run</button>
+        </div>
+        <p id="leaderboardNameHint" class="global-name-hint">2–16 letters, numbers, spaces, underscores or hyphens.</p>
+        <p id="leaderboardNameError" class="global-name-error" role="alert"></p>
+        <div class="global-form-actions"><button id="keepRunLocal" class="secondary" type="button">Keep Local</button></div>
+        <p id="globalSubmitStatus" class="global-submit-status" role="status" aria-live="polite"></p>
+      </form>
+    </section>
     <div class="actions"><button id="again">Run Again</button><button id="endLeaderboard" class="secondary">Fastest Runs</button><button id="endMenu" class="secondary">Main Menu</button></div>
   </div>
 </section>
@@ -208,11 +266,14 @@ const WORLD_W=7200,DEATH_Y=1250,GRAVITY=1450,GRAPPLE_RANGE=720;
 let state="menu",last=0,worldTime=0,runTime=0,realRunTime=0,slowScale=1,shake=0,flash=0,freeze=0;
 let player,camera={x:0,y:0,leadX:0,leadY:0,shakePhase:0},bullets=[],enemies=[],particles=[],texts=[],pickups=[],grapple=null;
 let keys={},mouse={x:W*.65,y:H*.45,wx:0,wy:0,left:false,right:false,ctrlGrapple:false},anchors=[],platforms=[],trees=[],checkpoints=[];
-let audio=null,audioUnavailable=false,muted=false,musicClock=0,score=0,kills=0,totalEnemies=0,combo=0,comboTimer=0,tutorialTime=0,runCoinAwarded=false,runResultRecorded=false,activeRunId="",runIdCounter=0,lastCompletedRun=null,leaderboardReturn="menu";
-const PROFILE_KEY="canopyCaliberProfileV1",LEADERBOARD_KEY="canopyCaliberLeaderboardV1";
+let audio=null,audioUnavailable=false,muted=false,musicClock=0,score=0,kills=0,totalEnemies=0,combo=0,comboTimer=0,tutorialTime=0,runCoinAwarded=false,runResultRecorded=false,activeRunId="",runIdCounter=0,lastCompletedRun=null,leaderboardReturn="menu",leaderboardView="local";
+const PROFILE_KEY="canopyCaliberProfileV1",LEADERBOARD_KEY="canopyCaliberLeaderboardV1",GLOBAL_CACHE_KEY="canopyCaliberGlobalCacheV1",GLOBAL_OUTBOX_KEY="canopyCaliberPendingGlobalRunsV1";
+const GLOBAL_LEADERBOARD_URL="https://dorseyduo-games.pages.dev/api/v1/canopy-caliber/leaderboard",GLOBAL_CACHE_MAX_AGE=30000,GLOBAL_REFRESH_COOLDOWN=15000,GLOBAL_REQUEST_TIMEOUT=9000;
 const WEAPONS=[
   {id:"pistol",name:"Trail Pistol",label:"PISTOL",price:0,note:"A precise sidearm with a compact three-shot magazine.",stats:["3 rounds","Accurate","Quick reload"],damage:22,fireDelay:.24,mag:3,reserve:56,reloadTime:.85,bulletSpeed:1250,spread:.012,recoilX:16,recoilY:8,shake:2.5,muzzle:29},
-  {id:"carbine",name:"Canopy Carbine",label:"CARBINE",price:500,note:"Rapid fire, a bigger magazine and deep reserves.",stats:["10 rounds","Rapid fire","70 reserve"],damage:25,fireDelay:.115,mag:10,reserve:70,reloadTime:1.05,bulletSpeed:1320,spread:.018,recoilX:12,recoilY:7,shake:2.2,muzzle:55}
+  {id:"carbine",name:"Canopy Carbine",label:"CARBINE",price:500,note:"Rapid fire, a bigger magazine and deep reserves.",stats:["10 rounds","Rapid fire","70 reserve"],damage:25,fireDelay:.115,mag:10,reserve:70,reloadTime:1.05,bulletSpeed:1320,spread:.018,recoilX:12,recoilY:7,shake:2.2,muzzle:55},
+  {id:"shotgun",name:"Vinebreaker",label:"SHOTGUN",price:900,note:"A hard-hitting scattergun built for close canopy fights.",stats:["7 pellets","4 shells","Close-range power"],damage:8,pellets:7,fireDelay:.68,mag:4,reserve:24,reloadTime:1.5,bulletSpeed:1100,spread:.22,recoilX:38,recoilY:14,shake:7.5,muzzle:59,bulletLife:.9,falloffStart:150,falloffEnd:600,minDamageScale:.35,pickupAmmo:12,headMultiplier:1.25},
+  {id:"ghost",name:"Ghost",label:"GHOST",price:2000,note:"A spectral sidearm whose rounds slip through solid cover.",stats:["3 rounds","Phase shots","Pistol handling"],damage:22,fireDelay:.24,mag:3,reserve:56,reloadTime:.85,bulletSpeed:1250,spread:.012,recoilX:16,recoilY:8,shake:2.5,muzzle:29,phasesPlatforms:true}
 ];
 const WEAPON_BY_ID=Object.fromEntries(WEAPONS.map(w=>[w.id,w]));
 const isWeaponId=id=>typeof id==="string"&&Object.prototype.hasOwnProperty.call(WEAPON_BY_ID,id);
@@ -226,9 +287,14 @@ const SKINS=[
 ];
 const SKIN_BY_ID=Object.fromEntries(SKINS.map(s=>[s.id,s]));
 const isSkinId=id=>typeof id==="string"&&Object.prototype.hasOwnProperty.call(SKIN_BY_ID,id);
+const RESERVED_PLAYER_NAMES=new Set(["admin","administrator","moderator","cloudflare","canopy caliber"]);
+function sanitizePlayerName(value){
+  let name=typeof value==="string"?value:"";try{name=name.normalize("NFKC")}catch(e){}
+  name=name.trim().replace(/\s+/g," ");return/^[A-Za-z0-9 _-]{2,16}$/.test(name)&&!RESERVED_PLAYER_NAMES.has(name.toLowerCase())?name:"";
+}
 function readBest(){try{return +(localStorage.getItem("canopyCaliberBest")||0)}catch(e){return 0}}
 function writeBest(value){try{localStorage.setItem("canopyCaliberBest",String(value))}catch(e){}}
-function freshProfile(){return{version:1,coins:0,lifetimeCoins:0,wins:0,bestTime:null,ownedSkins:["classic"],selectedSkin:"classic",ownedWeapons:["pistol"],selectedWeapon:"pistol"}}
+function freshProfile(){return{version:1,coins:0,lifetimeCoins:0,wins:0,bestTime:null,ownedSkins:["classic"],selectedSkin:"classic",ownedWeapons:["pistol"],selectedWeapon:"pistol",displayName:""}}
 function readProfile(){
   const base=freshProfile();
   try{
@@ -238,7 +304,7 @@ function readProfile(){
     const ownedWeapons=[...new Set(["pistol",...(Array.isArray(saved.ownedWeapons)?saved.ownedWeapons:[])])].filter(isWeaponId);
     const selectedWeapon=typeof saved.selectedWeapon==="string"&&ownedWeapons.includes(saved.selectedWeapon)?saved.selectedWeapon:"pistol";
     const bestTime=Number(saved.bestTime);
-    return{version:1,coins:clamp(Math.floor(Number(saved.coins)||0),0,9999999),lifetimeCoins:clamp(Math.floor(Number(saved.lifetimeCoins)||0),0,99999999),wins:clamp(Math.floor(Number(saved.wins)||0),0,999999),bestTime:Number.isFinite(bestTime)&&bestTime>0?bestTime:null,ownedSkins:owned,selectedSkin:selected,ownedWeapons:ownedWeapons,selectedWeapon:selectedWeapon};
+    return{version:1,coins:clamp(Math.floor(Number(saved.coins)||0),0,9999999),lifetimeCoins:clamp(Math.floor(Number(saved.lifetimeCoins)||0),0,99999999),wins:clamp(Math.floor(Number(saved.wins)||0),0,999999),bestTime:Number.isFinite(bestTime)&&bestTime>0?bestTime:null,ownedSkins:owned,selectedSkin:selected,ownedWeapons:ownedWeapons,selectedWeapon:selectedWeapon,displayName:sanitizePlayerName(saved.displayName)};
   }catch(e){return base}
 }
 function saveProfile(){try{localStorage.setItem(PROFILE_KEY,JSON.stringify(profile))}catch(e){}}
@@ -281,11 +347,46 @@ function recordSuccessfulRun(seconds,finalScore,health,earnedCoins){
   const oldBestMs=profile.bestTime?Math.round(profile.bestTime*1000):null;if(oldBestMs===null||timeMs<oldBestMs){profile.bestTime=timeMs/1000;saveProfile();updatePersistentUI()}
   return lastCompletedRun;
 }
+function sanitizeGlobalEntry(raw,index=0){
+  if(!raw||typeof raw!=="object")return null;
+  const timeMs=Math.round(Number(raw.timeMs??raw.time_ms));if(!Number.isFinite(timeMs)||timeMs<1||timeMs>86400000)return null;
+  const playerName=sanitizePlayerName(raw.playerName??raw.displayName??raw.nickname)||"Runner";
+  const rawId=raw.id??raw.entryId??raw.runId??raw.clientRunId,id=typeof rawId==="string"&&rawId&&rawId.length<=100?rawId:"global-"+index+"-"+timeMs+"-"+playerName;
+  const rawRank=Math.floor(Number(raw.rank)),rank=Number.isFinite(rawRank)&&rawRank>0?clamp(rawRank,1,999999):index+1;
+  const clientRunId=typeof raw.clientRunId==="string"&&raw.clientRunId.length<=80?raw.clientRunId:"";
+  return{id:id,clientRunId:clientRunId,playerName:playerName,timeMs:timeMs,score:clamp(Math.floor(Number(raw.score)||0),0,999999999),health:clamp(Math.round(Number(raw.health)||0),0,100),weaponId:isWeaponId(raw.weaponId)?raw.weaponId:"pistol",skinId:isSkinId(raw.skinId)?raw.skinId:"classic",rank:rank};
+}
+function extractGlobalEntries(payload){
+  let rows=Array.isArray(payload)?payload:payload&&Array.isArray(payload.entries)?payload.entries:payload&&payload.data&&Array.isArray(payload.data.entries)?payload.data.entries:[];
+  const ids=new Set(),entries=[];for(let i=0;i<rows.length;i++){const entry=sanitizeGlobalEntry(rows[i],i);if(entry&&!ids.has(entry.id)){ids.add(entry.id);entries.push(entry)}}
+  entries.sort((a,b)=>a.rank-b.rank||a.timeMs-b.timeMs||b.score-a.score);entries.splice(10);for(let i=0;i<entries.length;i++)if(!Number.isFinite(entries[i].rank)||entries[i].rank<1)entries[i].rank=i+1;return entries;
+}
+function readGlobalCache(){
+  try{const saved=JSON.parse(localStorage.getItem(GLOBAL_CACHE_KEY)||"null"),fetchedAt=Math.round(Number(saved&&saved.fetchedAt));if(saved&&typeof saved==="object"&&Array.isArray(saved.entries))return{version:1,fetchedAt:Number.isFinite(fetchedAt)&&fetchedAt>0?fetchedAt:0,entries:extractGlobalEntries(saved.entries)}}catch(e){}
+  return{version:1,fetchedAt:0,entries:[]};
+}
+function writeGlobalCache(entries,fetchedAt=Date.now()){try{localStorage.setItem(GLOBAL_CACHE_KEY,JSON.stringify({version:1,fetchedAt:fetchedAt,entries:entries.slice(0,10)}))}catch(e){}}
+function sanitizeGlobalSubmission(raw){
+  if(!raw||typeof raw!=="object")return null;const playerName=sanitizePlayerName(raw.playerName),clientRunId=typeof raw.clientRunId==="string"&&raw.clientRunId&&raw.clientRunId.length<=80?raw.clientRunId:"",timeMs=Math.round(Number(raw.timeMs));
+  if(!playerName||!clientRunId||!Number.isFinite(timeMs)||timeMs<1||timeMs>86400000)return null;
+  return{version:1,clientRunId:clientRunId,playerName:playerName,timeMs:timeMs,score:clamp(Math.floor(Number(raw.score)||0),0,999999999),health:clamp(Math.round(Number(raw.health)||0),0,100),weaponId:isWeaponId(raw.weaponId)?raw.weaponId:"pistol",skinId:isSkinId(raw.skinId)?raw.skinId:"classic",queuedAt:clamp(Math.round(Number(raw.queuedAt)||Date.now()),1,8640000000000000)};
+}
+function readGlobalOutbox(){
+  try{const saved=JSON.parse(localStorage.getItem(GLOBAL_OUTBOX_KEY)||"[]"),rows=Array.isArray(saved)?saved:[],ids=new Set(),out=[];for(const raw of rows){const item=sanitizeGlobalSubmission(raw);if(item&&!ids.has(item.clientRunId)){ids.add(item.clientRunId);out.push(item)}}return out.slice(-10)}catch(e){return[]}
+}
+function writeGlobalOutbox(){try{localStorage.setItem(GLOBAL_OUTBOX_KEY,JSON.stringify(globalOutbox.slice(-10)));return true}catch(e){return false}}
+function queueGlobalSubmission(payload){const item=sanitizeGlobalSubmission(payload);if(!item)return false;globalOutbox=globalOutbox.filter(e=>e.clientRunId!==item.clientRunId);globalOutbox.push(item);globalOutbox=globalOutbox.slice(-10);return writeGlobalOutbox()}
+function removeGlobalSubmission(clientRunId){const before=globalOutbox.length;globalOutbox=globalOutbox.filter(e=>e.clientRunId!==clientRunId);if(globalOutbox.length!==before)writeGlobalOutbox();if(!globalOutbox.length){globalOutboxRetryAttempts=0;if(globalOutboxRetryTimer){clearTimeout(globalOutboxRetryTimer);globalOutboxRetryTimer=null}}}
 let bestScore=readBest();
 let profile=readProfile();
 let leaderboardState=readLeaderboard();
+const initialGlobalCache=readGlobalCache();
+let globalEntries=initialGlobalCache.entries,globalFetchedAt=initialGlobalCache.fetchedAt,globalOutbox=readGlobalOutbox(),globalLoadStatus=globalEntries.length?"cached":"idle",globalFetchSerial=0,globalFetchController=null,globalLastRefreshAttempt=0,globalRateLimitedUntil=0,globalSubmitSerial=0,globalSubmitController=null,globalSubmitDraft=null,globalCurrentEntryId="",globalCurrentRunId="",globalOutboxRetrying=false,globalSubmissionInFlight=false,globalOutboxRetryTimer=null,globalOutboxRetryAttempts=0;
 const menu=document.getElementById("menu"),help=document.getElementById("help"),shop=document.getElementById("shop"),leaderboard=document.getElementById("leaderboard"),pause=document.getElementById("pause"),ending=document.getElementById("ending");
 const bestEl=document.getElementById("best"),menuCoinsEl=document.getElementById("menuCoins"),shopCoinsEl=document.getElementById("shopCoins"),weaponGrid=document.getElementById("weaponGrid"),skinGrid=document.getElementById("skinGrid"),shopStatus=document.getElementById("shopStatus"),leaderboardRows=document.getElementById("leaderboardRows"),leaderboardEmpty=document.getElementById("leaderboardEmpty"),leaderboardSummary=document.getElementById("leaderboardSummary"),latestRunWrap=document.getElementById("latestRunWrap"),latestRunRow=document.getElementById("latestRunRow");
+const localLeaderboardTab=document.getElementById("localLeaderboardTab"),globalLeaderboardTab=document.getElementById("globalLeaderboardTab"),localLeaderboardPanel=document.getElementById("localLeaderboardPanel"),globalLeaderboardPanel=document.getElementById("globalLeaderboardPanel"),globalLeaderboardRows=document.getElementById("globalLeaderboardRows"),globalLeaderboardSummary=document.getElementById("globalLeaderboardSummary"),globalLeaderboardStateEl=document.getElementById("globalLeaderboardState"),globalLeaderboardSkeleton=document.getElementById("globalLeaderboardSkeleton"),globalLeaderboardEmpty=document.getElementById("globalLeaderboardEmpty"),globalEmptyTitle=document.getElementById("globalEmptyTitle"),globalEmptyText=document.getElementById("globalEmptyText");
+const globalSubmitCard=document.getElementById("globalSubmitCard"),globalSubmitForm=document.getElementById("globalSubmitForm"),leaderboardNameInput=document.getElementById("leaderboardName"),leaderboardNameError=document.getElementById("leaderboardNameError"),globalSubmitStatusEl=document.getElementById("globalSubmitStatus"),submitGlobalRunButton=document.getElementById("submitGlobalRun"),keepRunLocalButton=document.getElementById("keepRunLocal");
+const refreshGlobalLeaderboardButton=document.getElementById("refreshGlobalLeaderboard"),globalLeaderboardRetryButton=document.getElementById("globalLeaderboardRetry");
 
 function show(el,on){el.classList.toggle("hidden",!on);if(el.setAttribute)el.setAttribute("aria-hidden",String(!on));if("inert" in el)el.inert=!on}
 function updatePersistentUI(){
@@ -334,6 +435,8 @@ function noise(dur,vol,cut){
 function sfx(name){
   if(name==="shot"){noise(.07,.07,2500);tone(115,.08,"square",.025,55)}
   if(name==="pistol"){noise(.09,.085,2200);tone(145,.09,"square",.03,62)}
+  if(name==="shotgun"){noise(.16,.13,1550);tone(82,.16,"square",.045,38);setTimeout(()=>noise(.055,.045,900),38)}
+  if(name==="ghost"){noise(.12,.045,3600);tone(520,.14,"triangle",.026,145);tone(1040,.2,"sine",.02,390)}
   if(name==="grapple"){tone(330,.12,"triangle",.05,760);tone(110,.16,"sine",.03,180)}
   if(name==="release")tone(420,.1,"sine",.025,230);
   if(name==="reload"){tone(180,.05,"square",.025,260);setTimeout(()=>tone(290,.06,"square",.02,380),320)}
@@ -360,19 +463,35 @@ function drawSkinPreview(canvasEl,skin,weapon=selectedWeapon()){
   pc.strokeStyle=c.accent;pc.lineWidth=4;pc.beginPath();pc.arc(0,29,19,Math.PI*.98,Math.PI*2.03);pc.stroke();pc.beginPath();pc.moveTo(-17,27);pc.quadraticCurveTo(-30,18,-37,28);pc.stroke();
   pc.fillStyle="#202925";pc.save();pc.translate(37,54);pc.rotate(-.1);
   if(weapon.id==="pistol"){pc.fillRect(-5,-5,25,9);pc.fillStyle="#748078";pc.fillRect(12,-2,16,4);pc.fillStyle="#8f6035";pc.beginPath();pc.moveTo(-2,3);pc.lineTo(8,3);pc.lineTo(5,15);pc.lineTo(-5,13);pc.closePath();pc.fill()}
+  else if(weapon.id==="ghost"){pc.save();pc.globalAlpha=.82;pc.shadowBlur=12;pc.shadowColor="#73fff1";pc.fillStyle="#244f57";pc.beginPath();pc.moveTo(-7,-6);pc.lineTo(21,-7);pc.lineTo(31,-2);pc.lineTo(23,5);pc.lineTo(-6,5);pc.closePath();pc.fill();pc.strokeStyle="#8effed";pc.lineWidth=2;pc.stroke();pc.fillStyle="#7290a7";pc.beginPath();pc.moveTo(-3,4);pc.lineTo(8,4);pc.lineTo(4,16);pc.lineTo(-7,14);pc.closePath();pc.fill();pc.strokeStyle="#c7fff8";pc.beginPath();pc.arc(29,-1,5,-1.2,1.2);pc.stroke();pc.restore()}
+  else if(weapon.id==="shotgun"){pc.fillStyle="#774a28";pc.beginPath();pc.moveTo(-9,-4);pc.lineTo(5,-4);pc.lineTo(11,4);pc.lineTo(-10,7);pc.closePath();pc.fill();pc.fillStyle="#26302b";pc.fillRect(3,-5,22,10);pc.fillStyle="#89948c";pc.fillRect(22,-4,28,3);pc.fillRect(22,1,28,3);pc.fillStyle="#a46a35";pc.fillRect(28,-6,12,12);pc.fillStyle="#d7b35a";pc.fillRect(48,-4,3,8)}
   else{pc.fillRect(-5,-5,34,9);pc.fillStyle="#748078";pc.fillRect(22,-2,20,4)}pc.restore();
   pc.restore();
 }
 function drawWeaponPreview(canvasEl,weapon){
   const pc=canvasEl.getContext("2d"),w=canvasEl.width,h=canvasEl.height;if(!pc)return;
   pc.clearRect(0,0,w,h);pc.save();pc.translate(w*.5,h*.5-3);pc.lineJoin="round";
-  pc.globalAlpha=.28;pc.fillStyle="#020704";pc.beginPath();pc.ellipse(4,30,weapon.id==="carbine"?82:55,8,0,0,TAU);pc.fill();pc.globalAlpha=1;
+  pc.globalAlpha=.28;pc.fillStyle="#020704";pc.beginPath();pc.ellipse(4,30,weapon.id==="pistol"||weapon.id==="ghost"?55:82,8,0,0,TAU);pc.fill();pc.globalAlpha=1;
   if(weapon.id==="pistol"){
     pc.fillStyle="#202925";pc.beginPath();pc.moveTo(-45,-17);pc.lineTo(34,-17);pc.lineTo(43,-9);pc.lineTo(40,1);pc.lineTo(-45,1);pc.closePath();pc.fill();
     pc.fillStyle="#77837b";pc.fillRect(-34,-12,67,7);pc.fillStyle="#111814";pc.fillRect(31,-9,24,6);
     pc.fillStyle="#936034";pc.beginPath();pc.moveTo(-21,0);pc.lineTo(3,0);pc.lineTo(-4,30);pc.lineTo(-26,26);pc.closePath();pc.fill();
     pc.fillStyle="#1a231e";pc.beginPath();pc.moveTo(-5,0);pc.lineTo(15,0);pc.quadraticCurveTo(14,15,2,16);pc.lineTo(-1,11);pc.quadraticCurveTo(7,10,8,5);pc.closePath();pc.fill();
     pc.fillStyle="#ffd76b";pc.fillRect(-38,-15,18,2);
+  }else if(weapon.id==="ghost"){
+    pc.save();pc.globalAlpha=.88;pc.shadowBlur=20;pc.shadowColor="#69fff0";
+    const ghostBody=pc.createLinearGradient(-48,-18,46,10);ghostBody.addColorStop(0,"#253352");ghostBody.addColorStop(.48,"#31848b");ghostBody.addColorStop(1,"#a9fff3");pc.fillStyle=ghostBody;pc.beginPath();pc.moveTo(-48,-17);pc.quadraticCurveTo(-9,-25,31,-14);pc.lineTo(47,-6);pc.lineTo(34,5);pc.lineTo(-47,3);pc.closePath();pc.fill();
+    pc.strokeStyle="#bdfff8";pc.lineWidth=2;pc.stroke();pc.fillStyle="#18273b";pc.beginPath();pc.moveTo(-27,1);pc.lineTo(-3,1);pc.lineTo(-8,31);pc.lineTo(-32,25);pc.closePath();pc.fill();pc.strokeStyle="#72e9ff";pc.stroke();
+    pc.fillStyle="#d2fff9";pc.fillRect(16,-9,47,4);pc.strokeStyle="#6fffea";pc.lineWidth=3;pc.beginPath();pc.arc(61,-7,10,-1.08,1.08);pc.stroke();pc.beginPath();pc.arc(42,-7,6,-1.2,1.2);pc.stroke();
+    pc.globalAlpha=.38;pc.lineWidth=3;pc.beginPath();pc.moveTo(-42,-12);pc.bezierCurveTo(-67,-26,-74,3,-58,13);pc.stroke();pc.restore();
+  }else if(weapon.id==="shotgun"){
+    pc.fillStyle="#7d4e2a";pc.beginPath();pc.moveTo(-91,-10);pc.lineTo(-46,-9);pc.lineTo(-30,2);pc.lineTo(-47,14);pc.lineTo(-94,18);pc.closePath();pc.fill();
+    pc.fillStyle="#9f6937";pc.beginPath();pc.moveTo(-72,-7);pc.lineTo(-43,-6);pc.lineTo(-35,1);pc.lineTo(-48,8);pc.lineTo(-77,11);pc.closePath();pc.fill();
+    pc.fillStyle="#202a25";pc.beginPath();pc.moveTo(-45,-14);pc.lineTo(17,-14);pc.lineTo(29,-8);pc.lineTo(28,9);pc.lineTo(-40,12);pc.closePath();pc.fill();
+    pc.fillStyle="#75847b";pc.fillRect(-31,-9,53,6);pc.fillStyle="#111814";pc.fillRect(17,-8,86,5);pc.fillRect(17,1,86,5);
+    pc.fillStyle="#ad7138";pc.fillRect(29,-11,30,15);pc.fillStyle="#d8b35b";pc.fillRect(96,-8,5,14);
+    pc.fillStyle="#151d19";pc.beginPath();pc.moveTo(-9,9);pc.lineTo(10,9);pc.quadraticCurveTo(7,25,-6,27);pc.lineTo(-12,21);pc.closePath();pc.fill();
+    pc.strokeStyle="#d8b35b";pc.lineWidth=2;pc.beginPath();pc.moveTo(-37,-11);pc.lineTo(-18,-11);pc.stroke();
   }else{
     pc.fillStyle="#8f6035";pc.beginPath();pc.moveTo(-77,-11);pc.lineTo(-36,-9);pc.lineTo(-31,11);pc.lineTo(-78,17);pc.closePath();pc.fill();
     pc.fillStyle="#1b2520";pc.beginPath();pc.moveTo(-40,-15);pc.lineTo(25,-15);pc.quadraticCurveTo(34,-15,34,-6);pc.lineTo(34,8);pc.quadraticCurveTo(34,14,25,14);pc.lineTo(-40,14);pc.closePath();pc.fill();
@@ -456,11 +575,113 @@ function renderLeaderboard(){
   const count=leaderboardState.entries.length,best=count?formatLeaderboardTime(leaderboardState.entries[0].timeMs):"—";leaderboardSummary.textContent=count+" / 10 RUNS  •  BEST "+best;leaderboardEmpty.hidden=count>0;
   const showLatest=!!lastCompletedRun&&!lastCompletedRun.madeTopTen;latestRunWrap.hidden=!showLatest;if(showLatest)latestRunRow.append(createLeaderboardRow(lastCompletedRun.entry,lastCompletedRun.rank,true));
 }
-function openLeaderboard(returnTo="menu"){
-  leaderboardReturn=returnTo==="ending"?"ending":"menu";renderLeaderboard();show(menu,false);show(ending,false);show(shop,false);show(leaderboard,true);document.getElementById("closeLeaderboard").focus();
+function createGlobalLeaderboardRow(entry){
+  const rank=entry.rank,current=(globalCurrentEntryId&&entry.id===globalCurrentEntryId)||(globalCurrentRunId&&entry.clientRunId===globalCurrentRunId),row=document.createElement("li");row.className="leaderboard-row global-row"+(rank<=3?" rank-"+rank:"")+(current?" current-run":"");row.dataset.entryId=entry.id;if(current)row.setAttribute("aria-current","true");
+  const rankEl=document.createElement("span");rankEl.className="lb-rank";rankEl.textContent="#"+rank;
+  const runnerWrap=document.createElement("div");runnerWrap.className="global-runner-wrap";const runner=document.createElement("span");runner.className="global-runner";runner.textContent=entry.playerName;runnerWrap.append(runner);if(current){const badge=document.createElement("span");badge.className="global-you";badge.textContent=rank===1?"YOU • NEW #1":"YOU";runnerWrap.append(badge)}
+  const timeWrap=document.createElement("div");timeWrap.className="lb-time-wrap";const time=document.createElement("time");time.className="lb-time";time.dateTime="PT"+(entry.timeMs/1000)+"S";time.textContent=formatLeaderboardTime(entry.timeMs);timeWrap.append(time);
+  const weapon=WEAPON_BY_ID[entry.weaponId]||WEAPONS[0],skin=SKIN_BY_ID[entry.skinId]||SKINS[0],meta=document.createElement("span");meta.className="lb-meta";meta.textContent=entry.score.toLocaleString()+" score • "+entry.health+" health • "+weapon.name+" • "+skin.name;
+  row.setAttribute("aria-label","Rank "+rank+", "+entry.playerName+", "+formatLeaderboardTime(entry.timeMs)+", "+entry.score.toLocaleString()+" score");row.append(rankEl,runnerWrap,timeWrap,meta);return row;
+}
+function globalCacheLabel(){
+  if(!globalFetchedAt)return"";const age=Math.max(0,Date.now()-globalFetchedAt),minutes=Math.floor(age/60000);if(minutes<1)return"saved just now";if(minutes===1)return"saved 1 minute ago";if(minutes<60)return"saved "+minutes+" minutes ago";return"saved earlier";
+}
+function armGlobalRefreshCooldown(until){
+  if(!Number.isFinite(until))return;globalRateLimitedUntil=Math.max(globalRateLimitedUntil,until);const target=globalRateLimitedUntil;setTimeout(()=>{if(globalRateLimitedUntil===target&&Date.now()>=target){globalRateLimitedUntil=0;renderGlobalLeaderboard()}},Math.max(0,target-Date.now())+60);
+}
+function setGlobalBoardState(status,message=""){
+  globalLoadStatus=status;globalLeaderboardPanel.setAttribute("aria-busy",String(status==="loading"));globalLeaderboardStateEl.hidden=!message;globalLeaderboardStateEl.textContent=message;
+  let toneClass="";if(status.startsWith("offline"))toneClass=" offline";else if(status.startsWith("error"))toneClass=" error";else if(status==="rate-limited")toneClass=" warning";else if(status==="ready")toneClass=" good";globalLeaderboardStateEl.className="global-board-state"+toneClass;renderGlobalLeaderboard();
+}
+function renderGlobalLeaderboard(){
+  globalLeaderboardRows.textContent="";for(const entry of globalEntries)globalLeaderboardRows.append(createGlobalLeaderboardRow(entry));
+  const best=globalEntries.length?formatLeaderboardTime(globalEntries[0].timeMs):"—";globalLeaderboardSummary.textContent="COMMUNITY TOP 10  •  BEST "+best;
+  const loading=globalLoadStatus==="loading",hasRows=globalEntries.length>0;globalLeaderboardSkeleton.hidden=!loading||hasRows;
+  globalLeaderboardEmpty.hidden=hasRows||loading;globalLeaderboardRetryButton.hidden=globalLoadStatus==="empty";globalLeaderboardRetryButton.disabled=loading||Date.now()<globalRateLimitedUntil||typeof navigator!=="undefined"&&navigator.onLine===false;
+  if(!hasRows&&!loading){
+    if(globalLoadStatus==="offline-empty"){globalEmptyTitle.textContent="You’re offline";globalEmptyText.textContent="Your fastest runs on this device still work."}
+    else if(globalLoadStatus==="error-empty"||globalLoadStatus==="rate-limited"){globalEmptyTitle.textContent="Community board unavailable";globalEmptyText.textContent="Try again shortly. Your local records are safe."}
+    else{globalEmptyTitle.textContent="No community runs yet";globalEmptyText.textContent="Be the first runner on the board."}
+  }
+  const now=Date.now();refreshGlobalLeaderboardButton.disabled=loading||now<globalRateLimitedUntil||typeof navigator!=="undefined"&&navigator.onLine===false;
+}
+function globalResponseHasEntries(payload){return Array.isArray(payload)||!!(payload&&Array.isArray(payload.entries))||!!(payload&&payload.data&&Array.isArray(payload.data.entries))}
+async function loadGlobalLeaderboard(options={}){
+  const force=options.force===true,bypassThrottle=options.bypassThrottle===true,now=Date.now();
+  if(typeof navigator!=="undefined"&&navigator.onLine===false){setGlobalBoardState(globalEntries.length?"offline-cached":"offline-empty",globalEntries.length?"Offline — showing "+globalCacheLabel()+".":"You’re offline. Your local fastest runs still work.");return}
+  if(!force&&globalEntries.length&&now-globalFetchedAt<GLOBAL_CACHE_MAX_AGE){setGlobalBoardState("ready","");return}
+  if(!bypassThrottle&&now<globalRateLimitedUntil){const wait=Math.max(1,Math.ceil((globalRateLimitedUntil-now)/1000));setGlobalBoardState("rate-limited","Too many refreshes. Try again in "+wait+" seconds.");return}
+  if(force&&!bypassThrottle&&now-globalLastRefreshAttempt<GLOBAL_REFRESH_COOLDOWN){const until=globalLastRefreshAttempt+GLOBAL_REFRESH_COOLDOWN,wait=Math.max(1,Math.ceil((until-now)/1000));armGlobalRefreshCooldown(until);setGlobalBoardState("rate-limited","Refresh available in "+wait+" seconds.");return}
+  const serial=++globalFetchSerial;if(globalFetchController)try{globalFetchController.abort()}catch(e){}const controller=typeof AbortController==="function"?new AbortController():null;globalFetchController=controller;globalLastRefreshAttempt=now;
+  armGlobalRefreshCooldown(now+GLOBAL_REFRESH_COOLDOWN);
+  setGlobalBoardState("loading",globalEntries.length?"Refreshing community runs…":"Loading community runs…");let timedOut=false;const timeout=setTimeout(()=>{timedOut=true;if(controller)controller.abort()},GLOBAL_REQUEST_TIMEOUT);
+  try{
+    const request={method:"GET",headers:{Accept:"application/json"},cache:"no-store"};if(controller)request.signal=controller.signal;const response=await fetch(GLOBAL_LEADERBOARD_URL+"?limit=10",request);let body=null;try{body=await response.json()}catch(e){}
+    if(serial!==globalFetchSerial)return;
+    if(response.status===429){let wait=Number(response.headers.get("Retry-After"));if(!Number.isFinite(wait)||wait<=0)wait=30;wait=clamp(Math.ceil(wait),1,300);armGlobalRefreshCooldown(Date.now()+wait*1000);setGlobalBoardState("rate-limited","Too many refreshes. Try again in "+wait+" seconds.");return}
+    if(!response.ok||!globalResponseHasEntries(body)){const error=new Error("Global leaderboard request failed");error.httpStatus=response.status;throw error}
+    globalEntries=extractGlobalEntries(body);globalFetchedAt=Date.now();writeGlobalCache(globalEntries,globalFetchedAt);setGlobalBoardState(globalEntries.length?"ready":"empty","");
+  }catch(error){
+    if(serial!==globalFetchSerial)return;if(error&&error.name==="AbortError"&&!timedOut)return;
+    const offline=typeof navigator!=="undefined"&&navigator.onLine===false,message=offline?(globalEntries.length?"Offline — showing "+globalCacheLabel()+".":"You’re offline. Your local fastest runs still work."):(globalEntries.length?"Couldn’t refresh — showing "+globalCacheLabel()+".":timedOut?"The community board took too long to respond.":"Community runs are unavailable right now.");
+    setGlobalBoardState(offline?(globalEntries.length?"offline-cached":"offline-empty"):(globalEntries.length?"error-cached":"error-empty"),message);
+  }finally{clearTimeout(timeout);if(serial===globalFetchSerial)globalFetchController=null}
+}
+function setLeaderboardView(view,focusTab=false){
+  leaderboardView=view==="global"?"global":"local";const global=leaderboardView==="global";localLeaderboardTab.setAttribute("aria-selected",String(!global));localLeaderboardTab.tabIndex=global?-1:0;globalLeaderboardTab.setAttribute("aria-selected",String(global));globalLeaderboardTab.tabIndex=global?0:-1;localLeaderboardPanel.hidden=global;globalLeaderboardPanel.hidden=!global;leaderboardSummary.hidden=global;
+  if(global){renderGlobalLeaderboard();loadGlobalLeaderboard();if(globalOutbox.length)retryGlobalOutbox()}else renderLeaderboard();if(focusTab)(global?globalLeaderboardTab:localLeaderboardTab).focus();
+}
+function openLeaderboard(returnTo="menu",view=leaderboardView){
+  leaderboardReturn=returnTo==="ending"?"ending":"menu";renderLeaderboard();show(menu,false);show(ending,false);show(shop,false);show(leaderboard,true);setLeaderboardView(view);document.getElementById("closeLeaderboard").focus();
 }
 function closeLeaderboard(){
   show(leaderboard,false);if(leaderboardReturn==="ending"){show(ending,true);document.getElementById("endLeaderboard").focus()}else{show(menu,true);document.getElementById("openLeaderboard").focus()}
+}
+function setGlobalSubmitStatus(message,toneClass=""){globalSubmitStatusEl.textContent=message;globalSubmitStatusEl.className="global-submit-status"+(toneClass?" "+toneClass:"")}
+function setGlobalSubmitBusy(busy){leaderboardNameInput.disabled=busy;keepRunLocalButton.disabled=busy;submitGlobalRunButton.disabled=busy;globalSubmitForm.setAttribute("aria-busy",String(busy));if(busy)submitGlobalRunButton.textContent="Submitting…";else if(submitGlobalRunButton.textContent==="Submitting…")submitGlobalRunButton.textContent="Submit Run"}
+function prepareGlobalSubmission(entry){
+  if(!entry){globalSubmitCard.hidden=true;globalSubmitDraft=null;return}globalSubmitDraft={version:1,clientRunId:entry.id,playerName:"",timeMs:entry.timeMs,score:entry.score,health:entry.health,weaponId:player&&isWeaponId(player.weaponId)?player.weaponId:"pistol",skinId:isSkinId(entry.skinId)?entry.skinId:"classic",queuedAt:Date.now()};
+  globalSubmitCard.hidden=false;globalSubmitForm.hidden=false;leaderboardNameInput.value=profile.displayName||"";leaderboardNameInput.disabled=false;leaderboardNameInput.removeAttribute("aria-invalid");leaderboardNameError.textContent="";setGlobalSubmitStatus("");submitGlobalRunButton.disabled=false;submitGlobalRunButton.textContent="Submit Run";keepRunLocalButton.disabled=false;keepRunLocalButton.textContent="Keep Local";globalSubmitForm.setAttribute("aria-busy","false");
+}
+function markGlobalSubmissionQueued(payload){const saved=queueGlobalSubmission(payload);setGlobalSubmitBusy(false);leaderboardNameInput.disabled=saved;keepRunLocalButton.disabled=false;keepRunLocalButton.textContent=saved?"Close":"Keep Local";submitGlobalRunButton.disabled=saved;submitGlobalRunButton.textContent=saved?"Queued":"Try Again";setGlobalSubmitStatus(saved?"Saved on this device. It will retry when you’re online.":"This browser could not save the retry. Keep this page open and try again.",saved?"warn":"error");return saved}
+function responseGlobalEntry(body,payload){
+  const raw=body&&body.entry?body.entry:body&&body.data&&body.data.entry?body.data.entry:body&&body.result&&body.result.entry?body.result.entry:body&&body.result?body.result:body;if(!raw||typeof raw!=="object")return null;
+  return sanitizeGlobalEntry(Object.assign({},payload,raw,{id:raw.id??raw.entryId??payload.clientRunId,clientRunId:raw.clientRunId??payload.clientRunId,playerName:raw.playerName??payload.playerName,rank:raw.rank??(body&&body.rank)}),0);
+}
+async function submitGlobalPayload(rawPayload,options={}){
+  const payload=sanitizeGlobalSubmission(rawPayload),interactive=options.interactive===true,refreshAfter=options.refreshAfter!==false;if(!payload)return"permanent";if(globalSubmissionInFlight)return"busy";
+  if(typeof navigator!=="undefined"&&navigator.onLine===false){if(interactive)markGlobalSubmissionQueued(payload);return"transient"}
+  globalSubmissionInFlight=true;const serial=++globalSubmitSerial,controller=typeof AbortController==="function"?new AbortController():null;globalSubmitController=controller;if(interactive)setGlobalSubmitBusy(true);let timedOut=false;const timeout=setTimeout(()=>{timedOut=true;if(controller)controller.abort()},GLOBAL_REQUEST_TIMEOUT);
+  const outbound={version:1,clientRunId:payload.clientRunId,playerName:payload.playerName,timeMs:payload.timeMs,score:payload.score,health:payload.health,weaponId:payload.weaponId,skinId:payload.skinId};
+  try{
+    const request={method:"POST",headers:{Accept:"application/json","Content-Type":"application/json"},body:JSON.stringify(outbound)};if(controller)request.signal=controller.signal;const response=await fetch(GLOBAL_LEADERBOARD_URL,request);let body=null;try{body=await response.json()}catch(e){}
+    if(serial!==globalSubmitSerial)return"stale";
+    if(response.ok&&body&&body.accepted===true){
+      removeGlobalSubmission(payload.clientRunId);const entry=responseGlobalEntry(body,payload);globalCurrentRunId=payload.clientRunId;if(entry){globalCurrentEntryId=entry.id;if(body&&globalResponseHasEntries(body)){globalEntries=extractGlobalEntries(body);globalFetchedAt=Date.now();writeGlobalCache(globalEntries,globalFetchedAt)}}
+      leaderboardView="global";if(globalSubmitDraft&&globalSubmitDraft.clientRunId===payload.clientRunId){setGlobalSubmitBusy(false);leaderboardNameInput.disabled=true;keepRunLocalButton.disabled=false;keepRunLocalButton.textContent="Close";submitGlobalRunButton.disabled=true;submitGlobalRunButton.textContent=entry&&entry.rank?"Global #"+entry.rank:"Submitted";setGlobalSubmitStatus(entry&&entry.rank?"Submitted! Global rank #"+entry.rank+".":"Run submitted to the Global Community board.","good")}
+      if(refreshAfter)loadGlobalLeaderboard({force:true,bypassThrottle:true});return"success";
+    }
+    if(response.status>=400&&response.status<500&&response.status!==408&&response.status!==429){removeGlobalSubmission(payload.clientRunId);if(interactive&&globalSubmitDraft&&globalSubmitDraft.clientRunId===payload.clientRunId){setGlobalSubmitBusy(false);const serverMessage=body&&body.error&&typeof body.error.message==="string"?body.error.message:"This run could not be added globally. It is still saved locally.";setGlobalSubmitStatus(serverMessage,"error")}return"permanent"}
+    if(interactive&&globalSubmitDraft&&globalSubmitDraft.clientRunId===payload.clientRunId)markGlobalSubmissionQueued(payload);else queueGlobalSubmission(payload);let retryDelay=0;if(response.status===429){const retrySeconds=Number(response.headers.get("Retry-After"));if(Number.isFinite(retrySeconds)&&retrySeconds>0)retryDelay=clamp(Math.ceil(retrySeconds),1,300)*1000}scheduleGlobalOutboxRetry(retryDelay);return"transient";
+  }catch(error){
+    if(serial!==globalSubmitSerial)return"stale";if(interactive&&globalSubmitDraft&&globalSubmitDraft.clientRunId===payload.clientRunId)markGlobalSubmissionQueued(payload);else queueGlobalSubmission(payload);scheduleGlobalOutboxRetry();if(timedOut&&interactive)setGlobalSubmitStatus("The board took too long to respond. Your opted-in run is queued safely.","warn");return"transient";
+  }finally{clearTimeout(timeout);if(serial===globalSubmitSerial){globalSubmitController=null;globalSubmissionInFlight=false}}
+}
+function scheduleGlobalOutboxRetry(requestedDelay=0){
+  if(globalOutboxRetryTimer||!globalOutbox.length||typeof navigator!=="undefined"&&navigator.onLine===false)return;const exponent=Math.min(globalOutboxRetryAttempts,4),delay=Math.max(requestedDelay,Math.min(120000,15000*Math.pow(2,exponent)));globalOutboxRetryAttempts++;globalOutboxRetryTimer=setTimeout(()=>{globalOutboxRetryTimer=null;retryGlobalOutbox()},delay);
+}
+async function retryGlobalOutbox(){
+  if(globalOutboxRetrying||globalSubmissionInFlight||!globalOutbox.length||typeof navigator!=="undefined"&&navigator.onLine===false)return;globalOutboxRetrying=true;let submitted=false;
+  try{for(const payload of [...globalOutbox]){const result=await submitGlobalPayload(payload,{interactive:false,refreshAfter:false});if(result==="success"){submitted=true;continue}if(result==="permanent")continue;break}}finally{globalOutboxRetrying=false}
+  if(submitted)loadGlobalLeaderboard({force:true,bypassThrottle:true});
+}
+function handleGlobalSubmit(event){
+  event.preventDefault();if(!globalSubmitDraft||globalSubmissionInFlight)return;const name=sanitizePlayerName(leaderboardNameInput.value);if(!name){leaderboardNameInput.setAttribute("aria-invalid","true");leaderboardNameError.textContent="Enter 2–16 safe characters using letters, numbers, spaces, _ or -.";leaderboardNameInput.focus();return}
+  leaderboardNameInput.removeAttribute("aria-invalid");leaderboardNameError.textContent="";profile.displayName=name;saveProfile();const payload=Object.assign({},globalSubmitDraft,{playerName:name,queuedAt:Date.now()});globalSubmitDraft=payload;globalOutboxRetryAttempts=0;submitGlobalPayload(payload,{interactive:true});
+}
+function keepCurrentRunLocal(){if(globalSubmissionInFlight)return;globalSubmitDraft=null;globalSubmitCard.hidden=true;setGlobalSubmitStatus("")}
+function handleLeaderboardTabKey(event){
+  if(!["ArrowLeft","ArrowRight","Home","End"].includes(event.key))return;event.preventDefault();const global=event.key==="ArrowRight"||event.key==="End";setLeaderboardView(global?"global":"local",true);
 }
 function calculateRunReward(seconds){
   const base=50,speedBonus=Math.round(150*clamp((240-seconds)/180,0,1));return{base:base,speedBonus:speedBonus,total:base+speedBonus};
@@ -535,12 +756,12 @@ function resetGame(){
   const weapon=selectedWeapon();
   player={x:170,y:700,vx:0,vy:0,w:30,h:66,ground:false,plat:null,face:1,hp:100,maxHp:100,
     weaponId:weapon.id,ammo:weapon.mag,mag:weapon.mag,reserve:weapon.reserve,reload:0,shoot:0,slow:100,invuln:0,checkpoint:0,landSquash:0,
-    walk:0,gunKick:0,muzzleFlash:0,coyote:0,jumpBuffer:0,jumpHeld:false,airJumps:1,airJumpFlash:0,
+    walk:0,gunKick:0,muzzleFlash:0,shotSequence:0,coyote:0,jumpBuffer:0,jumpHeld:false,airJumps:1,airJumpFlash:0,
     takeoffPulse:0,landImpact:0,launchPulse:0,visualFacing:1,lean:0,dustTimer:0,grappleCooldown:0};
   camera.x=player.x-W*.42;camera.y=player.y-H*.54;
   camera.leadX=0;camera.leadY=0;camera.shakePhase=0;
   mouse.wx=mouse.x+camera.x;mouse.wy=mouse.y+camera.y;
-  score=0;kills=0;combo=0;comboTimer=0;tutorialTime=11;runTime=0;realRunTime=0;worldTime=0;shake=0;flash=0;freeze=0;runCoinAwarded=false;runResultRecorded=false;activeRunId=makeRunId();lastCompletedRun=null;keys={};
+  score=0;kills=0;combo=0;comboTimer=0;tutorialTime=11;runTime=0;realRunTime=0;worldTime=0;shake=0;flash=0;freeze=0;runCoinAwarded=false;runResultRecorded=false;activeRunId=makeRunId();lastCompletedRun=null;globalSubmitDraft=null;globalSubmitCard.hidden=true;keys={};
   mouse.left=false;mouse.right=false;mouse.ctrlGrapple=false;slowScale=1;state="playing";
   show(menu,false);show(help,false);show(shop,false);show(leaderboard,false);show(pause,false);show(ending,false);
   canvas.style.cursor="none";
@@ -596,13 +817,16 @@ function reload(){
 function shoot(){
   if(state!=="playing"||player.reload>0||player.shoot>0)return;
   if(player.ammo<=0){reload();tone(80,.04,"square",.02,60);return}
-  const weapon=playerWeapon(),ox=player.x,oy=player.y-12,ang=Math.atan2(mouse.wy-oy,mouse.wx-ox),spread=(Math.random()-.5)*weapon.spread,muzzle=weapon.muzzle;
+  const weapon=playerWeapon(),ox=player.x,oy=player.y-12,ang=Math.atan2(mouse.wy-oy,mouse.wx-ox),muzzle=weapon.muzzle,pelletCount=weapon.pellets||1,shotId=activeRunId+"-shot-"+(++player.shotSequence);
   player.ammo--;player.shoot=weapon.fireDelay;player.gunKick=1;player.muzzleFlash=.09;player.face=Math.cos(ang)>=0?1:-1;
-  bullets.push({x:ox+Math.cos(ang)*muzzle,y:oy+Math.sin(ang)*muzzle,px:ox,py:oy,
-    vx:Math.cos(ang+spread)*weapon.bulletSpeed,vy:Math.sin(ang+spread)*weapon.bulletSpeed,life:1.15,friendly:true,damage:weapon.damage,weaponId:weapon.id});
+  for(let i=0;i<pelletCount;i++){
+    let spread;if(pelletCount===1)spread=(Math.random()-.5)*weapon.spread;else if(i===0)spread=0;else{const slot=(i-1)/Math.max(1,pelletCount-2)*2-1;spread=slot*weapon.spread*.5+(Math.random()-.5)*weapon.spread*.12}
+    const pelletAngle=ang+spread,speed=weapon.bulletSpeed*(pelletCount>1?.96+Math.random()*.08:1),sx=ox+Math.cos(ang)*muzzle,sy=oy+Math.sin(ang)*muzzle;
+    bullets.push({x:sx,y:sy,px:sx,py:sy,vx:Math.cos(pelletAngle)*speed,vy:Math.sin(pelletAngle)*speed,life:weapon.bulletLife||1.15,friendly:true,damage:weapon.damage,weaponId:weapon.id,phasesPlatforms:weapon.phasesPlatforms===true,pellet:pelletCount>1,shotId:shotId,distance:0,falloffStart:weapon.falloffStart||0,falloffEnd:weapon.falloffEnd||0,minDamageScale:weapon.minDamageScale||1,headMultiplier:weapon.headMultiplier||1.8});
+  }
   player.vx-=Math.cos(ang)*weapon.recoilX;player.vy-=Math.sin(ang)*weapon.recoilY;
-  burst(ox+Math.cos(ang)*muzzle,oy+Math.sin(ang)*muzzle,weapon.id==="pistol"?6:5,"#ffe596",weapon.id==="pistol"?250:210);
-  shake=Math.max(shake,weapon.shake);sfx(weapon.id==="pistol"?"pistol":"shot");
+  const muzzleColor=weapon.id==="ghost"?"#9ffcf2":"#ffe596";burst(ox+Math.cos(ang)*muzzle,oy+Math.sin(ang)*muzzle,weapon.id==="shotgun"?11:weapon.id==="ghost"?8:weapon.id==="pistol"?6:5,muzzleColor,weapon.id==="shotgun"?310:weapon.id==="ghost"?235:weapon.id==="pistol"?250:210);
+  shake=Math.max(shake,weapon.shake);sfx(weapon.id==="ghost"?"ghost":weapon.id==="shotgun"?"shotgun":weapon.id==="pistol"?"pistol":"shot");
   if(player.ammo===0&&player.reserve>0)setTimeout(()=>{if(state==="playing")reload()},180);
 }
 function enemyShoot(e){
@@ -781,8 +1005,8 @@ function updateEnemy(e,dt){
 }
 function updateBullets(dt){
   for(let i=bullets.length-1;i>=0;i--){
-    const b=bullets[i];b.life-=dt;b.px=b.x;b.py=b.y;b.x+=b.vx*dt;b.y+=b.vy*dt;b.vy+=90*dt;
-    let gone=b.life<=0||b.x<0||b.x>WORLD_W||b.y>DEATH_Y,coverT=gone?Infinity:segmentPlatformT(b.px,b.py,b.x,b.y);
+    const b=bullets[i];b.life-=dt;b.px=b.x;b.py=b.y;b.x+=b.vx*dt;b.y+=b.vy*dt;const stepDistance=Math.hypot(b.x-b.px,b.y-b.py);b.distance=(b.distance||0)+stepDistance;b.vy+=90*dt;
+    let gone=b.life<=0||b.x<0||b.x>WORLD_W||b.y>DEATH_Y,coverT=gone||(b.friendly&&b.phasesPlatforms)?Infinity:segmentPlatformT(b.px,b.py,b.x,b.y);
     if(!gone&&b.friendly){
       let victim=null,victimT=Infinity,headshot=false;
       for(const e of enemies){
@@ -790,7 +1014,10 @@ function updateBullets(dt){
         const headT=segmentCircleT(b.px,b.py,b.x,b.y,e.x,e.y-e.h+3,e.type==="heavy"?10:9),bodyT=Math.min(segmentCircleT(b.px,b.py,b.x,b.y,e.x,e.y-e.h*.38,e.w*.78),segmentCircleT(b.px,b.py,b.x,b.y,e.x,e.y-1,10)),hitT=Math.min(headT,bodyT);
         if(hitT<victimT){victim=e;victimT=hitT;headshot=headT<=bodyT;}
       }
-      if(victim&&victimT<coverT){hitEnemy(victim,b.damage*(headshot?1.8:1),headshot,b.vx,b.vy);gone=true;}
+      if(victim&&victimT<coverT){
+        const hitDistance=Math.max(0,b.distance-stepDistance+stepDistance*victimT),falloffRange=b.falloffEnd-b.falloffStart,falloff=falloffRange>0?lerp(1,b.minDamageScale,clamp((hitDistance-b.falloffStart)/falloffRange,0,1)):1,repeatedPellet=!!b.pellet&&victim.lastPlayerShotId===b.shotId;
+        if(b.pellet)victim.lastPlayerShotId=b.shotId;hitEnemy(victim,b.damage*falloff*(headshot?(b.headMultiplier||1.8):1),headshot,b.vx,b.vy,repeatedPellet);gone=true;
+      }
     }else if(!gone&&!b.friendly&&player.invuln<=0){
       const playerT=Math.min(segmentCircleT(b.px,b.py,b.x,b.y,player.x,player.y-6,19),segmentCircleT(b.px,b.py,b.x,b.y,player.x,player.y-37,18));
       if(playerT<coverT){damagePlayer(b.damage,b.vx*.12,b.vy*.08);gone=true;}
@@ -818,13 +1045,14 @@ function segmentCircleT(x1,y1,x2,y2,cx,cy,r){
   const dx=x2-x1,dy=y2-y1,l=dx*dx+dy*dy||1,t=clamp(((cx-x1)*dx+(cy-y1)*dy)/l,0,1);
   return Math.hypot(cx-(x1+dx*t),cy-(y1+dy*t))<r?t:Infinity;
 }
-function hitEnemy(e,dmg,head,vx,vy){
-  e.hp-=dmg;e.flash=1;e.alert=1;e.vx+=vx*.025;e.vy+=vy*.012;
-  player.slow=Math.min(100,player.slow+(head?9:3));
-  combo++;comboTimer=2.2;score+=Math.round((head?85:35)*(1+Math.min(combo,8)*.12));
-  floatText(e.x,e.y-e.h-8,head?"HEADSHOT":"HIT",head?"#fff18b":"#f4ffd9");
-  burst(e.x,e.y-e.h*.45,head?13:8,head?"#ffe979":"#ff9a75",190);
-  freeze=head?.035:.018;shake=Math.max(shake,head?6:3);sfx(head?"head":"hit");
+function hitEnemy(e,dmg,head,vx,vy,repeatedPellet=false){
+  const knockScale=repeatedPellet ? .28 : 1;e.hp-=dmg;e.flash=1;e.alert=1;e.vx+=vx*.025*knockScale;e.vy+=vy*.012*knockScale;
+  if(repeatedPellet){burst(e.x,e.y-e.h*.45,3,head?"#ffe979":"#ff9a75",105);shake=Math.max(shake,2)}
+  else{
+    player.slow=Math.min(100,player.slow+(head?9:3));combo++;comboTimer=2.2;score+=Math.round((head?85:35)*(1+Math.min(combo,8)*.12));
+    floatText(e.x,e.y-e.h-8,head?"HEADSHOT":"HIT",head?"#fff18b":"#f4ffd9");burst(e.x,e.y-e.h*.45,head?13:8,head?"#ffe979":"#ff9a75",190);
+    freeze=head?.035:.018;shake=Math.max(shake,head?6:3);sfx(head?"head":"hit");
+  }
   if(e.hp<=0){
     e.dead=true;kills++;score+=450+combo*45;burst(e.x,e.y-e.h*.3,25,"#ffb15d",280);
     floatText(e.x,e.y-e.h-20,"POACHER DOWN  +" +(450+combo*45),"#caff68");
@@ -844,7 +1072,7 @@ function updatePickups(dt){
     p.bob+=dt*2.5;if(p.taken)continue;
     if(Math.hypot(player.x-p.x,(player.y-8)-p.y)<38){
       p.taken=true;
-      if(p.type==="ammo"){player.reserve+=28;toast("AMMO +28","#ffe26a",13)}
+      if(p.type==="ammo"){const ammoGain=playerWeapon().pickupAmmo||28;player.reserve+=ammoGain;toast("AMMO +"+ammoGain,"#ffe26a",13)}
       else{player.hp=Math.min(100,player.hp+32);toast("BANANA +32 HEALTH","#d8ff69",13)}
       score+=150;burst(p.x,p.y,18,p.type==="ammo"?"#ffe06b":"#d6ff55",210);sfx("pickup");
     }
@@ -888,7 +1116,7 @@ function finish(win){
     document.getElementById("endReward").hidden=false;document.getElementById("endCoins").textContent=reward.total.toLocaleString();document.getElementById("endRewardDetail").textContent=rewardParts.join(" + ")+" • "+profile.coins.toLocaleString()+" banked";
     const timeBonus=Math.max(0,24000-Math.floor(realRunTime*95));score+=timeBonus+Math.round(player.hp)*40;
     if(score>bestScore){bestScore=score;writeBest(bestScore);updatePersistentUI()}
-    const placement=recordSuccessfulRun(realRunTime,score,player.hp,reward.total),endRank=document.getElementById("endRank");endRank.hidden=!placement;
+    const placement=recordSuccessfulRun(realRunTime,score,player.hp,reward.total),endRank=document.getElementById("endRank");endRank.hidden=!placement;try{prepareGlobalSubmission(placement&&placement.entry)}catch(e){globalSubmitDraft=null;globalSubmitCard.hidden=true}
     if(placement)endRank.textContent=placement.madeTopTen?(placement.rank===1?"New fastest run — #1":"Fastest run — #"+placement.rank):"Run ranked #"+placement.rank+" — keep pushing";
     document.getElementById("endEyebrow").textContent="Run complete";
     document.getElementById("endTitle").textContent="Jungle Secured";
@@ -896,7 +1124,7 @@ function finish(win){
     document.getElementById("endText").textContent=kills+" poachers cleared • "+formatTime(realRunTime)+" • "+Math.ceil(player.hp)+" health remaining"+(reward.newBest?" • NEW BEST TIME":"");
     sfx("win");setTimeout(()=>sfx("coin"),520);
   }else{
-    document.getElementById("endReward").hidden=true;document.getElementById("endRank").hidden=true;
+    document.getElementById("endReward").hidden=true;document.getElementById("endRank").hidden=true;prepareGlobalSubmission(null);
     document.getElementById("endEyebrow").textContent="Run ended";
     document.getElementById("endTitle").textContent="Monkey Down";
     document.getElementById("endScore").textContent=score.toLocaleString();
@@ -1076,23 +1304,36 @@ function drawPlayer(){
   ctx.strokeStyle="#25160e";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(aimFace*3,-46);ctx.lineTo(aimFace*10,-44);ctx.stroke();
   ctx.strokeStyle=skin.accent;ctx.lineWidth=4;ctx.beginPath();ctx.arc(0,-39,18,Math.PI*.96,Math.PI*2.04);ctx.stroke();const ribbon=-moveFace;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(ribbon*15,-42);ctx.quadraticCurveTo(ribbon*(28+Math.abs(p.vx)*.025),-48+tailLift*.3,ribbon*(36+Math.abs(p.vx)*.04),-41+tailLift*.5);ctx.stroke();
   ctx.restore();
-  const weapon=playerWeapon(),reloadT=p.reload>0?1-p.reload/weapon.reloadTime:0,reloadWave=p.reload>0?Math.sin(reloadT*Math.PI):0,gunAngle=aim+reloadWave*(aimFace>0?.68:-.68),gunY=reloadWave*8,kick=p.gunKick*(weapon.id==="pistol"?8:6);
-  const gx=p.x-Math.cos(gunAngle)*kick,gy=p.y-13+gunY-Math.sin(gunAngle)*kick,grip={x:gx+Math.cos(gunAngle)*4,y:gy+Math.sin(gunAngle)*4},support={x:gx+Math.cos(gunAngle)*21,y:gy+Math.sin(gunAngle)*21};
+  const weapon=playerWeapon(),sidearm=weapon.id==="pistol"||weapon.id==="ghost",reloadT=p.reload>0?1-p.reload/weapon.reloadTime:0,reloadWave=p.reload>0?Math.sin(reloadT*Math.PI):0,gunAngle=aim+reloadWave*(aimFace>0?.68:-.68),gunY=reloadWave*8,kick=p.gunKick*(weapon.id==="shotgun"?12:sidearm?8:6),supportDistance=weapon.id==="shotgun"?29:21;
+  const gx=p.x-Math.cos(gunAngle)*kick,gy=p.y-13+gunY-Math.sin(gunAngle)*kick,grip={x:gx+Math.cos(gunAngle)*4,y:gy+Math.sin(gunAngle)*4},support={x:gx+Math.cos(gunAngle)*supportDistance,y:gy+Math.sin(gunAngle)*supportDistance};
   const shoulder1=posePoint(aimFace*8,-18),elbow1={x:lerp(shoulder1.x,grip.x,.55),y:lerp(shoulder1.y,grip.y,.55)+aimFace*3};drawLimb(shoulder1.x,shoulder1.y,elbow1.x,elbow1.y,grip.x,grip.y,9,skin.dark);
   if(!grapple){
     const shoulder2=posePoint(-aimFace*7,-17);
-    if(weapon.id==="carbine"){const elbow2={x:lerp(shoulder2.x,support.x,.55),y:lerp(shoulder2.y,support.y,.55)+5};drawLimb(shoulder2.x,shoulder2.y,elbow2.x,elbow2.y,support.x,support.y,8,skin.fur)}
+    if(!sidearm){const elbow2={x:lerp(shoulder2.x,support.x,.55),y:lerp(shoulder2.y,support.y,.55)+5};drawLimb(shoulder2.x,shoulder2.y,elbow2.x,elbow2.y,support.x,support.y,8,skin.fur)}
     else{const pistolSupport={x:gx+Math.cos(gunAngle)*1-Math.sin(gunAngle)*4,y:gy+Math.sin(gunAngle)*1+Math.cos(gunAngle)*4},elbow2={x:lerp(shoulder2.x,pistolSupport.x,.56),y:lerp(shoulder2.y,pistolSupport.y,.56)+4};drawLimb(shoulder2.x,shoulder2.y,elbow2.x,elbow2.y,pistolSupport.x,pistolSupport.y,8,skin.fur)}
   }
   ctx.save();ctx.translate(gx,gy);ctx.rotate(gunAngle);
   if(weapon.id==="pistol"){
     ctx.fillStyle="#202925";roundRect(-7,-6,28,10,2);ctx.fill();ctx.fillStyle="#77837b";ctx.fillRect(-2,-3,22,4);ctx.fillStyle="#101713";ctx.fillRect(18,-2,11,3);
     ctx.fillStyle="#9c6533";ctx.beginPath();ctx.moveTo(-4,3);ctx.lineTo(9,3);ctx.lineTo(5,16);ctx.lineTo(-7,14);ctx.closePath();ctx.fill();ctx.strokeStyle="#172019";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(7,3);ctx.lineTo(16,3);ctx.quadraticCurveTo(15,11,9,11);ctx.stroke();
+  }else if(weapon.id==="ghost"){
+    ctx.save();ctx.globalAlpha=.9;ctx.shadowBlur=15;ctx.shadowColor="#65ffef";ctx.fillStyle="#24465c";ctx.beginPath();ctx.moveTo(-8,-7);ctx.quadraticCurveTo(7,-11,21,-6);ctx.lineTo(29,-1);ctx.lineTo(21,5);ctx.lineTo(-7,5);ctx.closePath();ctx.fill();ctx.strokeStyle="#a9fff5";ctx.lineWidth=1.7;ctx.stroke();
+    ctx.fillStyle="#6679a2";ctx.beginPath();ctx.moveTo(-4,3);ctx.lineTo(9,3);ctx.lineTo(5,16);ctx.lineTo(-7,14);ctx.closePath();ctx.fill();ctx.strokeStyle="#83e9ff";ctx.stroke();
+    ctx.fillStyle="#d6fff9";ctx.fillRect(8,-3,18,3);ctx.strokeStyle="#b8a5ff";ctx.lineWidth=2;ctx.beginPath();ctx.arc(27,-1,5,-1.2,1.2);ctx.stroke();ctx.globalAlpha=.45;ctx.beginPath();ctx.arc(14,-1,8,-1.15,1.15);ctx.stroke();ctx.restore();
+  }else if(weapon.id==="shotgun"){
+    ctx.fillStyle="#84542d";ctx.beginPath();ctx.moveTo(-15,-5);ctx.lineTo(4,-5);ctx.lineTo(12,1);ctx.lineTo(2,8);ctx.lineTo(-17,8);ctx.closePath();ctx.fill();
+    ctx.fillStyle="#202a25";roundRect(-1,-7,31,14,3);ctx.fill();ctx.fillStyle="#78877e";ctx.fillRect(12,-4,21,7);
+    ctx.fillStyle="#111814";ctx.fillRect(28,-5,31,4);ctx.fillRect(28,1,31,4);ctx.fillStyle="#a56b37";roundRect(31,-7,17,13,2);ctx.fill();
+    ctx.fillStyle="#d8b35b";ctx.fillRect(56,-5,3,10);ctx.fillStyle="#151d19";ctx.beginPath();ctx.moveTo(4,6);ctx.lineTo(17,6);ctx.quadraticCurveTo(15,15,7,15);ctx.strokeStyle="#151d19";ctx.lineWidth=2;ctx.stroke();
   }else{
     ctx.fillStyle="#1b2520";roundRect(-7,-6,42,12,3);ctx.fill();ctx.fillStyle="#6f7e75";ctx.fillRect(15,-3,31,6);ctx.fillStyle="#101713";ctx.fillRect(41,-2,14,4);ctx.fillStyle="#9c6533";ctx.beginPath();ctx.moveTo(-10,-5);ctx.lineTo(7,-4);ctx.lineTo(2,8);ctx.lineTo(-12,8);ctx.fill();ctx.fillStyle="#172019";ctx.fillRect(8,3,8,12);
   }
-  if(p.reload>0){const drop=Math.sin(clamp((reloadT-.18)/.58,0,1)*Math.PI),magX=weapon.id==="pistol"?1:11;ctx.save();ctx.translate(magX,7+drop*8);ctx.rotate(drop*.25);ctx.fillStyle="#334139";ctx.fillRect(-4,0,weapon.id==="pistol"?7:9,weapon.id==="pistol"?10:13);ctx.restore()}
-  if(p.muzzleFlash>0){const a=clamp(p.muzzleFlash/.09,0,1),m=weapon.muzzle;ctx.globalAlpha=a;ctx.fillStyle="#fff3a0";ctx.shadowBlur=16;ctx.shadowColor="#ffb53d";ctx.beginPath();ctx.moveTo(m+3,0);ctx.lineTo(m-10,-7*a);ctx.lineTo(m-6,0);ctx.lineTo(m-10,7*a);ctx.closePath();ctx.fill()}ctx.restore();
+  if(p.reload>0){
+    if(weapon.id==="shotgun"){const shellCycle=(reloadT*3.2)%1,shellY=20-shellCycle*16;ctx.save();ctx.translate(10,shellY);ctx.rotate(-.15+shellCycle*.1);ctx.fillStyle="#b4382f";roundRect(-3,-7,6,12,2);ctx.fill();ctx.fillStyle="#e1b85d";ctx.fillRect(-3,-7,6,3);ctx.restore()}
+    else if(weapon.id==="ghost"){const drop=Math.sin(clamp((reloadT-.18)/.58,0,1)*Math.PI);ctx.save();ctx.translate(1,7+drop*8);ctx.rotate(drop*.25);ctx.globalAlpha=.78;ctx.shadowBlur=10;ctx.shadowColor="#76fff1";ctx.fillStyle="#527c9d";roundRect(-4,0,7,10,2);ctx.fill();ctx.strokeStyle="#b7fff7";ctx.lineWidth=1.5;ctx.stroke();ctx.restore()}
+    else{const drop=Math.sin(clamp((reloadT-.18)/.58,0,1)*Math.PI),magX=weapon.id==="pistol"?1:11;ctx.save();ctx.translate(magX,7+drop*8);ctx.rotate(drop*.25);ctx.fillStyle="#334139";ctx.fillRect(-4,0,weapon.id==="pistol"?7:9,weapon.id==="pistol"?10:13);ctx.restore()}
+  }
+  if(p.muzzleFlash>0){const a=clamp(p.muzzleFlash/.09,0,1),m=weapon.muzzle,ghostFlash=weapon.id==="ghost";ctx.globalAlpha=a;ctx.fillStyle=ghostFlash?"#c5fff8":"#fff3a0";ctx.shadowBlur=ghostFlash?22:16;ctx.shadowColor=ghostFlash?"#66ffe9":"#ffb53d";ctx.beginPath();ctx.moveTo(m+3,0);ctx.lineTo(m-10,-7*a);ctx.lineTo(m-6,0);ctx.lineTo(m-10,7*a);ctx.closePath();ctx.fill();if(ghostFlash){ctx.strokeStyle="#b29aff";ctx.lineWidth=2;ctx.beginPath();ctx.arc(m+2,0,9*a,0,TAU);ctx.stroke()}}ctx.restore();
   ctx.globalAlpha=1;
 }
 function drawEnemy(e){
@@ -1181,11 +1422,11 @@ function drawBullets(){
   ctx.save();ctx.lineCap="round";
   for(const b of bullets){
     if(!inView(b.x,0,100))continue;
-    const sp=Math.hypot(b.vx,b.vy),nx=b.vx/sp,ny=b.vy/sp;
-    ctx.strokeStyle=b.friendly?"rgba(255,239,157,.28)":"rgba(255,104,69,.32)";ctx.lineWidth=b.friendly?5:7;
-    ctx.beginPath();ctx.moveTo(b.x-nx*28,b.y-ny*28);ctx.lineTo(b.x,b.y);ctx.stroke();
-    ctx.strokeStyle=b.friendly?"#fff7bf":"#ff815b";ctx.lineWidth=2;ctx.stroke();
-    ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(b.x,b.y,2,0,TAU);ctx.fill();
+    const ghost=b.weaponId==="ghost",sp=Math.hypot(b.vx,b.vy),nx=b.vx/sp,ny=b.vy/sp,trail=b.pellet?13:ghost?34:28;if(ghost){ctx.shadowBlur=13;ctx.shadowColor="#70fff0"}
+    ctx.strokeStyle=b.friendly?ghost?"rgba(112,255,240,.42)":b.pellet?"rgba(255,211,117,.22)":"rgba(255,239,157,.28)":"rgba(255,104,69,.32)";ctx.lineWidth=b.friendly?ghost?4:b.pellet?3:5:7;
+    ctx.beginPath();ctx.moveTo(b.x-nx*trail,b.y-ny*trail);ctx.lineTo(b.x,b.y);ctx.stroke();
+    ctx.strokeStyle=b.friendly?ghost?"#c9fff8":b.pellet?"#ffd37b":"#fff7bf":"#ff815b";ctx.lineWidth=b.pellet?1.4:2;ctx.stroke();
+    ctx.fillStyle=ghost?"#b69bff":b.pellet?"#ffe6a7":"#fff";ctx.beginPath();ctx.arc(b.x,b.y,ghost?2.5:b.pellet?1.4:2,0,TAU);ctx.fill();if(ghost)ctx.shadowBlur=0;
   }
   ctx.restore();
 }
@@ -1301,7 +1542,9 @@ function releasePointer(e){
 }
 addEventListener("pointerup",releasePointer);addEventListener("pointercancel",releasePointer);
 canvas.addEventListener("contextmenu",e=>e.preventDefault());
+function hasUiKeyboardFocus(target){return!!(target&&target.closest&&target.closest("input, textarea, select, button, [contenteditable='true']"))}
 addEventListener("keydown",e=>{
+  if(hasUiKeyboardFocus(e.target))return;
   keys[e.code]=true;
   if(["Space","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.code))e.preventDefault();
   if(e.code==="Space"&&!e.repeat)startGrapple("smart");
@@ -1314,7 +1557,7 @@ addEventListener("keydown",e=>{
     else if(state==="paused"){state="playing";show(pause,false);canvas.style.cursor="none";last=performance.now()}
   }
 });
-addEventListener("keyup",e=>{keys[e.code]=false;if((e.code==="KeyE"||e.code==="Space")&&!grappleRequested())stopGrapple()});
+addEventListener("keyup",e=>{if(hasUiKeyboardFocus(e.target))return;keys[e.code]=false;if((e.code==="KeyE"||e.code==="Space")&&!grappleRequested())stopGrapple()});
 addEventListener("blur",()=>{mouse.left=false;mouse.right=false;mouse.ctrlGrapple=false;grapple=null;Object.keys(keys).forEach(k=>keys[k]=false)});
 
 document.getElementById("play").onclick=resetGame;
@@ -1324,13 +1567,23 @@ document.getElementById("openLeaderboard").onclick=()=>openLeaderboard("menu");
 document.getElementById("closeLeaderboard").onclick=closeLeaderboard;
 document.getElementById("endLeaderboard").onclick=()=>openLeaderboard("ending");
 document.getElementById("leaderboardPlay").onclick=resetGame;
+localLeaderboardTab.onclick=()=>setLeaderboardView("local");
+globalLeaderboardTab.onclick=()=>setLeaderboardView("global");
+localLeaderboardTab.addEventListener("keydown",handleLeaderboardTabKey);globalLeaderboardTab.addEventListener("keydown",handleLeaderboardTabKey);
+refreshGlobalLeaderboardButton.onclick=()=>loadGlobalLeaderboard({force:true});
+globalLeaderboardRetryButton.onclick=()=>loadGlobalLeaderboard({force:true});
+globalSubmitForm.addEventListener("submit",handleGlobalSubmit);keepRunLocalButton.onclick=keepCurrentRunLocal;
+leaderboardNameInput.addEventListener("input",()=>{leaderboardNameInput.removeAttribute("aria-invalid");leaderboardNameError.textContent=""});
 document.getElementById("how").onclick=()=>{show(menu,false);show(help,true)};
 document.getElementById("back").onclick=()=>{show(help,false);show(menu,true)};
 document.getElementById("resume").onclick=()=>{state="playing";show(pause,false);canvas.style.cursor="none";last=performance.now()};
 document.getElementById("quit").onclick=goMenu;
 document.getElementById("endMenu").onclick=goMenu;
 document.getElementById("again").onclick=resetGame;
-function goMenu(){state="menu";show(pause,false);show(ending,false);show(help,false);show(shop,false);show(leaderboard,false);show(menu,true);updatePersistentUI();canvas.style.cursor="default";mouse.left=false;mouse.right=false;mouse.ctrlGrapple=false;grapple=null;keys={};slowScale=1}
+function goMenu(){state="menu";show(pause,false);show(ending,false);show(help,false);show(shop,false);show(leaderboard,false);show(menu,true);globalSubmitDraft=null;globalSubmitCard.hidden=true;updatePersistentUI();canvas.style.cursor="default";mouse.left=false;mouse.right=false;mouse.ctrlGrapple=false;grapple=null;keys={};slowScale=1}
+addEventListener("online",()=>{globalOutboxRetryAttempts=0;if(globalOutboxRetryTimer){clearTimeout(globalOutboxRetryTimer);globalOutboxRetryTimer=null}retryGlobalOutbox();if(!leaderboard.classList.contains("hidden")&&leaderboardView==="global")loadGlobalLeaderboard({force:true,bypassThrottle:true})});
+addEventListener("offline",()=>{globalFetchSerial++;if(globalFetchController)try{globalFetchController.abort()}catch(e){}globalFetchController=null;if(leaderboardView==="global")setGlobalBoardState(globalEntries.length?"offline-cached":"offline-empty",globalEntries.length?"Offline — showing "+globalCacheLabel()+".":"You’re offline. Your local fastest runs still work.")});
+if(globalOutbox.length&&!(typeof navigator!=="undefined"&&navigator.onLine===false))setTimeout(retryGlobalOutbox,600);
 
 function loop(now){
   const realDt=Math.min(.033,Math.max(0,(now-last)/1000||0));last=now;
