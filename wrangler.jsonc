@@ -1,0 +1,12 @@
+{
+  "name": "dorseyduo-games-api",
+  "pages_build_output_dir": "./cloudflare-public",
+  "compatibility_date": "2026-09-04",
+  "d1_databases": [
+    {
+      "binding": "CANOPY_DB",
+      "database_name": "canopy-caliber-leaderboard",
+      "database_id": "30d9b523-b31d-4b79-8875-7e5af5f104c7"
+    }
+  ]
+}

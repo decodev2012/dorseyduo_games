@@ -9,6 +9,7 @@ const RESERVED_NAMES = new Set(["admin", "administrator", "moderator", "cloudfla
 const PRODUCTION_ORIGINS = new Set([
   "https://decodev2012.github.io",
   "https://dorseyduo-games.pages.dev",
+  "https://dorseyduo-games-api.pages.dev",
 ]);
 
 export function isOriginAllowed(origin) {

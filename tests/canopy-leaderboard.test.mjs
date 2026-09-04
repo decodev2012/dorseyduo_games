@@ -63,7 +63,7 @@ function submission(overrides = {}) {
 function request(method, body, origin = ORIGIN) {
   const headers = { Origin: origin };
   if (body !== undefined) headers["Content-Type"] = "application/json";
-  return new Request("https://dorseyduo-games.pages.dev/api/v1/canopy-caliber/leaderboard", {
+  return new Request("https://dorseyduo-games-api.pages.dev/api/v1/canopy-caliber/leaderboard", {
     method,
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -72,6 +72,7 @@ function request(method, body, origin = ORIGIN) {
 
 test("origin policy allows the game and local development only", () => {
   assert.equal(isOriginAllowed(ORIGIN), true);
+  assert.equal(isOriginAllowed("https://dorseyduo-games-api.pages.dev"), true);
   assert.equal(isOriginAllowed("http://127.0.0.1:8765"), true);
   assert.equal(isOriginAllowed("https://evil.example"), false);
   assert.equal(isOriginAllowed(""), false);

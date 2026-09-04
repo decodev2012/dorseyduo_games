@@ -268,7 +268,7 @@ let player,camera={x:0,y:0,leadX:0,leadY:0,shakePhase:0},bullets=[],enemies=[],p
 let keys={},mouse={x:W*.65,y:H*.45,wx:0,wy:0,left:false,right:false,ctrlGrapple:false},anchors=[],platforms=[],trees=[],checkpoints=[];
 let audio=null,audioUnavailable=false,muted=false,musicClock=0,score=0,kills=0,totalEnemies=0,combo=0,comboTimer=0,tutorialTime=0,runCoinAwarded=false,runResultRecorded=false,activeRunId="",runIdCounter=0,lastCompletedRun=null,leaderboardReturn="menu",leaderboardView="local";
 const PROFILE_KEY="canopyCaliberProfileV1",LEADERBOARD_KEY="canopyCaliberLeaderboardV1",GLOBAL_CACHE_KEY="canopyCaliberGlobalCacheV1",GLOBAL_OUTBOX_KEY="canopyCaliberPendingGlobalRunsV1";
-const GLOBAL_LEADERBOARD_URL="https://dorseyduo-games.pages.dev/api/v1/canopy-caliber/leaderboard",GLOBAL_CACHE_MAX_AGE=30000,GLOBAL_REFRESH_COOLDOWN=15000,GLOBAL_REQUEST_TIMEOUT=9000;
+const GLOBAL_LEADERBOARD_URL="https://dorseyduo-games-api.pages.dev/api/v1/canopy-caliber/leaderboard",GLOBAL_CACHE_MAX_AGE=30000,GLOBAL_REFRESH_COOLDOWN=15000,GLOBAL_REQUEST_TIMEOUT=9000;
 const WEAPONS=[
   {id:"pistol",name:"Trail Pistol",label:"PISTOL",price:0,note:"A precise sidearm with a compact three-shot magazine.",stats:["3 rounds","Accurate","Quick reload"],damage:22,fireDelay:.24,mag:3,reserve:56,reloadTime:.85,bulletSpeed:1250,spread:.012,recoilX:16,recoilY:8,shake:2.5,muzzle:29},
   {id:"carbine",name:"Canopy Carbine",label:"CARBINE",price:500,note:"Rapid fire, a bigger magazine and deep reserves.",stats:["10 rounds","Rapid fire","70 reserve"],damage:25,fireDelay:.115,mag:10,reserve:70,reloadTime:1.05,bulletSpeed:1320,spread:.018,recoilX:12,recoilY:7,shake:2.2,muzzle:55},
