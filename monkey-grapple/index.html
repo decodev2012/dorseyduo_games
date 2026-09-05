@@ -123,7 +123,7 @@ kbd{display:inline-grid;place-items:center;min-width:27px;height:25px;padding:0 
     <div class="actions">
       <button id="play">Drop In</button>
       <button id="openShop" class="secondary">Outfitter</button>
-      <button id="openLeaderboard" class="secondary">Fastest Runs</button>
+      <button id="openLeaderboard" class="secondary">Global Leaderboard</button>
       <button id="how" class="secondary">How To Play</button>
     </div>
     <div id="best" class="best"></div>
@@ -195,7 +195,7 @@ kbd{display:inline-grid;place-items:center;min-width:27px;height:25px;padding:0 
       <div id="globalLeaderboardSkeleton" class="global-board-skeleton" aria-hidden="true" hidden><div class="global-skeleton-row"></div><div class="global-skeleton-row"></div><div class="global-skeleton-row"></div></div>
       <div class="leaderboard-columns global-columns" aria-hidden="true"><span>Rank</span><span>Runner</span><span>Time</span><span>Run details</span></div>
       <ol id="globalLeaderboardRows" class="leaderboard-list" aria-label="Ten fastest Global Community runs"></ol>
-      <div id="globalLeaderboardEmpty" class="leaderboard-empty" hidden><div class="empty-stopwatch" aria-hidden="true">◎</div><h3 id="globalEmptyTitle">No community runs yet</h3><p id="globalEmptyText">Be the first runner on the board.</p><div class="global-empty-actions"><button id="globalLeaderboardRetry" class="secondary" type="button">Try Again</button></div></div>
+      <div id="globalLeaderboardEmpty" class="leaderboard-empty" hidden><div class="empty-stopwatch" aria-hidden="true">◎</div><h3 id="globalEmptyTitle">Global board connected</h3><p id="globalEmptyText">Finish a run, enter a nickname on the results screen, and press Submit Run.</p><div class="global-empty-actions"><button id="globalLeaderboardRetry" class="secondary" type="button">Try Again</button></div></div>
     </section>
   </div>
 </section>
@@ -266,7 +266,7 @@ const WORLD_W=7200,DEATH_Y=1250,GRAVITY=1450,GRAPPLE_RANGE=720;
 let state="menu",last=0,worldTime=0,runTime=0,realRunTime=0,slowScale=1,shake=0,flash=0,freeze=0;
 let player,camera={x:0,y:0,leadX:0,leadY:0,shakePhase:0},bullets=[],enemies=[],particles=[],texts=[],pickups=[],grapple=null;
 let keys={},mouse={x:W*.65,y:H*.45,wx:0,wy:0,left:false,right:false,ctrlGrapple:false},anchors=[],platforms=[],trees=[],checkpoints=[];
-let audio=null,audioUnavailable=false,muted=false,musicClock=0,score=0,kills=0,totalEnemies=0,combo=0,comboTimer=0,tutorialTime=0,runCoinAwarded=false,runResultRecorded=false,activeRunId="",runIdCounter=0,lastCompletedRun=null,leaderboardReturn="menu",leaderboardView="local";
+let audio=null,audioUnavailable=false,muted=false,musicClock=0,score=0,kills=0,totalEnemies=0,combo=0,comboTimer=0,tutorialTime=0,runCoinAwarded=false,runResultRecorded=false,activeRunId="",runIdCounter=0,lastCompletedRun=null,leaderboardReturn="menu",leaderboardView="global";
 const PROFILE_KEY="canopyCaliberProfileV1",LEADERBOARD_KEY="canopyCaliberLeaderboardV1",GLOBAL_CACHE_KEY="canopyCaliberGlobalCacheV1",GLOBAL_OUTBOX_KEY="canopyCaliberPendingGlobalRunsV1";
 const GLOBAL_LEADERBOARD_URL="https://dorseyduo-games-api.pages.dev/api/v1/canopy-caliber/leaderboard",GLOBAL_CACHE_MAX_AGE=30000,GLOBAL_REFRESH_COOLDOWN=15000,GLOBAL_REQUEST_TIMEOUT=9000;
 const WEAPONS=[
@@ -369,7 +369,7 @@ function writeGlobalCache(entries,fetchedAt=Date.now()){try{localStorage.setItem
 function sanitizeGlobalSubmission(raw){
   if(!raw||typeof raw!=="object")return null;const playerName=sanitizePlayerName(raw.playerName),clientRunId=typeof raw.clientRunId==="string"&&raw.clientRunId&&raw.clientRunId.length<=80?raw.clientRunId:"",timeMs=Math.round(Number(raw.timeMs));
   if(!playerName||!clientRunId||!Number.isFinite(timeMs)||timeMs<1||timeMs>86400000)return null;
-  return{version:1,clientRunId:clientRunId,playerName:playerName,timeMs:timeMs,score:clamp(Math.floor(Number(raw.score)||0),0,999999999),health:clamp(Math.round(Number(raw.health)||0),0,100),weaponId:isWeaponId(raw.weaponId)?raw.weaponId:"pistol",skinId:isSkinId(raw.skinId)?raw.skinId:"classic",queuedAt:clamp(Math.round(Number(raw.queuedAt)||Date.now()),1,8640000000000000)};
+  return{version:1,clientRunId:clientRunId,playerName:playerName,timeMs:clamp(timeMs,10000,86400000),score:clamp(Math.floor(Number(raw.score)||0),0,100000),health:clamp(Math.round(Number(raw.health)||0),0,100),weaponId:isWeaponId(raw.weaponId)?raw.weaponId:"pistol",skinId:isSkinId(raw.skinId)?raw.skinId:"classic",queuedAt:clamp(Math.round(Number(raw.queuedAt)||Date.now()),1,8640000000000000)};
 }
 function readGlobalOutbox(){
   try{const saved=JSON.parse(localStorage.getItem(GLOBAL_OUTBOX_KEY)||"[]"),rows=Array.isArray(saved)?saved:[],ids=new Set(),out=[];for(const raw of rows){const item=sanitizeGlobalSubmission(raw);if(item&&!ids.has(item.clientRunId)){ids.add(item.clientRunId);out.push(item)}}return out.slice(-10)}catch(e){return[]}
@@ -591,7 +591,7 @@ function armGlobalRefreshCooldown(until){
 }
 function setGlobalBoardState(status,message=""){
   globalLoadStatus=status;globalLeaderboardPanel.setAttribute("aria-busy",String(status==="loading"));globalLeaderboardStateEl.hidden=!message;globalLeaderboardStateEl.textContent=message;
-  let toneClass="";if(status.startsWith("offline"))toneClass=" offline";else if(status.startsWith("error"))toneClass=" error";else if(status==="rate-limited")toneClass=" warning";else if(status==="ready")toneClass=" good";globalLeaderboardStateEl.className="global-board-state"+toneClass;renderGlobalLeaderboard();
+  let toneClass="";if(status.startsWith("offline"))toneClass=" offline";else if(status.startsWith("error"))toneClass=" error";else if(status==="rate-limited")toneClass=" warning";else if(status==="ready"||status==="empty")toneClass=" good";globalLeaderboardStateEl.className="global-board-state"+toneClass;renderGlobalLeaderboard();
 }
 function renderGlobalLeaderboard(){
   globalLeaderboardRows.textContent="";for(const entry of globalEntries)globalLeaderboardRows.append(createGlobalLeaderboardRow(entry));
@@ -601,7 +601,7 @@ function renderGlobalLeaderboard(){
   if(!hasRows&&!loading){
     if(globalLoadStatus==="offline-empty"){globalEmptyTitle.textContent="You’re offline";globalEmptyText.textContent="Your fastest runs on this device still work."}
     else if(globalLoadStatus==="error-empty"||globalLoadStatus==="rate-limited"){globalEmptyTitle.textContent="Community board unavailable";globalEmptyText.textContent="Try again shortly. Your local records are safe."}
-    else{globalEmptyTitle.textContent="No community runs yet";globalEmptyText.textContent="Be the first runner on the board."}
+    else{globalEmptyTitle.textContent="Global board connected";globalEmptyText.textContent="Finish a run, enter a nickname on the results screen, and press Submit Run."}
   }
   const now=Date.now();refreshGlobalLeaderboardButton.disabled=loading||now<globalRateLimitedUntil||typeof navigator!=="undefined"&&navigator.onLine===false;
 }
@@ -612,18 +612,17 @@ async function loadGlobalLeaderboard(options={}){
   if(!force&&globalEntries.length&&now-globalFetchedAt<GLOBAL_CACHE_MAX_AGE){setGlobalBoardState("ready","");return}
   if(!bypassThrottle&&now<globalRateLimitedUntil){const wait=Math.max(1,Math.ceil((globalRateLimitedUntil-now)/1000));setGlobalBoardState("rate-limited","Too many refreshes. Try again in "+wait+" seconds.");return}
   if(force&&!bypassThrottle&&now-globalLastRefreshAttempt<GLOBAL_REFRESH_COOLDOWN){const until=globalLastRefreshAttempt+GLOBAL_REFRESH_COOLDOWN,wait=Math.max(1,Math.ceil((until-now)/1000));armGlobalRefreshCooldown(until);setGlobalBoardState("rate-limited","Refresh available in "+wait+" seconds.");return}
-  const serial=++globalFetchSerial;if(globalFetchController)try{globalFetchController.abort()}catch(e){}const controller=typeof AbortController==="function"?new AbortController():null;globalFetchController=controller;globalLastRefreshAttempt=now;
-  armGlobalRefreshCooldown(now+GLOBAL_REFRESH_COOLDOWN);
+  const serial=++globalFetchSerial;if(globalFetchController)try{globalFetchController.abort()}catch(e){}const controller=typeof AbortController==="function"?new AbortController():null;globalFetchController=controller;
   setGlobalBoardState("loading",globalEntries.length?"Refreshing community runs…":"Loading community runs…");let timedOut=false;const timeout=setTimeout(()=>{timedOut=true;if(controller)controller.abort()},GLOBAL_REQUEST_TIMEOUT);
   try{
     const request={method:"GET",headers:{Accept:"application/json"},cache:"no-store"};if(controller)request.signal=controller.signal;const response=await fetch(GLOBAL_LEADERBOARD_URL+"?limit=10",request);let body=null;try{body=await response.json()}catch(e){}
     if(serial!==globalFetchSerial)return;
     if(response.status===429){let wait=Number(response.headers.get("Retry-After"));if(!Number.isFinite(wait)||wait<=0)wait=30;wait=clamp(Math.ceil(wait),1,300);armGlobalRefreshCooldown(Date.now()+wait*1000);setGlobalBoardState("rate-limited","Too many refreshes. Try again in "+wait+" seconds.");return}
-    if(!response.ok||!globalResponseHasEntries(body)){const error=new Error("Global leaderboard request failed");error.httpStatus=response.status;throw error}
-    globalEntries=extractGlobalEntries(body);globalFetchedAt=Date.now();writeGlobalCache(globalEntries,globalFetchedAt);setGlobalBoardState(globalEntries.length?"ready":"empty","");
+    if(!response.ok||!globalResponseHasEntries(body)){const error=new Error("Global leaderboard request failed");error.httpStatus=response.status;error.serverMessage=body&&body.error&&typeof body.error.message==="string"?body.error.message:"";throw error}
+    globalEntries=extractGlobalEntries(body);globalFetchedAt=Date.now();globalLastRefreshAttempt=globalFetchedAt;writeGlobalCache(globalEntries,globalFetchedAt);armGlobalRefreshCooldown(globalFetchedAt+GLOBAL_REFRESH_COOLDOWN);setGlobalBoardState(globalEntries.length?"ready":"empty",globalEntries.length?"":"Connected — waiting for the first submitted run.");
   }catch(error){
     if(serial!==globalFetchSerial)return;if(error&&error.name==="AbortError"&&!timedOut)return;
-    const offline=typeof navigator!=="undefined"&&navigator.onLine===false,message=offline?(globalEntries.length?"Offline — showing "+globalCacheLabel()+".":"You’re offline. Your local fastest runs still work."):(globalEntries.length?"Couldn’t refresh — showing "+globalCacheLabel()+".":timedOut?"The community board took too long to respond.":"Community runs are unavailable right now.");
+    const offline=typeof navigator!=="undefined"&&navigator.onLine===false,message=offline?(globalEntries.length?"Offline — showing "+globalCacheLabel()+".":"You’re offline. Your local fastest runs still work."):(globalEntries.length?"Couldn’t refresh — showing "+globalCacheLabel()+".":timedOut?"The community board took too long to respond.":error&&error.serverMessage?error.serverMessage:"Community runs are unavailable right now.");
     setGlobalBoardState(offline?(globalEntries.length?"offline-cached":"offline-empty"):(globalEntries.length?"error-cached":"error-empty"),message);
   }finally{clearTimeout(timeout);if(serial===globalFetchSerial)globalFetchController=null}
 }
@@ -649,7 +648,7 @@ function responseGlobalEntry(body,payload){
   return sanitizeGlobalEntry(Object.assign({},payload,raw,{id:raw.id??raw.entryId??payload.clientRunId,clientRunId:raw.clientRunId??payload.clientRunId,playerName:raw.playerName??payload.playerName,rank:raw.rank??(body&&body.rank)}),0);
 }
 async function submitGlobalPayload(rawPayload,options={}){
-  const payload=sanitizeGlobalSubmission(rawPayload),interactive=options.interactive===true,refreshAfter=options.refreshAfter!==false;if(!payload)return"permanent";if(globalSubmissionInFlight)return"busy";
+  const payload=sanitizeGlobalSubmission(rawPayload),interactive=options.interactive===true,refreshAfter=options.refreshAfter!==false;if(!payload){if(interactive)setGlobalSubmitStatus("This run has invalid leaderboard stats, but it is still saved on this device.","error");return"permanent"}if(globalSubmissionInFlight){if(interactive)setGlobalSubmitStatus("A saved run is syncing. Try again in a moment.","warn");return"busy"}
   if(typeof navigator!=="undefined"&&navigator.onLine===false){if(interactive)markGlobalSubmissionQueued(payload);return"transient"}
   globalSubmissionInFlight=true;const serial=++globalSubmitSerial,controller=typeof AbortController==="function"?new AbortController():null;globalSubmitController=controller;if(interactive)setGlobalSubmitBusy(true);let timedOut=false;const timeout=setTimeout(()=>{timedOut=true;if(controller)controller.abort()},GLOBAL_REQUEST_TIMEOUT);
   const outbound={version:1,clientRunId:payload.clientRunId,playerName:payload.playerName,timeMs:payload.timeMs,score:payload.score,health:payload.health,weaponId:payload.weaponId,skinId:payload.skinId};
@@ -676,7 +675,7 @@ async function retryGlobalOutbox(){
   if(submitted)loadGlobalLeaderboard({force:true,bypassThrottle:true});
 }
 function handleGlobalSubmit(event){
-  event.preventDefault();if(!globalSubmitDraft||globalSubmissionInFlight)return;const name=sanitizePlayerName(leaderboardNameInput.value);if(!name){leaderboardNameInput.setAttribute("aria-invalid","true");leaderboardNameError.textContent="Enter 2–16 safe characters using letters, numbers, spaces, _ or -.";leaderboardNameInput.focus();return}
+  event.preventDefault();if(!globalSubmitDraft)return;if(globalSubmissionInFlight){setGlobalSubmitStatus("A saved run is syncing. Try again in a moment.","warn");return}const name=sanitizePlayerName(leaderboardNameInput.value);if(!name){leaderboardNameInput.setAttribute("aria-invalid","true");leaderboardNameError.textContent="Enter 2–16 safe characters using letters, numbers, spaces, _ or -.";leaderboardNameInput.focus();return}
   leaderboardNameInput.removeAttribute("aria-invalid");leaderboardNameError.textContent="";profile.displayName=name;saveProfile();const payload=Object.assign({},globalSubmitDraft,{playerName:name,queuedAt:Date.now()});globalSubmitDraft=payload;globalOutboxRetryAttempts=0;submitGlobalPayload(payload,{interactive:true});
 }
 function keepCurrentRunLocal(){if(globalSubmissionInFlight)return;globalSubmitDraft=null;globalSubmitCard.hidden=true;setGlobalSubmitStatus("")}
