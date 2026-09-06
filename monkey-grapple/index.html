@@ -728,7 +728,11 @@ function makeWorld(){
     {x:4270,y:25,s:1.55},{x:4760,y:90,s:1.25},{x:5230,y:30,s:1.6},{x:5710,y:80,s:1.3},
     {x:6170,y:15,s:1.65},{x:6700,y:70,s:1.4},{x:7110,y:30,s:1.6}
   ];
-  checkpoints=[{x:170,y:730},{x:2490,y:730},{x:4550,y:820}];
+  checkpoints=[
+    {x:170,y:730,spawnX:170,spawnY:700},
+    {x:2490,y:730,spawnX:2700,spawnY:790},
+    {x:4550,y:820,spawnX:4550,spawnY:800}
+  ];
   const specs=[
     [1060,805,"rifle"],[1350,555,"scout"],[1720,390,"rifle"],[2180,745,"heavy"],
     [2710,825,"rifle"],[3160,615,"scout"],[3560,415,"rifle"],[4070,775,"heavy"],
@@ -766,6 +770,16 @@ function resetGame(){
   canvas.style.cursor="none";
   initAudio();resumeAudio();
   toast(weapon.name.toUpperCase()+" READY", "#d8ff78", 18);
+}
+
+function respawnAtCheckpoint(options={}){
+  const cp=checkpoints[player.checkpoint]||checkpoints[0]||{x:170,y:730},spawnX=Number.isFinite(cp.spawnX)?cp.spawnX:cp.x,spawnY=Number.isFinite(cp.spawnY)?cp.spawnY:cp.y-80;
+  player.x=spawnX;player.y=spawnY;player.vx=0;player.vy=0;player.ground=false;player.plat=null;player.airJumps=1;player.coyote=0;player.jumpBuffer=0;player.jumpHeld=false;player.reload=0;player.shoot=.18;player.gunKick=0;
+  if(options.restoreHealth)player.hp=player.maxHp;
+  player.invuln=Math.max(player.invuln,Number(options.invuln)||.7);grapple=null;slowScale=1;
+  if(options.clearHostileBullets)for(const bullet of bullets)if(!bullet.friendly)bullet.life=0;
+  camera.x=clamp(player.x-W*.42,-120,WORLD_W-W+120);camera.y=clamp(player.y-H*.54,-160,560);camera.leadX=0;camera.leadY=0;
+  flash=Math.max(flash,.55);shake=Math.max(shake,7);if(options.message)toast(options.message,options.color||"#d8ff78",16);
 }
 
 function anchorState(a){
@@ -958,9 +972,8 @@ function updatePlayerStep(dt,realDt){
     }
   }
   if(player.y>DEATH_Y){
-    damagePlayer(28,0,-100);
-    const cp=checkpoints[player.checkpoint];player.x=cp.x;player.y=cp.y-80;player.vx=0;player.vy=0;player.airJumps=1;player.coyote=0;player.jumpBuffer=0;grapple=null;
-    flash=.4;toast("VINE SLIP  -28","#ff9d78",16);
+    const result=damagePlayer(28,0,-100,false);
+    if(result!=="defeated")respawnAtCheckpoint({invuln:.7,message:"VINE SLIP  -28",color:"#ff9d78"});
   }
 }
 function collideActor(a,oldX,oldY,isPlayer){
@@ -1019,7 +1032,7 @@ function updateBullets(dt){
       }
     }else if(!gone&&!b.friendly&&player.invuln<=0){
       const playerT=Math.min(segmentCircleT(b.px,b.py,b.x,b.y,player.x,player.y-6,19),segmentCircleT(b.px,b.py,b.x,b.y,player.x,player.y-37,18));
-      if(playerT<coverT){damagePlayer(b.damage,b.vx*.12,b.vy*.08);gone=true;}
+      if(playerT<coverT){damagePlayer(b.damage,b.vx*.12,b.vy*.08,true);gone=true;}
     }
     if(!gone&&coverT<Infinity){impact(lerp(b.px,b.x,coverT),lerp(b.py,b.y,coverT),b.friendly?"#ffe6a0":"#ff986d");gone=true}
     if(gone)bullets.splice(i,1);
@@ -1059,12 +1072,16 @@ function hitEnemy(e,dmg,head,vx,vy,repeatedPellet=false){
     if(kills===totalEnemies){toast("EXTRACTION OPEN — HEAD EAST","#d9ff6b",20);sfx("win")}
   }
 }
-function damagePlayer(amount,kx,ky){
-  if(player.invuln>0)return;
+function damagePlayer(amount,kx,ky,respawnOnDeath=false){
+  if(player.invuln>0)return"ignored";
   player.hp=Math.max(0,player.hp-amount);player.invuln=.42;player.vx+=kx;player.vy+=ky;
   flash=.65;shake=Math.max(shake,9);combo=0;burst(player.x,player.y-8,14,"#ff654f",220);sfx("hurt");
   floatText(player.x,player.y-60,"-"+amount,"#ff806b");
-  if(player.hp<=0)finish(false);
+  if(player.hp<=0){
+    if(respawnOnDeath){respawnAtCheckpoint({restoreHealth:true,invuln:1.6,clearHostileBullets:true,message:"SHOT DOWN — CHECKPOINT",color:"#ffd36b"});return"respawned"}
+    finish(false);return"defeated";
+  }
+  return"hurt";
 }
 function updatePickups(dt){
   for(const p of pickups){
