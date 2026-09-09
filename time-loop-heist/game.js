@@ -76,7 +76,7 @@
       tagline: "The vault needs three thieves. You came alone. <strong>Good thing your past selves are excellent accomplices.</strong>",
       briefing: [["Record your route", "Every move you make is remembered by the loop."], ["Rewind time", "Your echo repeats the route while you begin again."], ["Outsmart the vault", "Hold both security links, steal the Core, and extract."]],
       resultTitle: "Core Secured", resultCopy: "The vault saw you coming. It just did not expect all your previous selves.",
-      loopDuration: 40, maxLoops: 5, parTime: 85, spawn: { x: 170, y: 900, angle: -Math.PI / 2 },
+      loopDuration: 40, maxLoops: 5, parTime: 85, requiredDistractions: 0, spawn: { x: 170, y: 900, angle: -Math.PI / 2 },
       floor: { x: 58, y: 76, w: 1884, h: 978 },
       rooms: [
         { x: 88, y: 106, w: 586, h: 918, color: "#0d1724", accent: "#20435c", label: "ENTRY // SECURITY" },
@@ -107,10 +107,10 @@
     },
     {
       id: "neon-foundry", operation: "02", name: "Neon Foundry", difficulty: "Volatile",
-      tagline: "The Core is split across a live weapons plant. <strong>Dodge the pulse floors, rebuild it, and escape before the next shift arrives.</strong>",
-      briefing: [["Kill the grid", "Record the west terminal while furnaces pulse around you."], ["Split the crew", "Leave a second echo on the freight lock."], ["Collect two fragments", "Rebuild the moving Core, then sprint for extraction."]],
+      tagline: "The Core is split across a live weapons plant. <strong>Make a guard chase your echo, then slip through while security takes the bait.</strong>",
+      briefing: [["Kill the grid", "Record the west terminal while furnaces pulse around you."], ["Create a decoy", "Dash past the sentry, rewind, then let your echo lure it away."], ["Breach the freight vault", "Hold the sync pad, fool one guard, rebuild the Core, and escape."]],
       resultTitle: "Foundry Robbed", resultCopy: "The assembly line kept moving. So did every version of you.",
-      loopDuration: 42, maxLoops: 5, parTime: 94, spawn: { x: 165, y: 890, angle: -Math.PI / 2 },
+      loopDuration: 42, maxLoops: 5, parTime: 104, requiredDistractions: 1, spawn: { x: 165, y: 890, angle: -Math.PI / 2 },
       floor: { x: 58, y: 76, w: 1884, h: 978 },
       rooms: [
         { x: 88, y: 106, w: 662, h: 918, color: "#18151b", accent: "#6a2e40", label: "INTAKE // SMELTER" },
@@ -138,7 +138,7 @@
       ],
       guards: [
         { x: 245, y: 680, route: [[245, 680], [600, 680], [600, 910], [245, 910]], color: "#ff745d" },
-        { x: 870, y: 655, route: [[870, 655], [1100, 720], [1290, 720], [1290, 400], [900, 400]], color: "#ffb45d" },
+        { x: 1288, y: 716, angle: Math.PI, route: [[1288, 716]], sentry: true, required: true, echoRange: 270, echoFov: .52, bait: { x: 1080, y: 716, r: 72 }, color: "#ffb45d" },
         { x: 1480, y: 860, route: [[1480, 860], [1880, 860], [1880, 500], [1480, 500]], color: "#ff6e8c" }
       ],
       shards: [{ x: 930, y: 690, r: 25 }, { x: 1580, y: 600, r: 25 }],
@@ -146,10 +146,10 @@
     },
     {
       id: "mirror-archive", operation: "03", name: "Mirror Archive", difficulty: "Unstable",
-      tagline: "Space folds inside the Archive. <strong>Use paired rifts, dodge overlapping cameras, and assemble the fractured Core.</strong>",
-      briefing: [["Anchor an echo", "The first link hides beyond the mirrored stacks."], ["Ride the rifts", "Blue portals preserve your speed and direction."], ["Rebuild the Core", "Find all three fragments before extraction unlocks."]],
+      tagline: "Space folds inside the Archive. <strong>Two sentries seal the route—split their attention across two different echoes.</strong>",
+      briefing: [["Record the west decoy", "After linking the terminal and pad, dash through the first marked decoy zone."], ["Ride the rift to decoy two", "Use the portal, run north, and record a different echo through the second zone."], ["Exploit the opening", "Both guards must chase different echoes in the same loop before the prism vault opens."]],
       resultTitle: "Archive Rewritten", resultCopy: "You stole the one artifact that was stored in three places at once.",
-      loopDuration: 44, maxLoops: 5, parTime: 102, spawn: { x: 170, y: 180, angle: .35 },
+      loopDuration: 46, maxLoops: 5, parTime: 118, requiredDistractions: 2, spawn: { x: 170, y: 180, angle: .35 },
       floor: { x: 58, y: 76, w: 1884, h: 978 },
       rooms: [
         { x: 88, y: 106, w: 502, h: 918, color: "#101424", accent: "#394e8e", label: "MIRROR LOBBY" },
@@ -177,8 +177,8 @@
         { x: 1810, y: 620, angle: 3.1, range: 320, fov: .45, sweep: 1.05, speed: .7 }
       ],
       guards: [
-        { x: 210, y: 575, route: [[210, 575], [550, 575], [550, 940], [210, 940]], color: "#e46f8a" },
-        { x: 720, y: 400, route: [[720, 400], [1320, 400], [1320, 530], [720, 530]], color: "#ed9f5c" },
+        { x: 535, y: 420, angle: Math.PI, route: [[535, 420]], sentry: true, required: true, echoRange: 270, echoFov: .52, bait: { x: 350, y: 430, r: 62 }, color: "#e46f8a" },
+        { x: 1320, y: 430, angle: -Math.PI / 2, route: [[1320, 430]], sentry: true, required: true, echoRange: 270, echoFov: .52, bait: { x: 1320, y: 170, r: 64 }, color: "#ed9f5c" },
         { x: 1510, y: 610, route: [[1510, 610], [1840, 610], [1840, 360], [1480, 360], [1480, 610]], color: "#fb6f78" }
       ],
       shards: [{ x: 760, y: 190, r: 25 }, { x: 1280, y: 760, r: 25 }, { x: 1640, y: 360, r: 25 }],
@@ -187,10 +187,10 @@
     },
     {
       id: "zero-hour", operation: "04", name: "Zero Hour", difficulty: "Black Diamond",
-      tagline: "The timeline is collapsing around the final Core. <strong>Everything you learned has forty-six seconds to work.</strong>",
-      briefing: [["Break two grids", "One terminal controls both lethal laser choke points."], ["Cross the kill floor", "Red pulse zones cycle quickly—move on the dark beat."], ["Run the perfect loop", "Three fragments and four guards stand between you and history."]],
+      tagline: "The timeline is collapsing around the final Core. <strong>Synchronize two guard decoys, two security links, and a perfect extraction.</strong>",
+      briefing: [["Record the first bait", "After the security-link routes, dash through the west marked decoy zone and rewind."], ["Record the second bait", "Use a different loop to dash through the kill-floor decoy zone."], ["Run the perfect loop", "Both sentries must chase different echoes before the final vault accepts the sync signal."]],
       resultTitle: "Timeline Owned", resultCopy: "Four impossible robberies. One flawless crew. Every member was you.",
-      loopDuration: 46, maxLoops: 5, parTime: 112, spawn: { x: 160, y: 900, angle: -1.1 },
+      loopDuration: 48, maxLoops: 5, parTime: 132, requiredDistractions: 2, spawn: { x: 160, y: 900, angle: -1.1 },
       floor: { x: 58, y: 76, w: 1884, h: 978 },
       rooms: [
         { x: 88, y: 106, w: 592, h: 918, color: "#171018", accent: "#71263b", label: "COLLAPSE ZONE" },
@@ -218,8 +218,8 @@
         { x: 1810, y: 780, angle: 3.3, range: 300, fov: .44, sweep: .9, speed: .75 }
       ],
       guards: [
-        { x: 230, y: 420, route: [[230, 420], [560, 420], [560, 480], [230, 480]], color: "#ff6278" },
-        { x: 850, y: 740, route: [[850, 740], [1140, 740], [1140, 610], [850, 610]], color: "#ff9d54" },
+        { x: 650, y: 300, angle: Math.PI, route: [[650, 300]], sentry: true, required: true, echoRange: 270, echoFov: .52, bait: { x: 500, y: 330, r: 62 }, color: "#ff6278" },
+        { x: 1275, y: 620, angle: Math.PI, route: [[1275, 620]], sentry: true, required: true, echoRange: 270, echoFov: .52, bait: { x: 1090, y: 620, r: 68 }, color: "#ff9d54" },
         { x: 780, y: 170, route: [[780, 170], [1240, 170], [1240, 360], [780, 360]], color: "#ff625f" },
         { x: 1560, y: 900, route: [[1560, 900], [1880, 900], [1880, 580], [1835, 580], [1835, 700], [1560, 700]], color: "#f75786" }
       ],
@@ -353,6 +353,9 @@
       if (name === "shard") { this.tone(620, .16, "sine", .05, 980); this.tone(930, .22, "triangle", .04, 1320, .07); }
       if (name === "portal") { this.tone(190, .28, "sawtooth", .045, 740); this.tone(820, .2, "sine", .04, 260, .05); }
       if (name === "warning") { this.tone(260, .09, "square", .035, 210); this.tone(390, .08, "square", .028, 320, .12); }
+      if (name === "decoy") { this.tone(760, .08, "square", .045, 460); this.tone(1080, .16, "sine", .04, 620, .07); }
+      if (name === "decoy") { this.tone(760, .12, "square", .045, 430); this.tone(1040, .18, "sine", .035, 620, .08); }
+      if (name === "scan") { this.noise(.16, .025, 1200); this.tone(310, .18, "triangle", .03, 170); }
       if (name === "win") { [0, .12, .25, .4].forEach((delay, i) => this.tone([262, 392, 523, 784][i], .48, "triangle", .075, [310, 466, 622, 932][i], delay)); }
       if (name === "fail") { this.tone(300, .7, "sawtooth", .055, 45); this.noise(.4, .045, 220); }
       if (name === "step") { this.tone(78 + Math.random() * 12, .035, "sine", .018, 55); }
@@ -384,9 +387,11 @@
   }
 
   function makeGuards() {
-    return activeLevel.guards.map((guard) => ({
-      ...guard, angle: guard.angle || 0, route: guard.route.map((point) => point.slice()), point: 1,
-      mode: "patrol", timer: 0, lastX: 0, lastY: 0, vx: 0, vy: 0
+    return activeLevel.guards.map((guard, index) => ({
+      ...guard, index, angle: guard.angle ?? 0, baseAngle: guard.angle ?? 0,
+      homeX: guard.x, homeY: guard.y, route: guard.route.map((point) => point.slice()), point: guard.route.length > 1 ? 1 : 0,
+      mode: "patrol", timer: 0, lastX: guard.x, lastY: guard.y, vx: 0, vy: 0,
+      targetEchoIndex: null, burnedEchoes: new Set(), warnedEchoes: new Set()
     }));
   }
 
@@ -406,7 +411,7 @@
     loop: 1, loopTime: 0, totalTime: 0, echoes: [], echoStates: [], recording: [], recordClock: 0,
     player: makePlayer(), guards: makeGuards(), cameras: makeCameras(), shards: makeShards(), pulseStates: makePulseStates(), detection: 0, spotted: false, captures: 0,
     terminalCharge: 0, terminalActive: false, plateActive: false, doorOpen: false, doorAmount: 0,
-    laserExposure: 0, core: false, coreCharge: 0, noise: null, particles: [], rings: [],
+    laserExposure: 0, core: false, coreCharge: 0, noise: null, distractedGuards: new Set(), distractionAssignments: new Map(), particles: [], rings: [],
     countdown: 0, countdownBeat: "title", rewindTime: 0, rewindReason: "", rewindHold: 0, objectiveStage: -1,
     flags: {}, elapsedSinceToast: 0, footstepSide: 0, successTime: 0, portalReady: true
   };
@@ -421,7 +426,7 @@
       loop: 1, loopTime: 0, totalTime: 0, echoes: [], echoStates: [], recording: [], recordClock: 0,
       player: makePlayer(), guards: makeGuards(), cameras: makeCameras(), shards: makeShards(), pulseStates: makePulseStates(), detection: 0, spotted: false, captures: 0,
       terminalCharge: 0, terminalActive: false, plateActive: false, doorOpen: false, doorAmount: 0,
-      laserExposure: 0, core: false, coreCharge: 0, noise: null, particles: [], rings: [],
+      laserExposure: 0, core: false, coreCharge: 0, noise: null, distractedGuards: new Set(), distractionAssignments: new Map(), particles: [], rings: [],
       countdown: 1.35, countdownBeat: "title", rewindTime: 0, rewindReason: "", rewindHold: 0, objectiveStage: -1,
       flags: {}, elapsedSinceToast: 0, footstepSide: 0, successTime: 0, portalReady: true
     });
@@ -445,7 +450,7 @@
     game.loopTime = 0; game.recording = []; game.recordClock = 0; game.echoStates = [];
     game.detection = 0; game.spotted = false; game.terminalCharge = 0; game.terminalActive = false;
     game.plateActive = false; game.doorOpen = false; game.doorAmount = 0; game.laserExposure = 0;
-    game.core = false; game.coreCharge = 0; game.noise = null; game.countdown = 1.15; game.countdownBeat = "title"; game.rewindHold = 0;
+    game.core = false; game.coreCharge = 0; game.noise = null; game.distractedGuards = new Set(); game.distractionAssignments = new Map(); game.countdown = 1.15; game.countdownBeat = "title"; game.rewindHold = 0;
     game.flags = {}; game.objectiveStage = -1; game.portalReady = true;
     input.held.clear(); input.pressed.clear(); input.touchX = 0; input.touchY = 0;
     state = "countdown";
@@ -684,6 +689,14 @@
     return game.shards.every((shard) => shard.collected);
   }
 
+  function distractionGoal() {
+    return Math.max(0, Math.trunc(activeLevel.requiredDistractions || 0));
+  }
+
+  function distractionsReady() {
+    return game.distractionAssignments.size >= distractionGoal();
+  }
+
   function updatePortals() {
     const p = game.player;
     const insidePortal = activeLevel.portals.some((portal) => dist(p, portal.a) < 43 || dist(p, portal.b) < 43);
@@ -721,13 +734,19 @@
     }
 
     const wasPlate = game.plateActive;
+    const wasDoorOpen = game.doorOpen;
     game.plateActive = dist(p, SYNC_PAD) < SYNC_PAD.r || game.echoStates.some((echo) => dist(echo, SYNC_PAD) < SYNC_PAD.r);
-    game.doorOpen = game.plateActive || game.core;
+    game.doorOpen = (game.plateActive && distractionsReady()) || game.core;
     game.doorAmount += ((game.doorOpen ? 1 : 0) - game.doorAmount) * Math.min(1, dt * 8);
     if (!wasPlate && game.plateActive) {
-      audio.sfx("gate"); spawnRing(SYNC_PAD.x, SYNC_PAD.y, COLORS.amber, 135, .55);
-      if (!game.flags.plate) { game.flags.plate = true; toast(game.echoes.length < 2 ? "VAULT LINKED — STAND HERE + HOLD R" : "VAULT GATE OPEN"); }
+      spawnRing(SYNC_PAD.x, SYNC_PAD.y, COLORS.amber, 135, .55);
+      if (!game.flags.plate) {
+        game.flags.plate = true;
+        if (!distractionsReady()) toast(game.echoes.length < 2 ? "SYNC ROUTE FOUND — RECORD IT, THEN BAIT THE SENTRIES" : `SYNC HELD — DISTRACT ${distractionGoal() - game.distractedGuards.size} MORE GUARD${distractionGoal() - game.distractedGuards.size === 1 ? "" : "S"}`);
+        else toast(game.echoes.length < 2 ? "VAULT LINKED — STAND HERE + HOLD R" : "VAULT GATE OPEN");
+      }
     }
+    if (!wasDoorOpen && game.doorOpen) { audio.sfx("gate"); spawnRing(VAULT_GATE.x + VAULT_GATE.w / 2, VAULT_GATE.y + VAULT_GATE.h / 2, COLORS.green, 155, .6); }
 
     if (!game.terminalActive && LASER_GATES.some((gate) => circleRectOverlap(p.x, p.y, p.radius, gate))) {
       game.laserExposure = 1; camera.shake = Math.max(camera.shake, 4); capture("LASER GRID CAPTURE");
@@ -752,7 +771,7 @@
       toast(game.echoes.length < 2 ? `FRAGMENT ${count} / ${game.shards.length} — YOUR ECHO CAN REPEAT THIS` : `TIME FRAGMENT ${count} / ${game.shards.length}`, 1.7);
     }
 
-    if (!game.core && allShardsCollected() && dist(p, CORE) < CORE.r + 8 && input.held.has("KeyE")) {
+    if (!game.core && allShardsCollected() && distractionsReady() && game.doorAmount >= .78 && dist(p, CORE) < CORE.r + 8 && input.held.has("KeyE")) {
       game.coreCharge = Math.min(1, game.coreCharge + dt / .58);
       if (game.coreCharge >= 1) collectCore();
     } else game.coreCharge = Math.max(0, game.coreCharge - dt * 2.2);
@@ -791,25 +810,118 @@
     return length < 13;
   }
 
+  function resumeGuardRoute(guard) {
+    if (guard.sentry) { guard.mode = "return"; return; }
+    let nearestPoint = 0;
+    let nearestDistance = Infinity;
+    guard.route.forEach((point, index) => {
+      const distance = Math.hypot(guard.x - point[0], guard.y - point[1]);
+      if (distance < nearestDistance) { nearestDistance = distance; nearestPoint = index; }
+    });
+    guard.point = nearestPoint; guard.mode = "patrol";
+  }
+
+  function guardCanNoticeEcho(guard, echo) {
+    if (guard.burnedEchoes.has(echo.index)) return false;
+    const distance = dist(guard, echo);
+    const range = guard.echoRange || (guard.sentry ? 365 : 315);
+    const visible = guardCanSee(guard, echo, range, guard.echoFov || .7);
+    const heardDash = echo.dash && distance < range + 85 && !lineBlocked(guard.x, guard.y, echo.x, echo.y);
+    return visible || heardDash;
+  }
+
+  function nearestEchoFor(guard) {
+    let nearest = null;
+    let nearestDistance = Infinity;
+    for (const echo of game.echoStates) {
+      if (!guardCanNoticeEcho(guard, echo)) continue;
+      const distance = dist(guard, echo);
+      if (distance >= nearestDistance) continue;
+      nearest = echo; nearestDistance = distance;
+    }
+    return nearest;
+  }
+
+  function creditSentryDistraction(guard, echo) {
+    const goal = distractionGoal();
+    if (!guard.required || goal <= 0 || game.distractionAssignments.has(guard.index)) return false;
+    const insideBait = guard.bait && dist(echo, guard.bait) <= guard.bait.r;
+    if (!insideBait || !echo.dash) return false;
+    const echoAlreadyUsed = [...game.distractionAssignments.values()].includes(echo.index);
+    if (echoAlreadyUsed) {
+      if (!guard.warnedEchoes.has(echo.index)) {
+        guard.warnedEchoes.add(echo.index);
+        toast("THAT ECHO ALREADY FOOLED A SENTRY — RECORD A DIFFERENT DECOY", 2.4);
+      }
+      return false;
+    }
+    game.distractionAssignments.set(guard.index, echo.index);
+    game.distractedGuards.add(guard.index);
+    audio.sfx("decoy");
+    spawnParticles(echo.x, echo.y, echo.color || COLORS.cyan, 16, 150);
+    spawnRing(echo.x, echo.y, echo.color || COLORS.cyan, 130, .55);
+    toast(`${Math.min(game.distractedGuards.size, goal)} / ${goal} SENTRIES FOOLED — MOVE NOW`, 2.1);
+    return true;
+  }
+
+  function distractGuard(guard, echo) {
+    const firstPursuit = guard.mode !== "echoChase" || guard.targetEchoIndex !== echo.index;
+    guard.mode = "echoChase"; guard.timer = 1.05; guard.targetEchoIndex = echo.index; guard.lastX = echo.x; guard.lastY = echo.y;
+    const earnedCredit = creditSentryDistraction(guard, echo);
+    if (!firstPursuit || earnedCredit) return;
+    audio.sfx("decoy");
+    spawnRing(echo.x, echo.y, echo.color || COLORS.cyan, 95, .4);
+    if (guard.required) toast("SENTRY TRACKING ECHO — DASH THROUGH ITS MARKED DECOY ZONE", 2.1);
+    else toast(`ECHO ${String(echo.index).padStart(2, "0")} TOOK THE BAIT — MOVE NOW`, 1.7);
+  }
+
   function updateGuards(dt) {
     const p = game.player;
     let seen = false;
     for (const guard of game.guards) {
       const seesPlayer = guardCanSee(guard, p);
+      const canAcquireEcho = guard.mode !== "chase" && guard.mode !== "echoChase" && guard.mode !== "scan";
+      const visibleEcho = seesPlayer || !canAcquireEcho ? null : nearestEchoFor(guard);
       if (seesPlayer) {
         seen = true; guard.mode = "chase"; guard.timer = 2.3; guard.lastX = p.x; guard.lastY = p.y;
-      } else if (game.noise && Math.hypot(guard.x - game.noise.x, guard.y - game.noise.y) < game.noise.radius && guard.mode !== "chase") {
+      } else if (visibleEcho && guard.mode !== "chase") {
+        distractGuard(guard, visibleEcho);
+      } else if (game.noise && Math.hypot(guard.x - game.noise.x, guard.y - game.noise.y) < game.noise.radius && guard.mode !== "chase" && guard.mode !== "echoChase") {
         guard.mode = "investigate"; guard.timer = 2.7; guard.lastX = game.noise.x; guard.lastY = game.noise.y;
       }
 
       if (guard.mode === "chase") {
         guard.timer -= dt;
         moveGuardToward(guard, guard.lastX, guard.lastY, 132, dt);
-        if (guard.timer <= 0) guard.mode = "patrol";
+        if (guard.timer <= 0) resumeGuardRoute(guard);
+      } else if (guard.mode === "echoChase") {
+        const targetEcho = game.echoStates.find((echo) => echo.index === guard.targetEchoIndex && !guard.burnedEchoes.has(echo.index));
+        if (targetEcho && guardCanNoticeEcho(guard, targetEcho)) {
+          guard.lastX = targetEcho.x; guard.lastY = targetEcho.y; guard.timer = 1.05;
+          creditSentryDistraction(guard, targetEcho);
+        } else guard.timer -= dt;
+        const caughtDecoy = targetEcho && dist(guard, targetEcho) < 31;
+        const reachedLastSpot = moveGuardToward(guard, guard.lastX, guard.lastY, 122, dt);
+        if (caughtDecoy || guard.timer <= 0 || reachedLastSpot) {
+          if (targetEcho) guard.burnedEchoes.add(targetEcho.index);
+          guard.mode = "scan"; guard.timer = 2; guard.targetEchoIndex = null; guard.vx = 0; guard.vy = 0;
+          spawnRing(guard.x, guard.y, COLORS.cyan, 72, .35);
+        }
+      } else if (guard.mode === "scan") {
+        guard.timer -= dt; guard.vx = 0; guard.vy = 0; guard.angle += dt * 2.8;
+        if (guard.timer <= 0) resumeGuardRoute(guard);
+      } else if (guard.mode === "return") {
+        if (moveGuardToward(guard, guard.homeX, guard.homeY, 75, dt)) {
+          guard.mode = "patrol"; guard.vx = 0; guard.vy = 0;
+          if (guard.sentry) guard.angle += angleDelta(guard.angle, guard.baseAngle) * Math.min(1, dt * 8);
+        }
       } else if (guard.mode === "investigate") {
         guard.timer -= dt;
         const arrived = moveGuardToward(guard, guard.lastX, guard.lastY, 104, dt);
-        if (guard.timer <= 0 || arrived) guard.mode = "patrol";
+        if (guard.timer <= 0 || arrived) resumeGuardRoute(guard);
+      } else if (guard.sentry) {
+        guard.vx = 0; guard.vy = 0;
+        guard.angle += angleDelta(guard.angle, guard.baseAngle) * Math.min(1, dt * 4);
       } else {
         const target = guard.route[guard.point];
         if (moveGuardToward(guard, target[0], target[1], 70, dt)) guard.point = (guard.point + 1) % guard.route.length;
@@ -839,8 +951,14 @@
       stage = 2; text = "Wait for Echo 01 to restore the security link";
     } else if (game.echoes.length < 2) {
       stage = 3; text = game.plateActive ? "Stay on the amber pad and hold R" : "Reach the amber vault sync pad"; target = SYNC_PAD;
-    } else if (!game.plateActive || game.doorAmount < .78) {
-      stage = 4; text = game.plateActive ? "Vault gate opening — move in" : "Wait for Echo 02 to reach the sync pad"; target = VAULT_GATE;
+    } else if (!game.plateActive) {
+      stage = 4; text = "Wait for Echo 02 to reach the sync pad"; target = SYNC_PAD;
+    } else if (!distractionsReady()) {
+      const remaining = Math.max(0, distractionGoal() - game.distractedGuards.size);
+      const sentry = game.guards.find((guard) => guard.required && !game.distractedGuards.has(guard.index));
+      stage = 4; text = `Dash an echo through ${remaining} more marked ${remaining === 1 ? "decoy zone" : "decoy zones"}`; target = sentry ? sentry.bait : VAULT_GATE;
+    } else if (game.doorAmount < .78) {
+      stage = 4; text = "Decoys worked — slip through the opening"; target = VAULT_GATE;
     } else if (missingShard) {
       const found = game.shards.filter((shard) => shard.collected).length;
       stage = 5; text = `Collect time fragments ${found} / ${game.shards.length}`; target = missingShard;
@@ -1014,9 +1132,10 @@
     ui.timer.textContent = remaining.toFixed(1);
     ui.timerChip.classList.toggle("danger", remaining < 8);
     ui.alert.style.width = `${game.detection * 100}%`;
-    const alertText = game.detection > .72 ? "Compromised" : game.detection > .3 ? "Tracing" : game.spotted ? "Spotted" : "Hidden";
+    const guardOnDecoy = game.guards.some((guard) => guard.mode === "echoChase" || guard.mode === "scan");
+    const alertText = game.detection > .72 ? "Compromised" : game.detection > .3 ? "Tracing" : game.spotted ? "Spotted" : guardOnDecoy ? `Echo bait ${game.distractedGuards.size}/${Math.max(1, distractionGoal())}` : "Hidden";
     ui.alertState.textContent = alertText;
-    ui.alertState.style.color = game.detection > .3 ? COLORS.red : COLORS.green;
+    ui.alertState.style.color = game.detection > .3 ? COLORS.red : guardOnDecoy ? COLORS.cyan : COLORS.green;
     ui.alertCard.classList.toggle("hot", game.detection > .7);
     ui.echoSlots.forEach((slot, index) => slot.classList.toggle("active", index < game.echoes.length));
   }
@@ -1162,6 +1281,23 @@
     }
   }
 
+  function drawBaitZones() {
+    let number = 0;
+    for (const guard of game.guards) {
+      if (!guard.required || !guard.bait) continue;
+      number += 1;
+      const complete = game.distractedGuards.has(guard.index);
+      const color = complete ? COLORS.green : COLORS.cyan;
+      const pulse = Math.sin(worldTime * 5 + number) * 4;
+      ctx.save(); ctx.translate(guard.bait.x, guard.bait.y);
+      ctx.fillStyle = complete ? "#77ff9a16" : "#66f7ff10"; ctx.beginPath(); ctx.arc(0, 0, guard.bait.r, 0, TAU); ctx.fill();
+      ctx.strokeStyle = color; ctx.lineWidth = complete ? 4 : 2.5; ctx.shadowColor = color; ctx.shadowBlur = complete ? 20 : 12;
+      ctx.setLineDash(complete ? [] : [9, 10]); ctx.lineDashOffset = -worldTime * 24; ctx.beginPath(); ctx.arc(0, 0, guard.bait.r + pulse, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+      ctx.shadowBlur = 0; ctx.fillStyle = "#06121de6"; ctx.strokeStyle = `${color}99`; roundRectPath(ctx, -42, -12, 84, 24, 6); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = color; ctx.font = "1000 8px Avenir Next,system-ui"; ctx.textAlign = "center"; ctx.fillText(complete ? `DECOY ${number} ✓` : `DECOY ${number} · DASH`, 0, 3); ctx.restore();
+    }
+  }
+
   function drawShards() {
     for (const shard of game.shards) {
       if (shard.collected) continue;
@@ -1211,6 +1347,18 @@
     ctx.stroke(); ctx.restore();
   }
 
+  function drawDecoyLinks() {
+    for (const guard of game.guards) {
+      if (guard.mode !== "echoChase") continue;
+      const echo = game.echoStates.find((candidate) => candidate.index === guard.targetEchoIndex);
+      if (!echo) continue;
+      ctx.save(); ctx.globalAlpha = .62; ctx.strokeStyle = echo.color || COLORS.cyan; ctx.lineWidth = 2; ctx.setLineDash([6, 9]); ctx.lineDashOffset = -worldTime * 22;
+      ctx.beginPath(); ctx.moveTo(guard.x, guard.y); ctx.lineTo(echo.x, echo.y); ctx.stroke(); ctx.setLineDash([]);
+      ctx.shadowColor = echo.color || COLORS.cyan; ctx.shadowBlur = 16; ctx.strokeStyle = "#d9ffff"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(echo.x, echo.y, 27 + Math.sin(worldTime * 8) * 3, 0, TAU); ctx.stroke(); ctx.restore();
+    }
+  }
+
   function drawAgent(actor, options = {}) {
     const echo = options.echo, color = options.color || COLORS.cyan;
     const moving = Math.hypot(actor.vx || 0, actor.vy || 0) > 45 || actor.dash;
@@ -1233,13 +1381,20 @@
   }
 
   function drawGuard(guard) {
+    const echoMode = guard.mode === "echoChase" || guard.mode === "scan";
+    const chaseMode = guard.mode === "chase";
+    const statusColor = chaseMode ? COLORS.red : echoMode ? COLORS.cyan : guard.mode === "investigate" ? COLORS.amber : "#788b9d";
     ctx.save(); ctx.translate(guard.x, guard.y); ctx.rotate(guard.angle);
     ctx.fillStyle = "#0007"; ctx.beginPath(); ctx.ellipse(2, 7, 22, 12, 0, 0, TAU); ctx.fill();
-    ctx.fillStyle = guard.mode === "chase" ? "#4b1720" : "#26303b"; ctx.strokeStyle = guard.mode === "chase" ? COLORS.red : "#788b9d"; ctx.lineWidth = 2;
+    ctx.fillStyle = chaseMode ? "#4b1720" : echoMode ? "#12394a" : "#26303b"; ctx.strokeStyle = statusColor; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.ellipse(0, 0, 19, 16, 0, 0, TAU); ctx.fill(); ctx.stroke();
     ctx.fillStyle = "#111923"; ctx.beginPath(); ctx.arc(10, 0, 11, 0, TAU); ctx.fill();
-    ctx.fillStyle = guard.mode === "chase" ? COLORS.red : COLORS.amber; ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 10; ctx.fillRect(12, -6, 6, 12); ctx.shadowBlur = 0;
+    ctx.fillStyle = chaseMode ? COLORS.red : echoMode ? COLORS.cyan : COLORS.amber; ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 10; ctx.fillRect(12, -6, 6, 12); ctx.shadowBlur = 0;
     ctx.fillStyle = "#727f8b"; ctx.fillRect(-7, -21, 15, 8); ctx.fillRect(-7, 13, 15, 8); ctx.restore();
+    if (echoMode) {
+      ctx.save(); ctx.translate(guard.x, guard.y - 34); ctx.fillStyle = "#06121ddd"; ctx.strokeStyle = `${COLORS.cyan}99`; roundRectPath(ctx, -28, -9, 56, 18, 5); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#c9fdff"; ctx.font = "1000 7px Avenir Next,system-ui"; ctx.textAlign = "center"; ctx.fillText(guard.mode === "scan" ? "SCANNING" : "DECOY!", 0, 3); ctx.restore();
+    }
   }
 
   function drawWalls() {
@@ -1306,8 +1461,8 @@
     const shakeX = reducedMotion ? 0 : (Math.random() - .5) * camera.shake;
     const shakeY = reducedMotion ? 0 : (Math.random() - .5) * camera.shake;
     ctx.save(); ctx.translate(shakeX, shakeY); ctx.scale(camera.zoom, camera.zoom); ctx.translate(-camera.x, -camera.y);
-    drawFloor(); drawPulseFields(); drawPortals(); drawProps(); drawSecurity();
-    game.echoes.forEach(drawEchoTrail);
+    drawFloor(); drawPulseFields(); drawPortals(); drawProps(); drawBaitZones(); drawSecurity();
+    game.echoes.forEach(drawEchoTrail); drawDecoyLinks();
     drawTerminal(); drawSyncPad(); drawExit(); drawCore(); drawShards(); LASER_GATES.forEach(drawLaserGate); drawVaultGate();
     for (const echo of game.echoStates) drawAgent(echo, { echo: true, color: echo.color, index: echo.index });
     game.guards.forEach(drawGuard);
@@ -1360,6 +1515,9 @@
         setState: (nextState) => { state = nextState; },
         resetMission, resetLoop, updatePlayer, updateDevices, updateGuards, updateObjective, updatePlaying,
         recordFrame, sampleEcho, beginRewind, completeRewind, collectCore, finishEscape, endMission, formatTime, render,
+        guardCanSee, guardCanNoticeEcho, lineBlocked, colliders, moveCircle, distractionGoal, distractionsReady, creditSentryDistraction,
+        setEchoes: (echoes) => { game.echoes = echoes; game.echoStates = game.echoes.map((echo) => sampleEcho(echo, game.loopTime)).filter(Boolean); },
+        syncEchoStates: (time = game.loopTime) => { game.echoStates = game.echoes.map((echo) => sampleEcho(echo, time)).filter(Boolean); return game.echoStates; },
         setPlayer: (x, y) => { game.player.x = x; game.player.y = y; game.player.vx = 0; game.player.vy = 0; },
         setHeld: (code, held) => { if (held) input.held.add(code); else input.held.delete(code); }
       }

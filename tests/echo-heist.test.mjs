@@ -61,6 +61,10 @@ function overlapsCircle(rect, point, radius = 18) {
   return (point.x - x) ** 2 + (point.y - y) ** 2 < radius ** 2;
 }
 
+function staticEcho(index, point, { actions = 0, dash = false, color = "#66f7ff" } = {}) {
+  return { index, color, frames: [{ t: 0, x: point.x, y: point.y, vx: 0, vy: 0, angle: 0, actions, dash }] };
+}
+
 function pathExists(start, finish, walls, radius = 18, step = 24) {
   const cols = Math.ceil(2000 / step), rows = Math.ceil(1125 / step);
   const key = (x, y) => `${x},${y}`;
@@ -91,7 +95,7 @@ test("Echo Heist script parses and initializes without a browser crash", () => {
 });
 
 test("Echo Heist is clearly featured at the top of the games homepage", () => {
-  assert.match(homeHtml, /href="time-loop-heist\/\?v=campaign-5" class="card featured" id="echo-heist"/);
+  assert.match(homeHtml, /href="time-loop-heist\/\?v=campaign-6" class="card featured" id="echo-heist"/);
   assert.ok(homeHtml.indexOf("id=\"echo-heist\"") < homeHtml.indexOf("href=\"monkey-grapple/index.html\""));
   assert.match(homeHtml, /justify-content: flex-start/);
   assert.match(homeHtml, /4 LEVELS LIVE/);
@@ -102,7 +106,7 @@ test("menu, gameplay HUD, pause, help, result, and all promised controls exist",
     assert.match(html, new RegExp(`id=["']${id}["']`));
   }
   for (const control of ["WASD", "SPACE", "E", "R"]) assert.match(html, new RegExp(`>${control}<`));
-  assert.match(html, /<script src="game\.js\?v=campaign-5"><\/script>/);
+  assert.match(html, /<script src="game\.js\?v=campaign-6"><\/script>/);
   assert.match(html, /id="timerValue">40\.0</);
   assert.match(html, /Maximum echoes: 4/);
 });
@@ -164,22 +168,29 @@ test("two sequentially recorded echoes can open both gates for the third loop", 
   assert.equal(debug.game.loop, 3);
 });
 
-test("every campaign operation can be solved with two synchronized echoes", () => {
+test("hard operations require deliberate guard decoys before the vault opens", () => {
   const { debug } = createRuntime();
   for (let index = 0; index < debug.levels.length; index += 1) {
     debug.selectLevel(index);
     const level = debug.getLevel();
     debug.resetMission(); debug.setState("playing");
-
-    debug.game.loopTime = 2; debug.setPlayer(level.terminal.x, level.terminal.y); debug.setHeld("KeyE", true); debug.recordFrame(true);
-    debug.beginRewind("TERMINAL ROUTE"); debug.completeRewind();
-    debug.setState("playing"); debug.game.loopTime = 4; debug.setHeld("KeyE", false); debug.setPlayer(level.pad.x, level.pad.y); debug.recordFrame(true);
-    debug.beginRewind("PAD ROUTE"); debug.completeRewind();
-
-    debug.setState("playing"); debug.game.loopTime = 8;
-    debug.setPlayer(level.spawn.x, level.spawn.y); debug.updateDevices(.2); debug.updateDevices(.2);
+    debug.setPlayer(level.spawn.x, level.spawn.y);
+    const echoes = [staticEcho(1, level.terminal, { actions: 1 }), staticEcho(2, level.pad)];
+    debug.setEchoes(echoes); debug.updateDevices(.2); debug.updateDevices(.2);
     assert.equal(debug.game.terminalActive, true, `${level.name}: terminal echo active`);
     assert.equal(debug.game.plateActive, true, `${level.name}: pad echo active`);
+    assert.equal(debug.game.distractedGuards.size, 0, `${level.name}: ordinary task echoes do not count as decoys`);
+    assert.equal(debug.game.doorOpen, level.requiredDistractions === 0, `${level.name}: old two-echo solution cannot bypass sentries`);
+
+    const sentries = debug.game.guards.filter((guard) => guard.required);
+    assert.equal(sentries.length, level.requiredDistractions, `${level.name}: one marked sentry per required decoy`);
+    sentries.forEach((sentry, sentryIndex) => {
+      echoes.push(staticEcho(3 + sentryIndex, sentry.bait, { dash: true, color: sentryIndex ? "#ff4fbf" : "#66f7ff" }));
+      debug.setEchoes(echoes); debug.updateGuards(.05); debug.updateDevices(.05);
+      assert.equal(debug.game.distractionAssignments.get(sentry.index), 3 + sentryIndex, `${level.name}: sentry ${sentryIndex + 1} takes its assigned bait`);
+      assert.equal(debug.game.doorOpen, sentryIndex + 1 >= level.requiredDistractions, `${level.name}: exact decoy threshold controls the vault`);
+    });
+
     for (const shard of debug.game.shards) { debug.setPlayer(shard.x, shard.y); debug.updateDevices(.02); }
     assert.equal(debug.game.shards.every((shard) => shard.collected), true, `${level.name}: fragments recovered`);
     debug.setPlayer(level.core.x, level.core.y); debug.setHeld("KeyE", true);
@@ -188,6 +199,83 @@ test("every campaign operation can be solved with two synchronized echoes", () =
     debug.setPlayer(level.exit.x, level.exit.y); debug.updateDevices(.02);
     assert.equal(debug.getState(), "success", `${level.name}: extraction reached`);
   }
+});
+
+test("a dashing echo lures a sentry without exposing the player", () => {
+  const { debug } = createRuntime();
+  debug.selectLevel(1); debug.resetMission(); debug.setState("playing");
+  const level = debug.getLevel();
+  const sentry = debug.game.guards.find((guard) => guard.required);
+  debug.setPlayer(level.spawn.x, level.spawn.y);
+  debug.game.echoStates = [{ x: sentry.bait.x, y: sentry.bait.y, vx: -180, vy: 0, angle: Math.PI, actions: 0, dash: true, index: 1, color: "#66f7ff" }];
+  const before = Math.hypot(sentry.x - sentry.bait.x, sentry.y - sentry.bait.y);
+  debug.updateGuards(.1);
+  assert.equal(sentry.mode, "echoChase");
+  assert.equal(debug.game.distractionAssignments.get(sentry.index), 1);
+  assert.ok(Math.hypot(sentry.x - sentry.bait.x, sentry.y - sentry.bait.y) < before, "sentry should move toward the echo");
+  assert.equal(debug.game.detection, 0);
+  assert.equal(debug.getState(), "playing");
+});
+
+test("a visible player always takes priority over an echo decoy", () => {
+  const { debug } = createRuntime();
+  debug.selectLevel(1); debug.resetMission(); debug.setState("playing");
+  const sentry = debug.game.guards.find((guard) => guard.required);
+  debug.setPlayer(sentry.bait.x, sentry.bait.y);
+  debug.game.echoStates = [{ x: sentry.bait.x, y: sentry.bait.y, dash: true, index: 1, color: "#66f7ff" }];
+  debug.updateGuards(.05);
+  assert.equal(sentry.mode, "chase");
+  assert.equal(debug.game.distractionAssignments.size, 0);
+  assert.ok(debug.game.detection > 0);
+});
+
+test("walls block echo bait and touching an echo never captures it", () => {
+  const { debug } = createRuntime();
+  debug.selectLevel(1); debug.resetMission(); debug.setState("playing");
+  const level = debug.getLevel();
+  const sentry = debug.game.guards.find((guard) => guard.required);
+  debug.setPlayer(level.spawn.x, level.spawn.y);
+  sentry.angle = 0;
+  const blockedEcho = { x: 1500, y: 716, dash: true, index: 1, color: "#66f7ff" };
+  assert.equal(debug.lineBlocked(sentry.x, sentry.y, blockedEcho.x, blockedEcho.y), true);
+  assert.equal(debug.guardCanNoticeEcho(sentry, blockedEcho), false);
+  debug.game.echoStates = [blockedEcho]; debug.updateGuards(.05);
+  assert.notEqual(sentry.mode, "echoChase");
+
+  sentry.angle = sentry.baseAngle; sentry.x = sentry.bait.x; sentry.y = sentry.bait.y;
+  debug.game.echoStates = [{ x: sentry.x, y: sentry.y, dash: true, index: 2, color: "#66f7ff" }];
+  debug.updateGuards(.02);
+  assert.equal(debug.getState(), "playing", "guards do not capture intangible echoes");
+  assert.equal(sentry.mode, "scan");
+});
+
+test("one echo cannot satisfy two sentries and a frozen echo is burned", () => {
+  const { debug } = createRuntime();
+  debug.selectLevel(2); debug.resetMission(); debug.setState("playing");
+  const level = debug.getLevel();
+  const sentries = debug.game.guards.filter((guard) => guard.required);
+  debug.setPlayer(level.spawn.x, level.spawn.y);
+
+  debug.game.echoStates = [{ x: sentries[0].bait.x, y: sentries[0].bait.y, dash: true, index: 1, color: "#66f7ff" }];
+  debug.updateGuards(.05);
+  assert.equal(debug.game.distractionAssignments.size, 1);
+
+  sentries[1].mode = "patrol"; sentries[1].angle = sentries[1].baseAngle;
+  debug.game.echoStates = [{ x: sentries[1].bait.x, y: sentries[1].bait.y, dash: true, index: 1, color: "#66f7ff" }];
+  debug.updateGuards(.05);
+  assert.equal(debug.game.distractionAssignments.size, 1, "one echo ID only earns one sentry credit");
+
+  sentries[1].mode = "patrol"; sentries[1].targetEchoIndex = null; sentries[1].burnedEchoes.add(1); sentries[1].angle = sentries[1].baseAngle;
+  debug.game.echoStates = [{ x: sentries[1].bait.x, y: sentries[1].bait.y, dash: true, index: 2, color: "#ff4fbf" }];
+  debug.updateGuards(.05);
+  assert.equal(debug.game.distractionAssignments.size, 2, "a different echo can fool the second sentry");
+
+  const first = sentries[0];
+  debug.game.echoStates = [{ x: first.bait.x, y: first.bait.y, dash: true, index: 1, color: "#66f7ff" }];
+  for (let frame = 0; frame < 1400; frame += 1) debug.updateGuards(.01);
+  assert.equal(first.burnedEchoes.has(1), true);
+  assert.notEqual(first.mode, "echoChase", "a frozen echo cannot pin a guard forever");
+  assert.ok(Math.hypot(first.x - first.homeX, first.y - first.homeY) < 18, "sentry returns to its post");
 });
 
 test("dashing into an active laser can never skip the terminal echo", () => {
@@ -232,8 +320,17 @@ test("all four campaign levels have reachable objectives and safe spawn points",
     }
     for (const shard of level.shards) assert.equal(solids.some((solid) => overlapsCircle(solid, shard, 14)), false, `${level.name} fragment should be clear`);
     for (const portal of level.portals) for (const endpoint of [portal.a, portal.b]) assert.equal(solids.some((solid) => overlapsCircle(solid, endpoint, 18)), false, `${level.name} portal should be clear`);
+    const requiredSentries = level.guards.filter((guard) => guard.required);
+    assert.equal(requiredSentries.length, level.requiredDistractions, `${level.name}: decoy requirement matches its sentries`);
+    for (const [sentryIndex, sentry] of requiredSentries.entries()) {
+      assert.equal(solids.some((solid) => overlapsCircle(solid, sentry.bait, 18)), false, `${level.name}: decoy zone ${sentryIndex + 1} is clear`);
+      assert.equal(pathExists(level.spawn, sentry.bait, [...solids, level.vaultGate]), true, `${level.name}: decoy zone ${sentryIndex + 1} is reachable before the vault`);
+      assert.ok(Math.hypot(level.terminal.x - sentry.bait.x, level.terminal.y - sentry.bait.y) > sentry.bait.r + 30, `${level.name}: terminal does not auto-trigger decoy ${sentryIndex + 1}`);
+      assert.ok(Math.hypot(level.pad.x - sentry.bait.x, level.pad.y - sentry.bait.y) > sentry.bait.r + 30, `${level.name}: sync pad does not auto-trigger decoy ${sentryIndex + 1}`);
+    }
     assert.equal(pathExists(level.spawn, level.terminal, [...solids, level.vaultGate]), true, `${level.name}: spawn to terminal`);
     assert.equal(pathExists(level.terminal, level.pad, [...solids, level.vaultGate]), true, `${level.name}: terminal to pad`);
+    assert.equal(pathExists(level.pad, level.core, [...solids, level.vaultGate]), false, `${level.name}: closed vault gate blocks the Core`);
     assert.equal(pathExists(level.pad, level.core, solids), true, `${level.name}: pad to core with vault open`);
     assert.equal(pathExists(level.core, level.exit, solids), true, `${level.name}: core to extraction`);
     for (const [guardIndex, guard] of level.guards.entries()) {
@@ -281,6 +378,9 @@ test("time fragments lock the Core until every fragment is recovered", () => {
   const { debug } = createRuntime();
   debug.selectLevel(1); debug.resetMission(); debug.setState("playing");
   const level = debug.getLevel();
+  const sentry = debug.game.guards.find((guard) => guard.required);
+  debug.game.distractionAssignments.set(sentry.index, 1); debug.game.distractedGuards.add(sentry.index);
+  debug.setEchoes([staticEcho(1, level.pad)]);
   debug.game.loopTime = 2; debug.setPlayer(level.core.x, level.core.y); debug.setHeld("KeyE", true);
   debug.updateDevices(.7);
   assert.equal(debug.game.core, false);
@@ -329,7 +429,11 @@ test("every guard patrol keeps advancing instead of wedging into scenery", () =>
       debug.updateGuards(1 / 120);
       debug.game.guards.forEach((guard, index) => { if (guard.point !== lastPoints[index]) { advances[index] += 1; lastPoints[index] = guard.point; } });
     }
-    advances.forEach((count, guardIndex) => assert.ok(count >= 2, `${debug.getLevel().name} guard ${guardIndex + 1} should advance multiple waypoints (got ${count})`));
+    advances.forEach((count, guardIndex) => {
+      const guard = debug.game.guards[guardIndex];
+      if (guard.sentry) assert.equal(count, 0, `${debug.getLevel().name} sentry ${guardIndex + 1} should hold its post`);
+      else assert.ok(count >= 2, `${debug.getLevel().name} guard ${guardIndex + 1} should advance multiple waypoints (got ${count})`);
+    });
   }
 });
 
