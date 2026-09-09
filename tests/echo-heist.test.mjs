@@ -28,14 +28,14 @@ function makeElement(id) {
   };
 }
 
-function createRuntime() {
+function createRuntime(initialStorage = []) {
   const elements = new Map();
   const document = {
     body: makeElement("body"),
     getElementById(id) { if (!elements.has(id)) elements.set(id, makeElement(id)); return elements.get(id); },
     addEventListener() {}, hidden: false
   };
-  const storage = new Map();
+  const storage = new Map(initialStorage);
   const sandbox = {
     document,
     location: { hostname: "localhost", protocol: "http:" },
@@ -97,11 +97,11 @@ test("Echo Heist is clearly featured at the top of the games homepage", () => {
 });
 
 test("menu, gameplay HUD, pause, help, result, and all promised controls exist", () => {
-  for (const id of ["menu", "hud", "pause", "help", "result", "playButton", "soundButton", "objectiveText", "alertFill"]) {
+  for (const id of ["menu", "hud", "pause", "help", "result", "playButton", "soundButton", "objectiveText", "alertFill", "levelSelect", "levelButton1", "levelButton2", "levelButton3", "levelButton4", "nextButton"]) {
     assert.match(html, new RegExp(`id=["']${id}["']`));
   }
   for (const control of ["WASD", "SPACE", "E", "R"]) assert.match(html, new RegExp(`>${control}<`));
-  assert.match(html, /<script src="game\.js"><\/script>/);
+  assert.match(html, /<script src="game\.js\?v=campaign-4"><\/script>/);
   assert.match(html, /id="timerValue">40\.0</);
   assert.match(html, /Maximum echoes: 4/);
 });
@@ -163,6 +163,32 @@ test("two sequentially recorded echoes can open both gates for the third loop", 
   assert.equal(debug.game.loop, 3);
 });
 
+test("every campaign operation can be solved with two synchronized echoes", () => {
+  const { debug } = createRuntime();
+  for (let index = 0; index < debug.levels.length; index += 1) {
+    debug.selectLevel(index);
+    const level = debug.getLevel();
+    debug.resetMission(); debug.setState("playing");
+
+    debug.game.loopTime = 2; debug.setPlayer(level.terminal.x, level.terminal.y); debug.setHeld("KeyE", true); debug.recordFrame(true);
+    debug.beginRewind("TERMINAL ROUTE"); debug.completeRewind();
+    debug.setState("playing"); debug.game.loopTime = 4; debug.setHeld("KeyE", false); debug.setPlayer(level.pad.x, level.pad.y); debug.recordFrame(true);
+    debug.beginRewind("PAD ROUTE"); debug.completeRewind();
+
+    debug.setState("playing"); debug.game.loopTime = 8;
+    debug.setPlayer(level.spawn.x, level.spawn.y); debug.updateDevices(.2); debug.updateDevices(.2);
+    assert.equal(debug.game.terminalActive, true, `${level.name}: terminal echo active`);
+    assert.equal(debug.game.plateActive, true, `${level.name}: pad echo active`);
+    for (const shard of debug.game.shards) { debug.setPlayer(shard.x, shard.y); debug.updateDevices(.02); }
+    assert.equal(debug.game.shards.every((shard) => shard.collected), true, `${level.name}: fragments recovered`);
+    debug.setPlayer(level.core.x, level.core.y); debug.setHeld("KeyE", true);
+    for (let step = 0; step < 4; step += 1) debug.updateDevices(.18);
+    assert.equal(debug.game.core, true, `${level.name}: Core recovered`);
+    debug.setPlayer(level.exit.x, level.exit.y); debug.updateDevices(.02);
+    assert.equal(debug.getState(), "success", `${level.name}: extraction reached`);
+  }
+});
+
 test("dashing into an active laser can never skip the terminal echo", () => {
   const { debug } = createRuntime();
   debug.resetMission(); debug.setState("playing"); debug.game.loopTime = 1;
@@ -192,12 +218,114 @@ test("all required routes have enough physical clearance", () => {
   assert.equal(pathExists(CORE, EXIT, solids), true, "core to extraction");
 });
 
-test("guard patrol routes keep moving around solid scenery", () => {
+test("all four campaign levels have reachable objectives and safe spawn points", () => {
   const { debug } = createRuntime();
-  debug.resetMission(); debug.setState("playing");
-  const starts = debug.game.guards.map((guard) => ({ x: guard.x, y: guard.y }));
-  for (let i = 0; i < 1200; i += 1) debug.updateGuards(1 / 120);
-  debug.game.guards.forEach((guard, index) => assert.ok(Math.hypot(guard.x - starts[index].x, guard.y - starts[index].y) > 20, `guard ${index + 1} should not be stuck`));
+  assert.equal(debug.levels.length, 4);
+  for (let index = 0; index < debug.levels.length; index += 1) {
+    debug.selectLevel(index);
+    const level = debug.getLevel();
+    const solids = [...level.walls, ...level.props];
+    assert.equal(solids.some((solid) => overlapsCircle(solid, level.spawn, 18)), false, `${level.name} spawn should be clear`);
+    for (const [label, point, radius] of [["terminal", level.terminal, 18], ["sync pad", level.pad, 18], ["Core", level.core, 18], ["exit", level.exit, 18]]) {
+      assert.equal(solids.some((solid) => overlapsCircle(solid, point, radius)), false, `${level.name} ${label} should be clear`);
+    }
+    for (const shard of level.shards) assert.equal(solids.some((solid) => overlapsCircle(solid, shard, 14)), false, `${level.name} fragment should be clear`);
+    for (const portal of level.portals) for (const endpoint of [portal.a, portal.b]) assert.equal(solids.some((solid) => overlapsCircle(solid, endpoint, 18)), false, `${level.name} portal should be clear`);
+    assert.equal(pathExists(level.spawn, level.terminal, [...solids, level.vaultGate]), true, `${level.name}: spawn to terminal`);
+    assert.equal(pathExists(level.terminal, level.pad, [...solids, level.vaultGate]), true, `${level.name}: terminal to pad`);
+    assert.equal(pathExists(level.pad, level.core, solids), true, `${level.name}: pad to core with vault open`);
+    assert.equal(pathExists(level.core, level.exit, solids), true, `${level.name}: core to extraction`);
+    for (const [guardIndex, guard] of level.guards.entries()) {
+      for (const point of guard.route) assert.equal(solids.some((solid) => overlapsCircle(solid, { x: point[0], y: point[1] }, 16)), false, `${level.name}: guard ${guardIndex + 1} route point is clear`);
+    }
+  }
+});
+
+test("switching levels resets runtime actors to that operation", () => {
+  const { debug } = createRuntime();
+  for (let index = 0; index < debug.levels.length; index += 1) {
+    debug.selectLevel(index); debug.resetMission();
+    const level = debug.getLevel();
+    assert.equal(debug.game.player.x, level.spawn.x);
+    assert.equal(debug.game.player.y, level.spawn.y);
+    assert.equal(debug.game.guards.length, level.guards.length);
+    assert.equal(debug.game.cameras.length, level.cameras.length);
+    assert.equal(debug.game.shards.length, level.shards.length);
+    assert.equal(debug.game.loop, 1);
+    assert.equal(debug.game.echoes.length, 0);
+    assert.doesNotThrow(() => debug.render(), `${level.name} should render a complete frame`);
+  }
+});
+
+test("pulse floors capture on their live beat and mirror portals preserve momentum", () => {
+  const { debug } = createRuntime();
+  debug.selectLevel(1); debug.resetMission(); debug.setState("playing");
+  const pulse = debug.getLevel().pulseFields[0];
+  debug.game.loopTime = .5; debug.setPlayer(pulse.x + pulse.w / 2, pulse.y + pulse.h / 2); debug.updateDevices(.02);
+  assert.equal(debug.getState(), "rewinding");
+
+  debug.selectLevel(2); debug.resetMission(); debug.setState("playing");
+  const portal = debug.getLevel().portals[0];
+  debug.setPlayer(portal.a.x, portal.a.y); debug.game.player.vx = 100; debug.game.loopTime = 1; debug.updateDevices(.02);
+  assert.ok(Math.hypot(debug.game.player.x - portal.b.x, debug.game.player.y - portal.b.y) < 2);
+  assert.ok(debug.game.player.vx > 100);
+  debug.updateDevices(1);
+  assert.ok(Math.hypot(debug.game.player.x - portal.b.x, debug.game.player.y - portal.b.y) < 2, "standing in the destination should not bounce back");
+  debug.setPlayer(portal.b.x + 60, portal.b.y); debug.updateDevices(.02);
+  debug.setPlayer(portal.b.x, portal.b.y); debug.updateDevices(.02);
+  assert.ok(Math.hypot(debug.game.player.x - portal.a.x, debug.game.player.y - portal.a.y) < 2, "portal should rearm after leaving it");
+});
+
+test("time fragments lock the Core until every fragment is recovered", () => {
+  const { debug } = createRuntime();
+  debug.selectLevel(1); debug.resetMission(); debug.setState("playing");
+  const level = debug.getLevel();
+  debug.game.loopTime = 2; debug.setPlayer(level.core.x, level.core.y); debug.setHeld("KeyE", true);
+  debug.updateDevices(.7);
+  assert.equal(debug.game.core, false);
+  debug.game.shards.forEach((shard) => { shard.collected = true; });
+  debug.updateDevices(.7);
+  assert.equal(debug.game.core, true);
+});
+
+test("clearing an operation saves its best run and unlocks the next mission", () => {
+  const { debug, storage, elements } = createRuntime();
+  debug.selectLevel(0); debug.resetMission(); debug.setState("playing");
+  debug.game.loop = 3; debug.game.totalTime = 60; debug.endMission(true);
+  const saved = JSON.parse(storage.get("echoHeistCampaignV2"));
+  assert.equal(saved.completed["chrono-vault"], true);
+  assert.equal(saved.unlocked, 2);
+  assert.equal(saved.bests["chrono-vault"].rank, "S");
+  assert.equal(elements.get("levelButton2").disabled, false);
+});
+
+test("an old single-level best migrates into the campaign save", () => {
+  const oldBest = JSON.stringify({ time: 72, loops: 3, rank: "A" });
+  const { debug, elements } = createRuntime([["echoHeistBestV1", oldBest]]);
+  assert.equal(debug.getLevel().id, "chrono-vault");
+  assert.equal(elements.get("levelButton2").disabled, false);
+  assert.match(elements.get("bestResult").textContent, /A RANK/);
+});
+
+test("corrupt legacy data cannot erase valid campaign progress", () => {
+  const campaign = JSON.stringify({ unlocked: 3, selected: 1.9, completed: { "chrono-vault": true }, bests: { "chrono-vault": { time: 68, loops: 3, rank: "S" } } });
+  const { debug, elements } = createRuntime([["echoHeistCampaignV2", campaign], ["echoHeistBestV1", "{broken"]]);
+  assert.equal(debug.getLevel().id, "neon-foundry", "fractional indexes should safely normalize to an integer");
+  assert.equal(elements.get("levelButton3").disabled, false);
+  assert.equal(elements.get("levelButton4").disabled, true);
+});
+
+test("every guard patrol keeps advancing instead of wedging into scenery", () => {
+  const { debug } = createRuntime();
+  for (let levelIndex = 0; levelIndex < debug.levels.length; levelIndex += 1) {
+    debug.selectLevel(levelIndex); debug.resetMission(); debug.setState("playing"); debug.setPlayer(0, 0);
+    const lastPoints = debug.game.guards.map((guard) => guard.point), advances = debug.game.guards.map(() => 0);
+    for (let frame = 0; frame < 12000; frame += 1) {
+      debug.updateGuards(1 / 120);
+      debug.game.guards.forEach((guard, index) => { if (guard.point !== lastPoints[index]) { advances[index] += 1; lastPoints[index] = guard.point; } });
+    }
+    advances.forEach((count, guardIndex) => assert.ok(count >= 2, `${debug.getLevel().name} guard ${guardIndex + 1} should advance multiple waypoints (got ${count})`));
+  }
 });
 
 test("time formatting rolls rounded seconds into the next minute", () => {

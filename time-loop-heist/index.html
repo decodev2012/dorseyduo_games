@@ -52,7 +52,7 @@
     .icon-button{pointer-events:auto;display:grid;place-items:center;width:42px;min-width:42px;padding:0;border:1px solid var(--line);border-radius:10px;background:linear-gradient(#152237dd,#080e1bdd);box-shadow:0 8px 22px #0007;cursor:pointer;transition:transform .14s,border-color .14s,background .14s}
     .icon-button:hover{transform:translateY(-2px);border-color:#6beaff88;background:#162b42}
     .icon-button:active{transform:translateY(1px)}
-    .icon-button:focus-visible,.primary:focus-visible,.secondary:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
+    .icon-button:focus-visible,.primary:focus-visible,.secondary:focus-visible,.level-card:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
 
     .objective-card{position:absolute;top:92px;left:max(20px,env(safe-area-inset-left));width:min(355px,calc(100vw - 40px));padding:12px 14px 13px 16px;border:1px solid var(--line);border-left:3px solid var(--cyan);border-radius:3px 12px 12px 3px;background:linear-gradient(105deg,rgba(8,16,29,.94),rgba(6,12,22,.72));box-shadow:0 14px 30px #0006;backdrop-filter:blur(10px)}
     .eyebrow{display:flex;align-items:center;gap:7px;color:var(--cyan);font-size:7px;font-weight:1000;letter-spacing:.22em;text-transform:uppercase}
@@ -89,7 +89,7 @@
 
     .overlay{position:absolute;z-index:10;inset:0;display:grid;place-items:center;overflow:auto;padding:clamp(18px,5vw,54px);background:radial-gradient(circle at 62% 35%,rgba(24,58,81,.44),transparent 34%),linear-gradient(122deg,rgba(2,5,11,.98),rgba(6,12,22,.94) 52%,rgba(4,8,16,.98));backdrop-filter:blur(9px)}
     .overlay[hidden]{display:none}
-    .menu-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(300px,.7fr);gap:clamp(35px,7vw,110px);align-items:center;width:min(1120px,100%)}
+    .menu-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(300px,.7fr);gap:clamp(35px,6vw,90px);align-items:center;width:min(1240px,100%)}
     .menu-copy{position:relative}
     .menu-copy:before{position:absolute;left:-35px;top:-45px;width:130px;height:130px;border:1px solid #66f7ff23;border-radius:50%;box-shadow:0 0 90px #4cecff18,inset 0 0 50px #4cecff0b;content:"";animation:orbit 9s linear infinite}
     @keyframes orbit{to{transform:rotate(360deg)}}
@@ -98,6 +98,16 @@
     h1 span{display:block;margin-left:.36em;color:transparent;font-size:.64em;line-height:1.05;letter-spacing:.18em;-webkit-text-stroke:1px #9cefff;text-shadow:0 0 24px #66f7ff55}
     .tagline{max-width:585px;margin:27px 0 0;color:#9db2c4;font-size:clamp(14px,1.7vw,19px);font-weight:600;line-height:1.55}
     .tagline strong{color:#e6fbff}
+    .level-select{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;max-width:650px;margin-top:24px}
+    .level-card{position:relative;display:grid;grid-template-columns:auto 1fr;align-items:center;gap:11px;min-height:67px;padding:10px 13px;border:1px solid #7aefff20;border-radius:10px;background:linear-gradient(145deg,#0a1625d9,#07101bd9);color:#cceaf1;text-align:left;cursor:pointer;transition:transform .16s,border-color .16s,background .16s,box-shadow .16s}
+    .level-card:hover:not(:disabled){transform:translateY(-2px);border-color:#69edff66;background:#10243a;box-shadow:0 9px 22px #0007}
+    .level-card.selected{border-color:#68f5ffcc;background:linear-gradient(145deg,#123148,#101b39);box-shadow:0 0 24px #53edff1b,inset 3px 0 #65efff}
+    .level-card:disabled{cursor:not-allowed;filter:saturate(.25);opacity:.48}
+    .level-card.complete:after{position:absolute;right:9px;top:8px;color:var(--green);font-size:7px;font-weight:1000;letter-spacing:.1em;content:"CLEARED"}
+    .level-card:disabled:after{position:absolute;right:9px;top:8px;color:#78909f;font-size:11px;content:"LOCKED"}
+    .level-op{display:grid;place-items:center;width:40px;height:40px;border:1px solid #69efff44;border-radius:50%;color:var(--cyan);font-size:10px;font-weight:1000;box-shadow:inset 0 0 14px #66f7ff0f}
+    .level-card b{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+    .level-card small{display:block;margin-top:4px;color:#6f899e;font-size:8px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
     .menu-actions{display:flex;align-items:center;gap:12px;margin-top:30px;flex-wrap:wrap}
     .primary,.secondary{position:relative;border:0;border-radius:8px;padding:15px 23px;cursor:pointer;font-size:11px;font-weight:1000;letter-spacing:.13em;text-transform:uppercase;transition:transform .15s,filter .15s,box-shadow .15s}
     .primary{overflow:hidden;background:linear-gradient(115deg,#aafff2,#62f4ff 48%,#79b9ff);color:#031017;box-shadow:0 5px 0 #167a8a,0 12px 34px #42deff3e}
@@ -108,6 +118,7 @@
     .secondary{border:1px solid #7aefff4a;background:#0a1523;color:#caeff5;box-shadow:0 8px 20px #0005}
     .best-line{margin-top:17px;color:#61798e;font-size:9px;font-weight:900;letter-spacing:.15em;text-transform:uppercase}
     #bestResult{color:#b8f9ff}
+    .campaign-line{margin-top:7px;color:#5e7488;font-size:8px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}
     .briefing{position:relative;padding:26px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(145deg,rgba(15,27,45,.9),rgba(4,9,17,.9));box-shadow:0 30px 80px #0009,inset 0 1px #ffffff10}
     .briefing:before{position:absolute;inset:8px;border:1px solid #ffffff08;border-radius:12px;pointer-events:none;content:""}
     .brief-title{display:flex;justify-content:space-between;align-items:center;padding-bottom:16px;border-bottom:1px solid #ffffff12;color:#dff9ff;font-size:10px;font-weight:1000;letter-spacing:.18em;text-transform:uppercase}
@@ -142,8 +153,9 @@
     @media(max-width:800px){
       .menu-grid{grid-template-columns:1fr;gap:30px}.briefing{display:none}.alert-card{top:auto;right:16px;bottom:70px;width:170px}.objective-card{top:82px}.mission-cluster .hud-chip:nth-child(2){display:none}.controls-strip{display:none}.echo-rack{bottom:16px}.hud-top{padding:14px 16px}.brand-sub{display:none}
     }
+    @media(max-width:520px){.level-select{grid-template-columns:1fr}.level-card{min-height:58px}.menu-actions{margin-top:21px}}
     @media(pointer:coarse){.touch-controls{display:flex}.controls-strip{display:none}.echo-rack{bottom:150px}.alert-card{bottom:155px}.objective-card{max-width:calc(100vw - 32px)}.echo-slot{min-width:0;padding:7px}.echo-slot{font-size:0}.echo-slot i{margin:0}}
-    @media(max-height:650px){.objective-card{top:70px}.alert-card{top:70px}.controls-strip,.echo-rack{bottom:10px}.menu-grid{transform:scale(.9)}.tagline{margin-top:18px}.menu-actions{margin-top:20px}}
+    @media(max-height:650px){.overlay{place-items:start center;align-content:start;padding-top:max(16px,env(safe-area-inset-top));padding-bottom:max(20px,env(safe-area-inset-bottom))}.menu-grid{grid-template-columns:1fr;transform:none}.briefing{display:none}.objective-card{top:70px}.alert-card{top:70px}.controls-strip,.echo-rack{bottom:10px}.tagline{margin-top:18px}.menu-actions{margin-top:20px}}
     @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.001ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.001ms!important}}
   </style>
 </head>
@@ -154,7 +166,7 @@
 
     <section id="hud" hidden aria-label="Mission status">
       <div class="hud-top">
-        <div class="brand-lockup"><i class="brand-mark"></i><div><span class="brand-title">ECHO HEIST</span><span class="brand-sub">CHRONO CRIMES DIVISION</span></div></div>
+        <div class="brand-lockup"><i class="brand-mark"></i><div><span class="brand-title">ECHO HEIST</span><span class="brand-sub" id="levelName">OP 01 // CHRONO VAULT</span></div></div>
         <div class="mission-cluster">
           <div class="hud-chip"><span>Current loop</span><b id="loopValue">01 / 05</b></div>
           <div class="hud-chip"><span>Echoes active</span><b id="echoValue">00</b></div>
@@ -201,22 +213,29 @@
     <section id="menu" class="overlay">
       <div class="menu-grid">
         <div class="menu-copy">
-          <div class="chapter">Dorsey Duo Games // Operation 01</div>
+          <div class="chapter" id="menuChapter">Dorsey Duo Games // Operation 01</div>
           <h1>Echo <span>Heist</span></h1>
-          <p class="tagline">The vault needs three thieves. You came alone. <strong>Good thing your past selves are excellent accomplices.</strong></p>
+          <p class="tagline" id="menuTagline">The vault needs three thieves. You came alone. <strong>Good thing your past selves are excellent accomplices.</strong></p>
+          <div class="level-select" id="levelSelect" aria-label="Choose an operation">
+            <button class="level-card selected" id="levelButton1" type="button" data-level="0" aria-pressed="true"><span class="level-op">01</span><span><b>Chrono Vault</b><small>Initiation // Original breach</small></span></button>
+            <button class="level-card locked" id="levelButton2" type="button" data-level="1" aria-pressed="false" disabled><span class="level-op">02</span><span><b>Neon Foundry</b><small>Pulse floors // 2 fragments</small></span></button>
+            <button class="level-card locked" id="levelButton3" type="button" data-level="2" aria-pressed="false" disabled><span class="level-op">03</span><span><b>Mirror Archive</b><small>Warp rifts // 3 fragments</small></span></button>
+            <button class="level-card locked" id="levelButton4" type="button" data-level="3" aria-pressed="false" disabled><span class="level-op">04</span><span><b>Zero Hour</b><small>Elite security // Finale</small></span></button>
+          </div>
           <div class="menu-actions">
             <button class="primary" id="playButton" type="button">Breach the loop</button>
             <button class="secondary" id="helpButton" type="button">Controls</button>
             <a class="secondary" href="../index.html" style="text-decoration:none">All games</a>
           </div>
           <div class="best-line">Best operation: <span id="bestResult">No successful breach</span></div>
+          <div class="campaign-line" id="campaignProgress">0 / 4 operations cleared</div>
         </div>
         <aside class="briefing" aria-label="Mission briefing">
-          <div class="brief-title"><span>Mission briefing</span><span class="classification">Eyes only</span></div>
-          <div class="step"><span class="step-num">01</span><div><b>Record your route</b><p>Every move you make is remembered by the loop.</p></div></div>
-          <div class="step"><span class="step-num">02</span><div><b>Rewind time</b><p>Your echo repeats the route while you begin again.</p></div></div>
-          <div class="step"><span class="step-num">03</span><div><b>Outsmart the vault</b><p>Use echoes to hold sync plates, cross gates, and steal the Chrono Core.</p></div></div>
-          <div class="brief-footer"><span>Window: 40 seconds</span><span>Maximum echoes: 4</span></div>
+          <div class="brief-title"><span id="briefingName">Chrono Vault briefing</span><span class="classification" id="briefingClass">Initiation</span></div>
+          <div class="step"><span class="step-num">01</span><div><b id="briefingStep1Title">Record your route</b><p id="briefingStep1Copy">Every move you make is remembered by the loop.</p></div></div>
+          <div class="step"><span class="step-num">02</span><div><b id="briefingStep2Title">Rewind time</b><p id="briefingStep2Copy">Your echo repeats the route while you begin again.</p></div></div>
+          <div class="step"><span class="step-num">03</span><div><b id="briefingStep3Title">Outsmart the vault</b><p id="briefingStep3Copy">Hold both security links, steal the Core, and extract.</p></div></div>
+          <div class="brief-footer"><span id="briefingWindow">Window: 40 seconds</span><span id="briefingEchoes">Maximum echoes: 4</span></div>
         </aside>
       </div>
     </section>
@@ -231,6 +250,9 @@
           <div class="help-row"><div class="keys"><kbd>SPACE</kbd></div><p><strong>Dash</strong> past patrols. It recharges quickly.</p></div>
           <div class="help-row"><div class="keys"><kbd>E</kbd></div><p><strong>Interact</strong> with terminals and the Chrono Core.</p></div>
           <div class="help-row"><div class="keys"><kbd>R</kbd></div><p><strong>Hold to rewind</strong> and turn your current route into an echo.</p></div>
+          <div class="help-row"><div class="keys"><kbd>RED</kbd></div><p><strong>Pulse floors</strong> are lethal while glowing. Cross during their dark beat.</p></div>
+          <div class="help-row"><div class="keys"><kbd>RIFT</kbd></div><p><strong>Warp portals</strong> preserve your movement speed and work in both directions.</p></div>
+          <div class="help-row"><div class="keys"><kbd>FRAG</kbd></div><p><strong>Time fragments reset</strong> on rewind, but a recorded echo can collect them again for you.</p></div>
         </div>
         <div class="modal-actions"><button class="primary" id="helpPlayButton" type="button">Start operation</button><button class="secondary" id="helpBackButton" type="button">Back</button></div>
       </div>
@@ -255,10 +277,10 @@
           <div class="result-stat"><span>Loops</span><b id="resultLoops">03</b></div>
           <div class="result-stat"><span>Time</span><b id="resultTime">00:31</b></div>
         </div>
-        <div class="modal-actions"><button class="primary" id="replayButton" type="button">Run it again</button><button class="secondary" id="resultMenuButton" type="button">Main menu</button></div>
+        <div class="modal-actions"><button class="primary" id="nextButton" type="button" hidden>Next operation</button><button class="primary" id="replayButton" type="button">Run it again</button><button class="secondary" id="resultMenuButton" type="button">Main menu</button></div>
       </div>
     </section>
   </main>
-  <script src="game.js"></script>
+  <script src="game.js?v=campaign-4"></script>
 </body>
 </html>

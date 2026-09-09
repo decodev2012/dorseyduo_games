@@ -15,10 +15,20 @@
     objective: $("objectiveText"), objectiveFill: $("objectiveFill"), alert: $("alertFill"),
     alertState: $("alertState"), alertCard: $("alertCard"), toast: $("toast"),
     countdown: $("countdown"), rewindWash: $("rewindWash"), sound: $("soundButton"),
-    best: $("bestResult"), resultTitle: $("resultTitle"), resultSubtitle: $("resultSubtitle"),
+    best: $("bestResult"), campaign: $("campaignProgress"), chapter: $("menuChapter"), tagline: $("menuTagline"),
+    briefingName: $("briefingName"), briefingClass: $("briefingClass"), briefingWindow: $("briefingWindow"), briefingEchoes: $("briefingEchoes"),
+    briefingStep1Title: $("briefingStep1Title"), briefingStep1Copy: $("briefingStep1Copy"), briefingStep2Title: $("briefingStep2Title"), briefingStep2Copy: $("briefingStep2Copy"), briefingStep3Title: $("briefingStep3Title"), briefingStep3Copy: $("briefingStep3Copy"),
+    levelName: $("levelName"), levelSelect: $("levelSelect"), next: $("nextButton"),
+    levelButtons: [$("levelButton1"), $("levelButton2"), $("levelButton3"), $("levelButton4")],
+    resultTitle: $("resultTitle"), resultSubtitle: $("resultSubtitle"),
     resultIcon: $("resultIcon"), resultRank: $("resultRank"), resultLoops: $("resultLoops"),
     resultTime: $("resultTime"), echoSlots: [$("echoSlot1"), $("echoSlot2"), $("echoSlot3"), $("echoSlot4")]
   };
+  const missingUi = Object.entries(ui).flatMap(([name, value]) => Array.isArray(value) ? value.map((node, index) => node ? null : `${name}[${index}]`) : value ? [] : [name]).filter(Boolean);
+  if (missingUi.length) {
+    document.body.innerHTML = `<main style="min-height:100%;display:grid;place-items:center;padding:32px;background:#050811;color:#eafaff;text-align:center;font-family:system-ui"><div><h1 style="font-size:38px">Update required</h1><p>Echo Heist received a new campaign. Reload once to sync the game files.</p><button type="button" onclick="location.reload()" style="margin-top:14px;padding:12px 18px;border:0;border-radius:8px;background:#66f7ff;color:#031017;font-weight:800">Reload game</button></div></main>`;
+    return;
+  }
 
   const TAU = Math.PI * 2;
   const WORLD_W = 2000;
@@ -55,37 +65,191 @@
   addEventListener("resize", resize, { passive: true });
   resize();
 
-  const FLOOR = { x: 58, y: 76, w: 1884, h: 978 };
-  const TERMINAL = { x: 374, y: 730, r: 49 };
-  const SYNC_PAD = { x: 1044, y: 625, r: 47 };
-  const CORE = { x: 1660, y: 382, r: 52 };
-  const EXIT = { x: 1780, y: 903, r: 62 };
-  const LASER_GATE = { x: 684, y: 646, w: 34, h: 198 };
-  const VAULT_GATE = { x: 1274, y: 510, w: 38, h: 224 };
-  const ROOMS = [
-    { x: 88, y: 106, w: 586, h: 918, color: "#0d1724", accent: "#20435c", label: "ENTRY // SECURITY" },
-    { x: 718, y: 106, w: 546, h: 918, color: "#0b1820", accent: "#1b514e", label: "ARCHIVE // SYNC LAB" },
-    { x: 1312, y: 106, w: 600, h: 918, color: "#191512", accent: "#594020", label: "CHRONO VAULT" }
-  ];
-  const WALLS = [
+  const outerWalls = () => [
     { x: 58, y: 76, w: 1884, h: 30 }, { x: 58, y: 1024, w: 1884, h: 30 },
-    { x: 58, y: 76, w: 30, h: 978 }, { x: 1912, y: 76, w: 30, h: 978 },
-    { x: 674, y: 106, w: 44, h: 540 }, { x: 674, y: 844, w: 44, h: 180 },
-    { x: 1264, y: 106, w: 48, h: 404 }, { x: 1264, y: 734, w: 48, h: 290 },
-    { x: 188, y: 260, w: 248, h: 34 }, { x: 438, y: 260, w: 150, h: 34 },
-    { x: 176, y: 464, w: 222, h: 32 }, { x: 462, y: 464, w: 128, h: 32 },
-    { x: 798, y: 218, w: 198, h: 34 }, { x: 1070, y: 218, w: 128, h: 34 },
-    { x: 778, y: 862, w: 184, h: 32 }, { x: 1094, y: 862, w: 104, h: 32 },
-    { x: 1408, y: 706, w: 214, h: 34 }, { x: 1708, y: 706, w: 126, h: 34 },
-    { x: 1460, y: 214, w: 304, h: 32 }
+    { x: 58, y: 76, w: 30, h: 978 }, { x: 1912, y: 76, w: 30, h: 978 }
   ];
-  const PROPS = [
-    { x: 145, y: 176, w: 70, h: 42, type: "desk" }, { x: 490, y: 350, w: 82, h: 44, type: "desk" },
-    { x: 790, y: 320, w: 62, h: 62, type: "server" }, { x: 890, y: 320, w: 62, h: 62, type: "server" },
-    { x: 1110, y: 760, w: 70, h: 52, type: "server" }, { x: 1410, y: 810, w: 92, h: 46, type: "crate" },
-    { x: 1535, y: 810, w: 58, h: 46, type: "crate" }, { x: 1770, y: 540, w: 72, h: 72, type: "vault" }
+
+  const LEVELS = [
+    {
+      id: "chrono-vault", operation: "01", name: "Chrono Vault", difficulty: "Initiation",
+      tagline: "The vault needs three thieves. You came alone. <strong>Good thing your past selves are excellent accomplices.</strong>",
+      briefing: [["Record your route", "Every move you make is remembered by the loop."], ["Rewind time", "Your echo repeats the route while you begin again."], ["Outsmart the vault", "Hold both security links, steal the Core, and extract."]],
+      resultTitle: "Core Secured", resultCopy: "The vault saw you coming. It just did not expect all your previous selves.",
+      loopDuration: 40, maxLoops: 5, parTime: 85, spawn: { x: 170, y: 900, angle: -Math.PI / 2 },
+      floor: { x: 58, y: 76, w: 1884, h: 978 },
+      rooms: [
+        { x: 88, y: 106, w: 586, h: 918, color: "#0d1724", accent: "#20435c", label: "ENTRY // SECURITY" },
+        { x: 718, y: 106, w: 546, h: 918, color: "#0b1820", accent: "#1b514e", label: "ARCHIVE // SYNC LAB" },
+        { x: 1312, y: 106, w: 600, h: 918, color: "#191512", accent: "#594020", label: "CHRONO VAULT" }
+      ],
+      walls: outerWalls().concat([
+        { x: 674, y: 106, w: 44, h: 540 }, { x: 674, y: 844, w: 44, h: 180 },
+        { x: 1264, y: 106, w: 48, h: 404 }, { x: 1264, y: 734, w: 48, h: 290 },
+        { x: 188, y: 260, w: 400, h: 34 }, { x: 176, y: 464, w: 222, h: 32 }, { x: 462, y: 464, w: 128, h: 32 },
+        { x: 798, y: 218, w: 198, h: 34 }, { x: 1070, y: 218, w: 128, h: 34 }, { x: 778, y: 862, w: 184, h: 32 }, { x: 1094, y: 862, w: 104, h: 32 },
+        { x: 1408, y: 706, w: 214, h: 34 }, { x: 1708, y: 706, w: 126, h: 34 }, { x: 1460, y: 214, w: 304, h: 32 }
+      ]),
+      props: [
+        { x: 145, y: 176, w: 70, h: 42, type: "desk" }, { x: 490, y: 350, w: 82, h: 44, type: "desk" },
+        { x: 790, y: 320, w: 62, h: 62, type: "server" }, { x: 890, y: 320, w: 62, h: 62, type: "server" }, { x: 1110, y: 760, w: 70, h: 52, type: "server" },
+        { x: 1410, y: 810, w: 92, h: 46, type: "crate" }, { x: 1535, y: 810, w: 58, h: 46, type: "crate" }, { x: 1770, y: 540, w: 72, h: 72, type: "vault" }
+      ],
+      terminal: { x: 374, y: 730, r: 49 }, pad: { x: 1044, y: 625, r: 47 }, core: { x: 1660, y: 382, r: 52 }, exit: { x: 1780, y: 903, r: 62 },
+      laserGates: [{ x: 684, y: 646, w: 34, h: 198 }], vaultGate: { x: 1274, y: 510, w: 38, h: 224 },
+      cameras: [{ x: 1168, y: 442, angle: Math.PI * .15, range: 290, fov: .46, sweep: 1.18, speed: .62 }],
+      guards: [
+        { x: 255, y: 370, route: [[255, 370], [455, 330], [455, 420], [255, 420]], color: "#f07666" },
+        { x: 810, y: 740, route: [[810, 740], [1060, 740], [1160, 660], [1160, 500], [850, 500], [790, 620]], color: "#f3a85f" },
+        { x: 1425, y: 650, route: [[1425, 650], [1880, 650], [1880, 300], [1390, 300]], color: "#ff796f" }
+      ],
+      shards: [], pulseFields: [], portals: []
+    },
+    {
+      id: "neon-foundry", operation: "02", name: "Neon Foundry", difficulty: "Volatile",
+      tagline: "The Core is split across a live weapons plant. <strong>Dodge the pulse floors, rebuild it, and escape before the next shift arrives.</strong>",
+      briefing: [["Kill the grid", "Record the west terminal while furnaces pulse around you."], ["Split the crew", "Leave a second echo on the freight lock."], ["Collect two fragments", "Rebuild the moving Core, then sprint for extraction."]],
+      resultTitle: "Foundry Robbed", resultCopy: "The assembly line kept moving. So did every version of you.",
+      loopDuration: 42, maxLoops: 5, parTime: 94, spawn: { x: 165, y: 890, angle: -Math.PI / 2 },
+      floor: { x: 58, y: 76, w: 1884, h: 978 },
+      rooms: [
+        { x: 88, y: 106, w: 662, h: 918, color: "#18151b", accent: "#6a2e40", label: "INTAKE // SMELTER" },
+        { x: 790, y: 106, w: 570, h: 918, color: "#151713", accent: "#6a5425", label: "LIVE ASSEMBLY" },
+        { x: 1400, y: 106, w: 512, h: 918, color: "#15101b", accent: "#58316d", label: "FREIGHT VAULT" }
+      ],
+      walls: outerWalls().concat([
+        { x: 750, y: 106, w: 40, h: 270 }, { x: 750, y: 610, w: 40, h: 414 },
+        { x: 1360, y: 106, w: 40, h: 500 }, { x: 1360, y: 826, w: 40, h: 198 },
+        { x: 170, y: 255, w: 410, h: 34 }, { x: 290, y: 500, w: 340, h: 34 },
+        { x: 855, y: 215, w: 370, h: 32 }, { x: 820, y: 805, w: 220, h: 32 }, { x: 1110, y: 805, w: 175, h: 32 },
+        { x: 1480, y: 430, w: 310, h: 34 }, { x: 1510, y: 760, w: 285, h: 34 }
+      ]),
+      props: [
+        { x: 160, y: 365, w: 88, h: 52, type: "crate" }, { x: 620, y: 770, w: 72, h: 58, type: "server" },
+        { x: 850, y: 310, w: 74, h: 74, type: "server" }, { x: 1190, y: 635, w: 78, h: 58, type: "crate" },
+        { x: 1470, y: 250, w: 72, h: 72, type: "server" }, { x: 1785, y: 580, w: 72, h: 72, type: "vault" }
+      ],
+      terminal: { x: 430, y: 815, r: 49 }, pad: { x: 1090, y: 520, r: 47 }, core: { x: 1680, y: 275, r: 52 }, exit: { x: 1790, y: 920, r: 62 },
+      laserGates: [{ x: 753, y: 376, w: 34, h: 234 }], vaultGate: { x: 1362, y: 606, w: 36, h: 220 },
+      cameras: [
+        { x: 690, y: 185, angle: 1.5, range: 310, fov: .43, sweep: .95, speed: .72 },
+        { x: 1260, y: 340, angle: 2.4, range: 300, fov: .45, sweep: 1.1, speed: .55 },
+        { x: 1830, y: 680, angle: 3.1, range: 270, fov: .42, sweep: .75, speed: .82 }
+      ],
+      guards: [
+        { x: 245, y: 680, route: [[245, 680], [600, 680], [600, 910], [245, 910]], color: "#ff745d" },
+        { x: 870, y: 655, route: [[870, 655], [1100, 720], [1290, 720], [1290, 400], [900, 400]], color: "#ffb45d" },
+        { x: 1480, y: 860, route: [[1480, 860], [1880, 860], [1880, 500], [1480, 500]], color: "#ff6e8c" }
+      ],
+      shards: [{ x: 930, y: 690, r: 25 }, { x: 1580, y: 600, r: 25 }],
+      pulseFields: [{ x: 790, y: 595, w: 570, h: 62, period: 3.2, on: 1.2, phase: .3 }, { x: 1400, y: 675, w: 512, h: 58, period: 2.8, on: 1, phase: 1.25 }], portals: []
+    },
+    {
+      id: "mirror-archive", operation: "03", name: "Mirror Archive", difficulty: "Unstable",
+      tagline: "Space folds inside the Archive. <strong>Use paired rifts, dodge overlapping cameras, and assemble the fractured Core.</strong>",
+      briefing: [["Anchor an echo", "The first link hides beyond the mirrored stacks."], ["Ride the rifts", "Blue portals preserve your speed and direction."], ["Rebuild the Core", "Find all three fragments before extraction unlocks."]],
+      resultTitle: "Archive Rewritten", resultCopy: "You stole the one artifact that was stored in three places at once.",
+      loopDuration: 44, maxLoops: 5, parTime: 102, spawn: { x: 170, y: 180, angle: .35 },
+      floor: { x: 58, y: 76, w: 1884, h: 978 },
+      rooms: [
+        { x: 88, y: 106, w: 502, h: 918, color: "#101424", accent: "#394e8e", label: "MIRROR LOBBY" },
+        { x: 630, y: 106, w: 770, h: 918, color: "#101a22", accent: "#286a78", label: "FOLDED ARCHIVE" },
+        { x: 1440, y: 106, w: 472, h: 918, color: "#181126", accent: "#673e83", label: "PRISM VAULT" }
+      ],
+      walls: outerWalls().concat([
+        { x: 590, y: 106, w: 40, h: 174 }, { x: 590, y: 500, w: 40, h: 524 },
+        { x: 1400, y: 106, w: 40, h: 544 }, { x: 1400, y: 890, w: 40, h: 134 },
+        { x: 180, y: 360, w: 300, h: 32 }, { x: 180, y: 665, w: 300, h: 32 },
+        { x: 715, y: 290, w: 260, h: 32 }, { x: 1040, y: 290, w: 250, h: 32 },
+        { x: 760, y: 600, w: 430, h: 34 }, { x: 690, y: 870, w: 260, h: 32 }, { x: 1040, y: 870, w: 270, h: 32 },
+        { x: 1510, y: 470, w: 300, h: 34 }, { x: 1510, y: 760, w: 300, h: 34 }
+      ]),
+      props: [
+        { x: 215, y: 470, w: 76, h: 58, type: "server" }, { x: 445, y: 810, w: 78, h: 54, type: "desk" },
+        { x: 700, y: 720, w: 72, h: 60, type: "server" }, { x: 1210, y: 430, w: 78, h: 62, type: "server" },
+        { x: 1510, y: 250, w: 64, h: 64, type: "crate" }, { x: 1800, y: 880, w: 70, h: 70, type: "vault" }
+      ],
+      terminal: { x: 340, y: 820, r: 49 }, pad: { x: 1130, y: 760, r: 47 }, core: { x: 1690, y: 865, r: 52 }, exit: { x: 1790, y: 185, r: 62 },
+      laserGates: [{ x: 593, y: 280, w: 34, h: 220 }], vaultGate: { x: 1402, y: 650, w: 36, h: 240 },
+      cameras: [
+        { x: 520, y: 930, angle: -1.4, range: 300, fov: .42, sweep: .8, speed: .62 },
+        { x: 985, y: 500, angle: .2, range: 330, fov: .42, sweep: 1.3, speed: .48 },
+        { x: 1810, y: 620, angle: 3.1, range: 320, fov: .45, sweep: 1.05, speed: .7 }
+      ],
+      guards: [
+        { x: 210, y: 575, route: [[210, 575], [550, 575], [550, 940], [210, 940]], color: "#e46f8a" },
+        { x: 720, y: 400, route: [[720, 400], [1320, 400], [1320, 530], [720, 530]], color: "#ed9f5c" },
+        { x: 1510, y: 610, route: [[1510, 610], [1840, 610], [1840, 360], [1480, 360], [1480, 610]], color: "#fb6f78" }
+      ],
+      shards: [{ x: 760, y: 190, r: 25 }, { x: 1280, y: 760, r: 25 }, { x: 1640, y: 360, r: 25 }],
+      pulseFields: [{ x: 1440, y: 585, w: 472, h: 64, period: 3.5, on: 1.15, phase: .9 }],
+      portals: [{ a: { x: 820, y: 760 }, b: { x: 1280, y: 360 }, color: "#76d7ff" }]
+    },
+    {
+      id: "zero-hour", operation: "04", name: "Zero Hour", difficulty: "Black Diamond",
+      tagline: "The timeline is collapsing around the final Core. <strong>Everything you learned has forty-six seconds to work.</strong>",
+      briefing: [["Break two grids", "One terminal controls both lethal laser choke points."], ["Cross the kill floor", "Red pulse zones cycle quickly—move on the dark beat."], ["Run the perfect loop", "Three fragments and four guards stand between you and history."]],
+      resultTitle: "Timeline Owned", resultCopy: "Four impossible robberies. One flawless crew. Every member was you.",
+      loopDuration: 46, maxLoops: 5, parTime: 112, spawn: { x: 160, y: 900, angle: -1.1 },
+      floor: { x: 58, y: 76, w: 1884, h: 978 },
+      rooms: [
+        { x: 88, y: 106, w: 592, h: 918, color: "#171018", accent: "#71263b", label: "COLLAPSE ZONE" },
+        { x: 720, y: 106, w: 600, h: 918, color: "#17140f", accent: "#754e20", label: "KILL FLOOR" },
+        { x: 1360, y: 106, w: 552, h: 918, color: "#190d13", accent: "#7b263d", label: "ZERO HOUR VAULT" }
+      ],
+      walls: outerWalls().concat([
+        { x: 680, y: 106, w: 40, h: 94 }, { x: 680, y: 390, w: 40, h: 634 },
+        { x: 1320, y: 106, w: 40, h: 394 }, { x: 1320, y: 760, w: 40, h: 264 },
+        { x: 175, y: 260, w: 380, h: 34 }, { x: 220, y: 555, w: 340, h: 34 },
+        { x: 800, y: 260, w: 410, h: 32 }, { x: 800, y: 515, w: 235, h: 32 }, { x: 1110, y: 515, w: 140, h: 32 }, { x: 800, y: 850, w: 410, h: 32 },
+        { x: 1450, y: 300, w: 320, h: 34 }, { x: 1510, y: 650, w: 300, h: 34 }
+      ]),
+      props: [
+        { x: 150, y: 690, w: 76, h: 56, type: "server" }, { x: 560, y: 785, w: 74, h: 60, type: "crate" },
+        { x: 760, y: 670, w: 66, h: 66, type: "server" }, { x: 1190, y: 655, w: 72, h: 58, type: "server" },
+        { x: 1435, y: 810, w: 78, h: 58, type: "crate" }, { x: 1785, y: 470, w: 76, h: 76, type: "vault" }
+      ],
+      terminal: { x: 390, y: 790, r: 49 }, pad: { x: 1050, y: 930, r: 47 }, core: { x: 1735, y: 560, r: 52 }, exit: { x: 1740, y: 915, r: 62 },
+      laserGates: [{ x: 683, y: 200, w: 34, h: 190 }, { x: 990, y: 548, w: 34, h: 302 }], vaultGate: { x: 1322, y: 500, w: 36, h: 260 },
+      cameras: [
+        { x: 620, y: 175, angle: 2.1, range: 300, fov: .44, sweep: .95, speed: .8 },
+        { x: 780, y: 420, angle: .1, range: 310, fov: .42, sweep: 1.05, speed: .7 },
+        { x: 1250, y: 740, angle: 2.9, range: 320, fov: .43, sweep: 1.15, speed: .55 },
+        { x: 1810, y: 780, angle: 3.3, range: 300, fov: .44, sweep: .9, speed: .75 }
+      ],
+      guards: [
+        { x: 230, y: 420, route: [[230, 420], [560, 420], [560, 480], [230, 480]], color: "#ff6278" },
+        { x: 850, y: 740, route: [[850, 740], [1140, 740], [1140, 610], [850, 610]], color: "#ff9d54" },
+        { x: 780, y: 170, route: [[780, 170], [1240, 170], [1240, 360], [780, 360]], color: "#ff625f" },
+        { x: 1560, y: 900, route: [[1560, 900], [1880, 900], [1880, 580], [1835, 580], [1835, 700], [1560, 700]], color: "#f75786" }
+      ],
+      shards: [{ x: 850, y: 430, r: 25 }, { x: 1210, y: 940, r: 25 }, { x: 1580, y: 820, r: 25 }],
+      pulseFields: [{ x: 780, y: 340, w: 220, h: 64, period: 2.7, on: 1.05, phase: .1 }, { x: 1040, y: 690, w: 185, h: 62, period: 2.4, on: .9, phase: .95 }, { x: 1480, y: 700, w: 230, h: 60, period: 2.9, on: 1.1, phase: 1.4 }],
+      portals: []
+    }
   ];
-  const CAMERA_UNIT = { x: 1168, y: 442, angle: Math.PI * .15, range: 290, fov: .46 };
+
+  let selectedLevelIndex = 0;
+  let activeLevel = LEVELS[0];
+  let FLOOR = activeLevel.floor;
+  let TERMINAL = activeLevel.terminal;
+  let SYNC_PAD = activeLevel.pad;
+  let CORE = activeLevel.core;
+  let EXIT = activeLevel.exit;
+  let LASER_GATES = activeLevel.laserGates;
+  let LASER_GATE = LASER_GATES[0];
+  let VAULT_GATE = activeLevel.vaultGate;
+  let ROOMS = activeLevel.rooms;
+  let WALLS = activeLevel.walls;
+  let PROPS = activeLevel.props;
+
+  function applyLevel(index) {
+    selectedLevelIndex = clamp(Math.trunc(Number(index) || 0), 0, LEVELS.length - 1);
+    activeLevel = LEVELS[selectedLevelIndex];
+    FLOOR = activeLevel.floor; TERMINAL = activeLevel.terminal; SYNC_PAD = activeLevel.pad; CORE = activeLevel.core; EXIT = activeLevel.exit;
+    LASER_GATES = activeLevel.laserGates; LASER_GATE = LASER_GATES[0]; VAULT_GATE = activeLevel.vaultGate;
+    ROOMS = activeLevel.rooms; WALLS = activeLevel.walls; PROPS = activeLevel.props;
+  }
 
   const input = { held: new Set(), pressed: new Set(), lastMoveX: 1, lastMoveY: 0, touchX: 0, touchY: 0 };
   const gameKeys = new Set(["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space", "KeyE", "KeyR", "Escape"]);
@@ -186,6 +350,9 @@
       if (name === "rewind") { this.noise(.42, .08, 700); this.tone(980, .48, "sawtooth", .06, 75); this.tone(440, .42, "sine", .055, 55, .05); }
       if (name === "alarm") { this.tone(210, .17, "square", .075, 160); this.tone(210, .17, "square", .065, 160, .22); }
       if (name === "core") { [0, .08, .16, .27].forEach((delay, i) => this.tone([330, 495, 660, 990][i], .3, "sine", .065, [420, 620, 820, 1240][i], delay)); }
+      if (name === "shard") { this.tone(620, .16, "sine", .05, 980); this.tone(930, .22, "triangle", .04, 1320, .07); }
+      if (name === "portal") { this.tone(190, .28, "sawtooth", .045, 740); this.tone(820, .2, "sine", .04, 260, .05); }
+      if (name === "warning") { this.tone(260, .09, "square", .035, 210); this.tone(390, .08, "square", .028, 320, .12); }
       if (name === "win") { [0, .12, .25, .4].forEach((delay, i) => this.tone([262, 392, 523, 784][i], .48, "triangle", .075, [310, 466, 622, 932][i], delay)); }
       if (name === "fail") { this.tone(300, .7, "sawtooth", .055, 45); this.noise(.4, .045, 220); }
       if (name === "step") { this.tone(78 + Math.random() * 12, .035, "sine", .018, 55); }
@@ -212,38 +379,51 @@
   };
 
   function makePlayer() {
-    return { x: 170, y: 900, vx: 0, vy: 0, angle: -Math.PI / 2, radius: PLAYER_RADIUS, dash: 0, dashCooldown: 0, trailClock: 0, stepClock: 0, coreCharge: 0 };
+    const spawn = activeLevel.spawn;
+    return { x: spawn.x, y: spawn.y, vx: 0, vy: 0, angle: spawn.angle, radius: PLAYER_RADIUS, dash: 0, dashCooldown: 0, trailClock: 0, stepClock: 0, coreCharge: 0 };
   }
 
   function makeGuards() {
-    return [
-      { x: 255, y: 370, angle: 0, route: [[255, 370], [455, 330], [455, 420], [255, 420]], point: 1, mode: "patrol", timer: 0, lastX: 0, lastY: 0, color: "#f07666" },
-      { x: 810, y: 740, angle: 0, route: [[810, 740], [1060, 740], [1160, 660], [1160, 500], [850, 500], [790, 620]], point: 1, mode: "patrol", timer: 0, lastX: 0, lastY: 0, color: "#f3a85f" },
-      { x: 1425, y: 650, angle: 0, route: [[1425, 650], [1880, 650], [1880, 300], [1390, 300]], point: 1, mode: "patrol", timer: 0, lastX: 0, lastY: 0, color: "#ff796f" }
-    ];
+    return activeLevel.guards.map((guard) => ({
+      ...guard, angle: guard.angle || 0, route: guard.route.map((point) => point.slice()), point: 1,
+      mode: "patrol", timer: 0, lastX: 0, lastY: 0, vx: 0, vy: 0
+    }));
+  }
+
+  function makeCameras() {
+    return activeLevel.cameras.map((cameraUnit, index) => ({ ...cameraUnit, baseAngle: cameraUnit.angle, phase: cameraUnit.phase || index * 1.7 }));
+  }
+
+  function makeShards() {
+    return activeLevel.shards.map((shard, index) => ({ ...shard, index, collected: false }));
+  }
+
+  function makePulseStates() {
+    return activeLevel.pulseFields.map(() => ({ warned: false }));
   }
 
   const game = {
     loop: 1, loopTime: 0, totalTime: 0, echoes: [], echoStates: [], recording: [], recordClock: 0,
-    player: makePlayer(), guards: makeGuards(), detection: 0, spotted: false, captures: 0,
+    player: makePlayer(), guards: makeGuards(), cameras: makeCameras(), shards: makeShards(), pulseStates: makePulseStates(), detection: 0, spotted: false, captures: 0,
     terminalCharge: 0, terminalActive: false, plateActive: false, doorOpen: false, doorAmount: 0,
     laserExposure: 0, core: false, coreCharge: 0, noise: null, particles: [], rings: [],
     countdown: 0, countdownBeat: "title", rewindTime: 0, rewindReason: "", rewindHold: 0, objectiveStage: -1,
-    flags: {}, elapsedSinceToast: 0, footstepSide: 0, successTime: 0
+    flags: {}, elapsedSinceToast: 0, footstepSide: 0, successTime: 0, portalReady: true
   };
   let state = "menu";
   let worldTime = 0;
   let lastFrame = performance.now();
   let toastTimer = 0;
+  let progress = null;
 
   function resetMission() {
     Object.assign(game, {
       loop: 1, loopTime: 0, totalTime: 0, echoes: [], echoStates: [], recording: [], recordClock: 0,
-      player: makePlayer(), guards: makeGuards(), detection: 0, spotted: false, captures: 0,
+      player: makePlayer(), guards: makeGuards(), cameras: makeCameras(), shards: makeShards(), pulseStates: makePulseStates(), detection: 0, spotted: false, captures: 0,
       terminalCharge: 0, terminalActive: false, plateActive: false, doorOpen: false, doorAmount: 0,
       laserExposure: 0, core: false, coreCharge: 0, noise: null, particles: [], rings: [],
       countdown: 1.35, countdownBeat: "title", rewindTime: 0, rewindReason: "", rewindHold: 0, objectiveStage: -1,
-      flags: {}, elapsedSinceToast: 0, footstepSide: 0, successTime: 0
+      flags: {}, elapsedSinceToast: 0, footstepSide: 0, successTime: 0, portalReady: true
     });
     camera.x = 0; camera.y = 320; camera.shake = 0;
     input.held.clear(); input.pressed.clear(); input.touchX = 0; input.touchY = 0;
@@ -259,11 +439,14 @@
   function resetLoop() {
     game.player = makePlayer();
     game.guards = makeGuards();
+    game.cameras = makeCameras();
+    game.shards = makeShards();
+    game.pulseStates = makePulseStates();
     game.loopTime = 0; game.recording = []; game.recordClock = 0; game.echoStates = [];
     game.detection = 0; game.spotted = false; game.terminalCharge = 0; game.terminalActive = false;
     game.plateActive = false; game.doorOpen = false; game.doorAmount = 0; game.laserExposure = 0;
     game.core = false; game.coreCharge = 0; game.noise = null; game.countdown = 1.15; game.countdownBeat = "title"; game.rewindHold = 0;
-    game.flags = {}; game.objectiveStage = -1;
+    game.flags = {}; game.objectiveStage = -1; game.portalReady = true;
     input.held.clear(); input.pressed.clear(); input.touchX = 0; input.touchY = 0;
     state = "countdown";
     pulseCountdown(`LOOP ${String(game.loop).padStart(2, "0")}`);
@@ -426,7 +609,7 @@
   }
 
   function completeRewind() {
-    if (game.loop >= MAX_LOOPS) { endMission(false); return; }
+    if (game.loop >= activeLevel.maxLoops) { endMission(false); return; }
     const colors = [COLORS.cyan, COLORS.pink, COLORS.amber, COLORS.green];
     if (game.recording.length) game.echoes.push({ frames: game.recording.slice(), color: colors[game.echoes.length] || COLORS.cyan, index: game.echoes.length + 1 });
     game.loop += 1;
@@ -484,9 +667,48 @@
     if (p.dash > 0 && p.trailClock <= 0) { p.trailClock = .025; game.particles.push({ x: p.x, y: p.y, vx: -p.vx * .12, vy: -p.vy * .12, life: .28, maxLife: .28, size: 7, color: COLORS.cyan }); }
   }
 
+  function pulseFieldActive(field) {
+    return pulseFieldPhase(field) < field.on;
+  }
+
+  function pulseFieldPhase(field) {
+    return (game.loopTime + field.phase) % field.period;
+  }
+
+  function pulseFieldWarning(field) {
+    const phase = pulseFieldPhase(field);
+    return phase >= field.on && field.period - phase <= .34;
+  }
+
+  function allShardsCollected() {
+    return game.shards.every((shard) => shard.collected);
+  }
+
+  function updatePortals() {
+    const p = game.player;
+    const insidePortal = activeLevel.portals.some((portal) => dist(p, portal.a) < 43 || dist(p, portal.b) < 43);
+    if (!game.portalReady) {
+      if (!insidePortal) game.portalReady = true;
+      return;
+    }
+    for (const portal of activeLevel.portals) {
+      let destination = null;
+      if (dist(p, portal.a) < 38) destination = portal.b;
+      else if (dist(p, portal.b) < 38) destination = portal.a;
+      if (!destination) continue;
+      spawnRing(p.x, p.y, portal.color, 105, .4);
+      p.x = destination.x; p.y = destination.y; p.vx *= 1.08; p.vy *= 1.08;
+      game.portalReady = false;
+      spawnRing(p.x, p.y, portal.color, 125, .46);
+      audio.sfx("portal"); camera.shake = Math.max(camera.shake, 3); toast("SPATIAL RIFT TRAVERSED", 1.2);
+      break;
+    }
+  }
+
   function updateDevices(dt) {
     const p = game.player;
     game.echoStates = game.echoes.map((echo) => sampleEcho(echo, game.loopTime)).filter(Boolean);
+    updatePortals();
     const playerUsingTerminal = dist(p, TERMINAL) < TERMINAL.r + 12 && input.held.has("KeyE");
     const echoUsingTerminal = game.echoStates.some((echo) => dist(echo, TERMINAL) < TERMINAL.r + 12 && (echo.actions & 1));
     const wasTerminal = game.terminalActive;
@@ -507,13 +729,30 @@
       if (!game.flags.plate) { game.flags.plate = true; toast(game.echoes.length < 2 ? "VAULT LINKED — STAND HERE + HOLD R" : "VAULT GATE OPEN"); }
     }
 
-    if (!game.terminalActive && circleRectOverlap(p.x, p.y, p.radius, LASER_GATE)) {
-      game.laserExposure = 1;
-      camera.shake = Math.max(camera.shake, 4);
-      capture("LASER GRID CAPTURE");
+    if (!game.terminalActive && LASER_GATES.some((gate) => circleRectOverlap(p.x, p.y, p.radius, gate))) {
+      game.laserExposure = 1; camera.shake = Math.max(camera.shake, 4); capture("LASER GRID CAPTURE");
     } else game.laserExposure = Math.max(0, game.laserExposure - dt * 3);
 
-    if (!game.core && dist(p, CORE) < CORE.r + 8 && input.held.has("KeyE")) {
+    let pulseHit = false;
+    activeLevel.pulseFields.forEach((field, index) => {
+      const active = pulseFieldActive(field), warning = pulseFieldWarning(field), pulseState = game.pulseStates[index];
+      if (active) pulseState.warned = false;
+      else if (warning && !pulseState.warned) { pulseState.warned = true; audio.sfx("warning"); }
+      if (active && circleRectOverlap(p.x, p.y, p.radius, field)) pulseHit = true;
+    });
+    if (pulseHit) {
+      camera.shake = Math.max(camera.shake, 5); capture("PULSE FLOOR DISINTEGRATION");
+    }
+
+    const agents = [p, ...game.echoStates];
+    for (const shard of game.shards) {
+      if (shard.collected || !agents.some((agent) => dist(agent, shard) < shard.r + 14)) continue;
+      shard.collected = true; audio.sfx("shard"); spawnParticles(shard.x, shard.y, COLORS.cyan, 24, 210); spawnRing(shard.x, shard.y, COLORS.cyan, 145, .55);
+      const count = game.shards.filter((item) => item.collected).length;
+      toast(game.echoes.length < 2 ? `FRAGMENT ${count} / ${game.shards.length} — YOUR ECHO CAN REPEAT THIS` : `TIME FRAGMENT ${count} / ${game.shards.length}`, 1.7);
+    }
+
+    if (!game.core && allShardsCollected() && dist(p, CORE) < CORE.r + 8 && input.held.has("KeyE")) {
       game.coreCharge = Math.min(1, game.coreCharge + dt / .58);
       if (game.coreCharge >= 1) collectCore();
     } else game.coreCharge = Math.max(0, game.coreCharge - dt * 2.2);
@@ -535,11 +774,11 @@
     return !lineBlocked(guard.x, guard.y, target.x, target.y);
   }
 
-  function cameraCanSee(target) {
-    const dx = target.x - CAMERA_UNIT.x, dy = target.y - CAMERA_UNIT.y, distance = Math.hypot(dx, dy);
-    if (distance > CAMERA_UNIT.range) return false;
-    if (Math.abs(angleDelta(CAMERA_UNIT.angle, Math.atan2(dy, dx))) > CAMERA_UNIT.fov) return false;
-    return !lineBlocked(CAMERA_UNIT.x, CAMERA_UNIT.y, target.x, target.y);
+  function cameraCanSee(cameraUnit, target) {
+    const dx = target.x - cameraUnit.x, dy = target.y - cameraUnit.y, distance = Math.hypot(dx, dy);
+    if (distance > cameraUnit.range) return false;
+    if (Math.abs(angleDelta(cameraUnit.angle, Math.atan2(dy, dx))) > cameraUnit.fov) return false;
+    return !lineBlocked(cameraUnit.x, cameraUnit.y, target.x, target.y);
   }
 
   function moveGuardToward(guard, tx, ty, speed, dt) {
@@ -578,8 +817,11 @@
       if (Math.hypot(p.x - guard.x, p.y - guard.y) < 31) { capture("INTERCEPTED BY SECURITY"); return; }
     }
 
-    CAMERA_UNIT.angle = -.15 + Math.sin(worldTime * .62) * 1.18;
-    const cameraSeen = cameraCanSee(p);
+    let cameraSeen = false;
+    for (const cameraUnit of game.cameras) {
+      cameraUnit.angle = cameraUnit.baseAngle + Math.sin(game.loopTime * cameraUnit.speed + cameraUnit.phase) * cameraUnit.sweep;
+      cameraSeen = cameraSeen || cameraCanSee(cameraUnit, p);
+    }
     seen = seen || cameraSeen;
     game.spotted = seen;
     if (seen) game.detection = Math.min(1, game.detection + dt * (cameraSeen ? .68 : .59));
@@ -588,18 +830,25 @@
   }
 
   function updateObjective() {
-    const p = game.player;
     let stage = 0, text = "Reach the magenta terminal and hold E", target = TERMINAL;
-    if (game.core) { stage = 5; text = "Deliver the Chrono Core to extraction"; target = EXIT; }
+    const missingShard = game.shards.find((shard) => !shard.collected);
+    if (game.core) { stage = 7; text = `Deliver the Core to ${activeLevel.name} extraction`; target = EXIT; }
     else if (game.echoes.length === 0) {
-      if (game.terminalActive) { stage = 1; text = "Keep holding E and hold R to record your echo"; target = TERMINAL; }
-    } else if (p.x < 725) { stage = 2; text = game.terminalActive ? "Cross the disabled laser grid" : "Wait for Echo 01 to reach the terminal"; target = { x: 750, y: 744 }; }
-    else if (game.echoes.length < 2) {
-      stage = 3; text = game.plateActive ? "Stand on the amber pad and hold R" : "Reach the amber vault sync pad"; target = SYNC_PAD;
-    } else if (p.x < 1325) { stage = 4; text = game.doorOpen ? "Enter the open Chrono Vault" : "Follow Echo 02 and wait for the vault gate"; target = { x: 1350, y: 620 }; }
-    else { stage = 4; text = "Hold E beside the Chrono Core"; target = CORE; }
+      if (game.terminalActive) { stage = 1; text = "Keep holding E and hold R to record Echo 01"; }
+    } else if (!game.terminalActive) {
+      stage = 2; text = "Wait for Echo 01 to restore the security link";
+    } else if (game.echoes.length < 2) {
+      stage = 3; text = game.plateActive ? "Stay on the amber pad and hold R" : "Reach the amber vault sync pad"; target = SYNC_PAD;
+    } else if (!game.plateActive || game.doorAmount < .78) {
+      stage = 4; text = game.plateActive ? "Vault gate opening — move in" : "Wait for Echo 02 to reach the sync pad"; target = VAULT_GATE;
+    } else if (missingShard) {
+      const found = game.shards.filter((shard) => shard.collected).length;
+      stage = 5; text = `Collect time fragments ${found} / ${game.shards.length}`; target = missingShard;
+    } else {
+      stage = 6; text = "Hold E beside the Chrono Core"; target = CORE;
+    }
     game.objectiveTarget = target;
-    if (stage !== game.objectiveStage) { game.objectiveStage = stage; ui.objective.textContent = text; ui.objectiveFill.style.width = `${stage * 20}%`; }
+    if (stage !== game.objectiveStage) { game.objectiveStage = stage; ui.objective.textContent = text; ui.objectiveFill.style.width = `${Math.round(stage / 7 * 100)}%`; }
     else if (ui.objective.textContent !== text) ui.objective.textContent = text;
   }
 
@@ -615,9 +864,9 @@
     if (game.noise) { game.noise.life -= dt; if (game.noise.life <= 0) game.noise = null; }
     if (input.held.has("KeyR")) {
       game.rewindHold = Math.min(.48, game.rewindHold + dt);
-      if (game.rewindHold >= .46) beginRewind(game.loop === MAX_LOOPS ? "FINAL LOOP COLLAPSE" : "MANUAL REWIND");
+      if (game.rewindHold >= .46) beginRewind(game.loop === activeLevel.maxLoops ? "FINAL LOOP COLLAPSE" : "MANUAL REWIND");
     } else game.rewindHold = Math.max(0, game.rewindHold - dt * 4);
-    if (game.loopTime >= LOOP_DURATION && state === "playing") beginRewind("LOOP EXPIRED");
+    if (game.loopTime >= activeLevel.loopDuration && state === "playing") beginRewind("LOOP EXPIRED");
     audio.music(dt);
   }
 
@@ -657,7 +906,7 @@
   }
 
   function missionRank() {
-    if (game.loop <= 3 && game.captures === 0 && game.totalTime < 85) return "S";
+    if (game.loop <= 3 && game.captures === 0 && game.totalTime < activeLevel.parTime) return "S";
     if (game.loop <= 3 && game.captures <= 1) return "A";
     if (game.loop <= 4) return "B";
     return "C";
@@ -667,14 +916,16 @@
     state = "result"; input.held.clear(); input.pressed.clear(); ui.hud.hidden = true; ui.hud.inert = true; showOnly(ui.result);
     if (success) {
       const rank = missionRank();
-      ui.resultIcon.textContent = "◇"; ui.resultTitle.textContent = "Core Secured";
-      ui.resultSubtitle.textContent = "The vault saw you coming. It just did not expect all your previous selves.";
+      ui.resultIcon.textContent = "◇"; ui.resultTitle.textContent = activeLevel.resultTitle;
+      ui.resultSubtitle.textContent = activeLevel.resultCopy;
       ui.resultRank.textContent = rank; ui.resultLoops.textContent = String(game.loop).padStart(2, "0"); ui.resultTime.textContent = formatTime(game.totalTime);
       saveBest({ time: game.totalTime, loops: game.loop, rank });
+      ui.next.hidden = selectedLevelIndex >= LEVELS.length - 1;
     } else {
-      audio.sfx("fail"); ui.resultIcon.textContent = "⌁"; ui.resultTitle.textContent = "Timeline Lost";
-      ui.resultSubtitle.textContent = "The loop collapsed, but the vault remembers nothing. Try a cleaner route.";
+      audio.sfx("fail"); ui.resultIcon.textContent = "⌁"; ui.resultTitle.textContent = `${activeLevel.name} Lost`;
+      ui.resultSubtitle.textContent = "The loop collapsed, but security remembers nothing. Try a cleaner route.";
       ui.resultRank.textContent = "—"; ui.resultLoops.textContent = String(game.loop).padStart(2, "0"); ui.resultTime.textContent = formatTime(game.totalTime);
+      ui.next.hidden = true;
     }
     $("replayButton").focus({ preventScroll: true });
   }
@@ -685,24 +936,82 @@
     return `${String(minutes).padStart(2, "0")}:${rest.toFixed(1).padStart(4, "0")}`;
   }
 
-  function loadBest() {
+  function readProgress() {
+    const fallback = { unlocked: 1, selected: 0, completed: {}, bests: {} };
+    let result = fallback;
     try {
-      const best = JSON.parse(localStorage.getItem("echoHeistBestV1") || "null");
-      ui.best.textContent = best && Number.isFinite(best.time) ? `${best.rank} RANK // ${formatTime(best.time)} // ${best.loops} LOOPS` : "No successful breach";
-    } catch (_) { ui.best.textContent = "No successful breach"; }
+      const stored = JSON.parse(localStorage.getItem("echoHeistCampaignV2") || "null");
+      result = stored && typeof stored === "object" ? {
+        unlocked: clamp(Math.trunc(Number(stored.unlocked) || 1), 1, LEVELS.length),
+        selected: clamp(Math.trunc(Number(stored.selected) || 0), 0, LEVELS.length - 1),
+        completed: stored.completed && typeof stored.completed === "object" ? stored.completed : {},
+        bests: stored.bests && typeof stored.bests === "object" ? stored.bests : {}
+      } : fallback;
+    } catch (_) { result = fallback; }
+    try {
+      const oldBest = JSON.parse(localStorage.getItem("echoHeistBestV1") || "null");
+      if (oldBest && Number.isFinite(oldBest.time) && !result.bests[LEVELS[0].id]) {
+        result.bests[LEVELS[0].id] = oldBest; result.completed[LEVELS[0].id] = true; result.unlocked = Math.max(result.unlocked, 2);
+      }
+    } catch (_) {}
+    result.selected = Math.min(result.selected, result.unlocked - 1);
+    return result;
+  }
+
+  function writeProgress() {
+    try { localStorage.setItem("echoHeistCampaignV2", JSON.stringify(progress)); } catch (_) {}
+  }
+
+  function refreshMenu() {
+    const level = activeLevel;
+    const completed = LEVELS.filter((item) => progress.completed[item.id]).length;
+    ui.chapter.textContent = `Dorsey Duo Games // Operation ${level.operation}`;
+    ui.tagline.innerHTML = level.tagline;
+    ui.briefingName.textContent = `${level.name} briefing`;
+    ui.briefingClass.textContent = level.difficulty;
+    [[ui.briefingStep1Title, ui.briefingStep1Copy], [ui.briefingStep2Title, ui.briefingStep2Copy], [ui.briefingStep3Title, ui.briefingStep3Copy]].forEach((nodes, index) => { nodes[0].textContent = level.briefing[index][0]; nodes[1].textContent = level.briefing[index][1]; });
+    ui.briefingWindow.textContent = `Window: ${level.loopDuration} seconds`;
+    ui.briefingEchoes.textContent = `Maximum echoes: ${level.maxLoops - 1}`;
+    ui.campaign.textContent = `${completed} / ${LEVELS.length} operations cleared`;
+    ui.levelName.textContent = `OP ${level.operation} // ${level.name.toUpperCase()}`;
+    const best = progress.bests[level.id];
+    ui.best.textContent = best && Number.isFinite(best.time) ? `${best.rank} RANK // ${formatTime(best.time)} // ${best.loops} LOOPS` : "No successful breach";
+    ui.levelButtons.forEach((button, index) => {
+      const locked = index >= progress.unlocked;
+      button.disabled = locked; button.classList.toggle("locked", locked); button.classList.toggle("selected", index === selectedLevelIndex); button.classList.toggle("complete", Boolean(progress.completed[LEVELS[index].id]));
+      button.setAttribute("aria-pressed", String(index === selectedLevelIndex));
+      button.setAttribute("aria-label", locked ? `${LEVELS[index].name}, locked` : `${LEVELS[index].name}${progress.completed[LEVELS[index].id] ? ", completed" : ""}`);
+    });
+  }
+
+  function loadBest() {
+    if (!progress) progress = readProgress();
+    refreshMenu();
+  }
+
+  function selectLevel(index, force = false) {
+    if (!progress) progress = readProgress();
+    const nextIndex = clamp(Math.trunc(Number(index) || 0), 0, LEVELS.length - 1);
+    if (!force && nextIndex >= progress.unlocked) return false;
+    applyLevel(nextIndex); progress.selected = selectedLevelIndex; writeProgress();
+    game.player = makePlayer(); game.guards = makeGuards(); game.cameras = makeCameras(); game.shards = makeShards(); game.pulseStates = makePulseStates(); game.portalReady = true;
+    game.echoes = []; game.echoStates = []; game.terminalActive = false; game.plateActive = false; game.doorOpen = false; game.doorAmount = 0; game.core = false; game.objectiveStage = -1;
+    camera.x = 0; camera.y = 250; refreshMenu(); updateObjective();
+    return true;
   }
 
   function saveBest(result) {
-    try {
-      const old = JSON.parse(localStorage.getItem("echoHeistBestV1") || "null");
-      if (!old || !Number.isFinite(old.time) || result.time < old.time) localStorage.setItem("echoHeistBestV1", JSON.stringify(result));
-    } catch (_) {}
+    const old = progress.bests[activeLevel.id];
+    if (!old || !Number.isFinite(old.time) || result.time < old.time) progress.bests[activeLevel.id] = result;
+    progress.completed[activeLevel.id] = true;
+    progress.unlocked = Math.max(progress.unlocked, Math.min(LEVELS.length, selectedLevelIndex + 2));
+    writeProgress(); refreshMenu();
   }
 
   function updateHud() {
-    ui.loop.textContent = `${String(game.loop).padStart(2, "0")} / ${String(MAX_LOOPS).padStart(2, "0")}`;
+    ui.loop.textContent = `${String(game.loop).padStart(2, "0")} / ${String(activeLevel.maxLoops).padStart(2, "0")}`;
     ui.echoes.textContent = String(game.echoes.length).padStart(2, "0");
-    const remaining = Math.max(0, LOOP_DURATION - game.loopTime);
+    const remaining = Math.max(0, activeLevel.loopDuration - game.loopTime);
     ui.timer.textContent = remaining.toFixed(1);
     ui.timerChip.classList.toggle("danger", remaining < 8);
     ui.alert.style.width = `${game.detection * 100}%`;
@@ -782,11 +1091,13 @@
 
   function drawSecurity() {
     for (const guard of game.guards) drawVisionCone(guard, 270, .52, "rgba(255,82,109,ALPHA)");
-    drawVisionCone(CAMERA_UNIT, CAMERA_UNIT.range, CAMERA_UNIT.fov, "rgba(255,189,92,ALPHA)");
-    ctx.save(); ctx.translate(CAMERA_UNIT.x, CAMERA_UNIT.y); ctx.rotate(CAMERA_UNIT.angle);
-    ctx.fillStyle = "#111d29"; ctx.strokeStyle = "#ffbd5c99"; ctx.lineWidth = 2;
-    roundRectPath(ctx, -15, -10, 31, 20, 5); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = game.spotted ? COLORS.red : COLORS.amber; ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 12; ctx.beginPath(); ctx.arc(11, 0, 4, 0, TAU); ctx.fill(); ctx.restore();
+    for (const cameraUnit of game.cameras) {
+      drawVisionCone(cameraUnit, cameraUnit.range, cameraUnit.fov, "rgba(255,189,92,ALPHA)");
+      ctx.save(); ctx.translate(cameraUnit.x, cameraUnit.y); ctx.rotate(cameraUnit.angle);
+      ctx.fillStyle = "#111d29"; ctx.strokeStyle = "#ffbd5c99"; ctx.lineWidth = 2;
+      roundRectPath(ctx, -15, -10, 31, 20, 5); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = game.spotted ? COLORS.red : COLORS.amber; ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 12; ctx.beginPath(); ctx.arc(11, 0, 4, 0, TAU); ctx.fill(); ctx.restore();
+    }
   }
 
   function drawTerminal() {
@@ -816,13 +1127,50 @@
     ctx.restore();
   }
 
-  function drawLaserGate() {
+  function drawLaserGate(gate) {
     if (game.terminalActive) {
-      ctx.save(); ctx.strokeStyle = "#ff67c52a"; ctx.setLineDash([5, 9]); ctx.strokeRect(LASER_GATE.x + 8, LASER_GATE.y, LASER_GATE.w - 16, LASER_GATE.h); ctx.restore(); return;
+      ctx.save(); ctx.strokeStyle = "#ff67c52a"; ctx.setLineDash([5, 9]); ctx.strokeRect(gate.x + 8, gate.y, Math.max(3, gate.w - 16), gate.h); ctx.restore(); return;
     }
     ctx.save(); ctx.shadowColor = COLORS.pink; ctx.shadowBlur = 18; ctx.strokeStyle = COLORS.pink; ctx.lineWidth = 3;
-    for (let y = LASER_GATE.y + 8; y < LASER_GATE.y + LASER_GATE.h; y += 22) { const flicker = .72 + Math.sin(worldTime * 17 + y) * .22; ctx.globalAlpha = flicker; ctx.beginPath(); ctx.moveTo(LASER_GATE.x + 3, y); ctx.lineTo(LASER_GATE.x + LASER_GATE.w - 3, y); ctx.stroke(); }
-    ctx.globalAlpha = 1; ctx.fillStyle = "#ff8dd7"; ctx.fillRect(LASER_GATE.x - 4, LASER_GATE.y - 7, 8, LASER_GATE.h + 14); ctx.fillRect(LASER_GATE.x + LASER_GATE.w - 4, LASER_GATE.y - 7, 8, LASER_GATE.h + 14); ctx.restore();
+    for (let y = gate.y + 8; y < gate.y + gate.h; y += 22) { const flicker = .72 + Math.sin(worldTime * 17 + y) * .22; ctx.globalAlpha = flicker; ctx.beginPath(); ctx.moveTo(gate.x + 3, y); ctx.lineTo(gate.x + gate.w - 3, y); ctx.stroke(); }
+    ctx.globalAlpha = 1; ctx.fillStyle = "#ff8dd7"; ctx.fillRect(gate.x - 4, gate.y - 7, 8, gate.h + 14); ctx.fillRect(gate.x + gate.w - 4, gate.y - 7, 8, gate.h + 14); ctx.restore();
+  }
+
+  function drawPulseFields() {
+    for (const field of activeLevel.pulseFields) {
+      const active = pulseFieldActive(field);
+      const warning = pulseFieldWarning(field);
+      const cycle = ((game.loopTime + field.phase) % field.period) / field.period;
+      const color = active ? COLORS.red : warning ? COLORS.amber : "#853843";
+      ctx.save(); ctx.globalAlpha = active ? .78 : warning ? .58 : .24; ctx.fillStyle = active ? "#ff314f35" : warning ? "#ffbd5c2d" : "#8e27301f";
+      ctx.shadowColor = active || warning ? color : "transparent"; ctx.shadowBlur = active ? 25 : warning ? 18 : 0;
+      ctx.fillRect(field.x, field.y, field.w, field.h); ctx.shadowBlur = 0;
+      ctx.strokeStyle = active ? "#ff6479" : warning ? "#ffd27d" : "#853843"; ctx.lineWidth = active || warning ? 3 : 1.5; ctx.strokeRect(field.x, field.y, field.w, field.h);
+      ctx.globalAlpha = active ? .65 : warning ? .52 : .18; ctx.strokeStyle = active ? "#ffd5db" : warning ? "#fff0b8" : "#a35b65"; ctx.lineWidth = 2;
+      for (let x = field.x - field.h; x < field.x + field.w; x += 24) { ctx.beginPath(); ctx.moveTo(x + cycle * 24, field.y + field.h); ctx.lineTo(x + field.h + cycle * 24, field.y); ctx.stroke(); }
+      ctx.restore();
+    }
+  }
+
+  function drawPortals() {
+    for (const portal of activeLevel.portals) {
+      for (const endpoint of [portal.a, portal.b]) {
+        ctx.save(); ctx.translate(endpoint.x, endpoint.y); ctx.rotate(worldTime * 1.5);
+        ctx.shadowColor = portal.color; ctx.shadowBlur = 28; ctx.strokeStyle = portal.color; ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.arc(0, 0, 30 + Math.sin(worldTime * 4) * 3, .25, TAU - .25); ctx.stroke();
+        ctx.globalAlpha = .65; ctx.lineWidth = 2; ctx.setLineDash([5, 9]); ctx.beginPath(); ctx.arc(0, 0, 20, 0, TAU); ctx.stroke(); ctx.restore();
+      }
+    }
+  }
+
+  function drawShards() {
+    for (const shard of game.shards) {
+      if (shard.collected) continue;
+      const pulse = 1 + Math.sin(worldTime * 5 + shard.index) * .12;
+      ctx.save(); ctx.translate(shard.x, shard.y); ctx.rotate(worldTime * .85 + shard.index); ctx.scale(pulse, pulse);
+      ctx.shadowColor = COLORS.cyan; ctx.shadowBlur = 25; ctx.fillStyle = "#9dffff"; ctx.strokeStyle = "#efffff"; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(0, -18); ctx.lineTo(13, -4); ctx.lineTo(7, 17); ctx.lineTo(-12, 10); ctx.lineTo(-14, -8); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+    }
   }
 
   function drawVaultGate() {
@@ -839,7 +1187,8 @@
     if (game.core) return;
     const pulse = 1 + Math.sin(worldTime * 3.5) * .08;
     ctx.save(); ctx.translate(CORE.x, CORE.y); ctx.rotate(worldTime * .55); ctx.scale(pulse, pulse);
-    ctx.shadowColor = COLORS.amber; ctx.shadowBlur = 38; ctx.fillStyle = "#ffd77c";
+    const ready = allShardsCollected();
+    ctx.globalAlpha = ready ? 1 : .34; ctx.shadowColor = ready ? COLORS.amber : "#475465"; ctx.shadowBlur = ready ? 38 : 10; ctx.fillStyle = ready ? "#ffd77c" : "#536273";
     ctx.beginPath(); ctx.moveTo(0, -29); ctx.lineTo(23, 0); ctx.lineTo(0, 29); ctx.lineTo(-23, 0); ctx.closePath(); ctx.fill();
     ctx.shadowBlur = 0; ctx.strokeStyle = "#fff4c9"; ctx.lineWidth = 2; ctx.stroke();
     ctx.fillStyle = "#8f5b1a"; ctx.beginPath(); ctx.moveTo(0, -15); ctx.lineTo(11, 0); ctx.lineTo(0, 15); ctx.lineTo(-11, 0); ctx.closePath(); ctx.fill(); ctx.restore();
@@ -915,7 +1264,7 @@
     const p = game.player;
     if (state === "playing" || state === "countdown") {
       if (dist(p, TERMINAL) < 110 && !game.terminalActive) drawPrompt(TERMINAL.x, TERMINAL.y - 66, "HOLD", "E", COLORS.pink);
-      if (!game.core && dist(p, CORE) < 115) drawPrompt(CORE.x, CORE.y - 72, `STEAL ${Math.round(game.coreCharge * 100)}%`, "E", COLORS.amber);
+      if (!game.core && allShardsCollected() && dist(p, CORE) < 115) drawPrompt(CORE.x, CORE.y - 72, `STEAL ${Math.round(game.coreCharge * 100)}%`, "E", COLORS.amber);
       if (game.objectiveTarget) drawObjectiveMarker(game.objectiveTarget.x, game.objectiveTarget.y);
       if (game.rewindHold > 0) {
         ctx.save(); ctx.strokeStyle = COLORS.cyan; ctx.lineWidth = 4; ctx.shadowColor = COLORS.cyan; ctx.shadowBlur = 12;
@@ -958,9 +1307,9 @@
     const shakeX = reducedMotion ? 0 : (Math.random() - .5) * camera.shake;
     const shakeY = reducedMotion ? 0 : (Math.random() - .5) * camera.shake;
     ctx.save(); ctx.translate(shakeX, shakeY); ctx.scale(camera.zoom, camera.zoom); ctx.translate(-camera.x, -camera.y);
-    drawFloor(); drawProps(); drawSecurity();
+    drawFloor(); drawPulseFields(); drawPortals(); drawProps(); drawSecurity();
     game.echoes.forEach(drawEchoTrail);
-    drawTerminal(); drawSyncPad(); drawExit(); drawCore(); drawLaserGate(); drawVaultGate();
+    drawTerminal(); drawSyncPad(); drawExit(); drawCore(); drawShards(); LASER_GATES.forEach(drawLaserGate); drawVaultGate();
     for (const echo of game.echoStates) drawAgent(echo, { echo: true, color: echo.color, index: echo.index });
     game.guards.forEach(drawGuard);
     if (game.player) drawAgent(game.player);
@@ -997,14 +1346,18 @@
   $("quitButton").addEventListener("click", openMenu);
   $("replayButton").addEventListener("click", startMission);
   $("resultMenuButton").addEventListener("click", openMenu);
+  ui.next.addEventListener("click", () => { if (selectLevel(selectedLevelIndex + 1)) startMission(); });
+  ui.levelButtons.forEach((button, index) => button.addEventListener("click", () => { audio.sfx("ui"); selectLevel(index); }));
   ui.sound.addEventListener("click", () => audio.toggle());
 
   if (location.hostname === "127.0.0.1" || location.hostname === "localhost" || location.protocol === "file:") {
     Object.defineProperty(window, "__echoHeistDebug", {
       configurable: true,
       value: {
-        game, input, constants: { WORLD_W, WORLD_H, LOOP_DURATION, MAX_LOOPS, TERMINAL, SYNC_PAD, CORE, EXIT, LASER_GATE, VAULT_GATE, WALLS, PROPS },
+        game, input, levels: LEVELS, constants: { WORLD_W, WORLD_H, LOOP_DURATION, MAX_LOOPS, TERMINAL, SYNC_PAD, CORE, EXIT, LASER_GATE, VAULT_GATE, WALLS, PROPS },
         getState: () => state,
+        getLevel: () => activeLevel,
+        selectLevel: (index) => selectLevel(index, true),
         setState: (nextState) => { state = nextState; },
         resetMission, resetLoop, updatePlayer, updateDevices, updateGuards, updateObjective, updatePlaying,
         recordFrame, sampleEcho, beginRewind, completeRewind, collectCore, finishEscape, endMission, formatTime, render,
@@ -1014,6 +1367,8 @@
     });
   }
 
+  progress = readProgress();
+  selectLevel(Math.min(progress.selected, progress.unlocked - 1), true);
   loadBest();
   updateObjective();
   requestAnimationFrame(tick);
