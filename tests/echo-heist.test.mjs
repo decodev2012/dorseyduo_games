@@ -5,6 +5,7 @@ import vm from "node:vm";
 
 const html = await readFile(new URL("../time-loop-heist/index.html", import.meta.url), "utf8");
 const source = await readFile(new URL("../time-loop-heist/game.js", import.meta.url), "utf8");
+const homeHtml = await readFile(new URL("../index.html", import.meta.url), "utf8");
 
 function makeElement(id) {
   const listeners = new Map();
@@ -87,6 +88,12 @@ test("Echo Heist script parses and initializes without a browser crash", () => {
   assert.ok(debug, "localhost test controls should be available");
   assert.equal(debug.getState(), "menu");
   assert.doesNotThrow(() => debug.render(), "a complete canvas frame should render");
+});
+
+test("Echo Heist is clearly featured at the top of the games homepage", () => {
+  assert.match(homeHtml, /href="time-loop-heist\/index\.html" class="card featured" id="echo-heist"/);
+  assert.ok(homeHtml.indexOf("id=\"echo-heist\"") < homeHtml.indexOf("href=\"monkey-grapple/index.html\""));
+  assert.match(homeHtml, /justify-content: flex-start/);
 });
 
 test("menu, gameplay HUD, pause, help, result, and all promised controls exist", () => {
