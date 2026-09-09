@@ -91,9 +91,10 @@ test("Echo Heist script parses and initializes without a browser crash", () => {
 });
 
 test("Echo Heist is clearly featured at the top of the games homepage", () => {
-  assert.match(homeHtml, /href="time-loop-heist\/index\.html" class="card featured" id="echo-heist"/);
+  assert.match(homeHtml, /href="time-loop-heist\/\?v=campaign-5" class="card featured" id="echo-heist"/);
   assert.ok(homeHtml.indexOf("id=\"echo-heist\"") < homeHtml.indexOf("href=\"monkey-grapple/index.html\""));
   assert.match(homeHtml, /justify-content: flex-start/);
+  assert.match(homeHtml, /4 LEVELS LIVE/);
 });
 
 test("menu, gameplay HUD, pause, help, result, and all promised controls exist", () => {
@@ -101,7 +102,7 @@ test("menu, gameplay HUD, pause, help, result, and all promised controls exist",
     assert.match(html, new RegExp(`id=["']${id}["']`));
   }
   for (const control of ["WASD", "SPACE", "E", "R"]) assert.match(html, new RegExp(`>${control}<`));
-  assert.match(html, /<script src="game\.js\?v=campaign-4"><\/script>/);
+  assert.match(html, /<script src="game\.js\?v=campaign-5"><\/script>/);
   assert.match(html, /id="timerValue">40\.0</);
   assert.match(html, /Maximum echoes: 4/);
 });
@@ -288,13 +289,17 @@ test("time fragments lock the Core until every fragment is recovered", () => {
   assert.equal(debug.game.core, true);
 });
 
-test("clearing an operation saves its best run and unlocks the next mission", () => {
+test("all four operations are playable immediately and clearing one saves its best run", () => {
   const { debug, storage, elements } = createRuntime();
+  for (let index = 0; index < debug.levels.length; index += 1) {
+    assert.equal(elements.get(`levelButton${index + 1}`).disabled, false);
+    assert.equal(debug.selectLevel(index), true);
+  }
   debug.selectLevel(0); debug.resetMission(); debug.setState("playing");
   debug.game.loop = 3; debug.game.totalTime = 60; debug.endMission(true);
   const saved = JSON.parse(storage.get("echoHeistCampaignV2"));
   assert.equal(saved.completed["chrono-vault"], true);
-  assert.equal(saved.unlocked, 2);
+  assert.equal(saved.unlocked, 4);
   assert.equal(saved.bests["chrono-vault"].rank, "S");
   assert.equal(elements.get("levelButton2").disabled, false);
 });
@@ -312,7 +317,7 @@ test("corrupt legacy data cannot erase valid campaign progress", () => {
   const { debug, elements } = createRuntime([["echoHeistCampaignV2", campaign], ["echoHeistBestV1", "{broken"]]);
   assert.equal(debug.getLevel().id, "neon-foundry", "fractional indexes should safely normalize to an integer");
   assert.equal(elements.get("levelButton3").disabled, false);
-  assert.equal(elements.get("levelButton4").disabled, true);
+  assert.equal(elements.get("levelButton4").disabled, false);
 });
 
 test("every guard patrol keeps advancing instead of wedging into scenery", () => {

@@ -98,13 +98,13 @@
     h1 span{display:block;margin-left:.36em;color:transparent;font-size:.64em;line-height:1.05;letter-spacing:.18em;-webkit-text-stroke:1px #9cefff;text-shadow:0 0 24px #66f7ff55}
     .tagline{max-width:585px;margin:27px 0 0;color:#9db2c4;font-size:clamp(14px,1.7vw,19px);font-weight:600;line-height:1.55}
     .tagline strong{color:#e6fbff}
+    .campaign-badge{display:inline-flex;align-items:center;gap:8px;margin-top:22px;padding:7px 11px;border:1px solid #69efff55;border-radius:999px;background:#071522cc;color:#bcfaff;font-size:8px;font-weight:1000;letter-spacing:.16em;text-transform:uppercase;box-shadow:0 0 22px #57eeff18}
+    .campaign-badge:before{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);content:""}
     .level-select{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;max-width:650px;margin-top:24px}
     .level-card{position:relative;display:grid;grid-template-columns:auto 1fr;align-items:center;gap:11px;min-height:67px;padding:10px 13px;border:1px solid #7aefff20;border-radius:10px;background:linear-gradient(145deg,#0a1625d9,#07101bd9);color:#cceaf1;text-align:left;cursor:pointer;transition:transform .16s,border-color .16s,background .16s,box-shadow .16s}
     .level-card:hover:not(:disabled){transform:translateY(-2px);border-color:#69edff66;background:#10243a;box-shadow:0 9px 22px #0007}
     .level-card.selected{border-color:#68f5ffcc;background:linear-gradient(145deg,#123148,#101b39);box-shadow:0 0 24px #53edff1b,inset 3px 0 #65efff}
-    .level-card:disabled{cursor:not-allowed;filter:saturate(.25);opacity:.48}
     .level-card.complete:after{position:absolute;right:9px;top:8px;color:var(--green);font-size:7px;font-weight:1000;letter-spacing:.1em;content:"CLEARED"}
-    .level-card:disabled:after{position:absolute;right:9px;top:8px;color:#78909f;font-size:11px;content:"LOCKED"}
     .level-op{display:grid;place-items:center;width:40px;height:40px;border:1px solid #69efff44;border-radius:50%;color:var(--cyan);font-size:10px;font-weight:1000;box-shadow:inset 0 0 14px #66f7ff0f}
     .level-card b{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
     .level-card small{display:block;margin-top:4px;color:#6f899e;font-size:8px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
@@ -216,11 +216,12 @@
           <div class="chapter" id="menuChapter">Dorsey Duo Games // Operation 01</div>
           <h1>Echo <span>Heist</span></h1>
           <p class="tagline" id="menuTagline">The vault needs three thieves. You came alone. <strong>Good thing your past selves are excellent accomplices.</strong></p>
-          <div class="level-select" id="levelSelect" aria-label="Choose an operation">
+          <div class="campaign-badge">All 4 operations live — choose any level</div>
+          <div class="level-select" id="levelSelect" aria-label="Choose any operation">
             <button class="level-card selected" id="levelButton1" type="button" data-level="0" aria-pressed="true"><span class="level-op">01</span><span><b>Chrono Vault</b><small>Initiation // Original breach</small></span></button>
-            <button class="level-card locked" id="levelButton2" type="button" data-level="1" aria-pressed="false" disabled><span class="level-op">02</span><span><b>Neon Foundry</b><small>Pulse floors // 2 fragments</small></span></button>
-            <button class="level-card locked" id="levelButton3" type="button" data-level="2" aria-pressed="false" disabled><span class="level-op">03</span><span><b>Mirror Archive</b><small>Warp rifts // 3 fragments</small></span></button>
-            <button class="level-card locked" id="levelButton4" type="button" data-level="3" aria-pressed="false" disabled><span class="level-op">04</span><span><b>Zero Hour</b><small>Elite security // Finale</small></span></button>
+            <button class="level-card" id="levelButton2" type="button" data-level="1" aria-pressed="false"><span class="level-op">02</span><span><b>Neon Foundry</b><small>Pulse floors // 2 fragments</small></span></button>
+            <button class="level-card" id="levelButton3" type="button" data-level="2" aria-pressed="false"><span class="level-op">03</span><span><b>Mirror Archive</b><small>Warp rifts // 3 fragments</small></span></button>
+            <button class="level-card" id="levelButton4" type="button" data-level="3" aria-pressed="false"><span class="level-op">04</span><span><b>Zero Hour</b><small>Elite security // Finale</small></span></button>
           </div>
           <div class="menu-actions">
             <button class="primary" id="playButton" type="button">Breach the loop</button>
@@ -281,6 +282,6 @@
       </div>
     </section>
   </main>
-  <script src="game.js?v=campaign-4"></script>
+  <script src="game.js?v=campaign-5"></script>
 </body>
 </html>

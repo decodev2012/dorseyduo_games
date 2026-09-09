@@ -937,12 +937,12 @@
   }
 
   function readProgress() {
-    const fallback = { unlocked: 1, selected: 0, completed: {}, bests: {} };
+    const fallback = { unlocked: LEVELS.length, selected: 0, completed: {}, bests: {} };
     let result = fallback;
     try {
       const stored = JSON.parse(localStorage.getItem("echoHeistCampaignV2") || "null");
       result = stored && typeof stored === "object" ? {
-        unlocked: clamp(Math.trunc(Number(stored.unlocked) || 1), 1, LEVELS.length),
+        unlocked: LEVELS.length,
         selected: clamp(Math.trunc(Number(stored.selected) || 0), 0, LEVELS.length - 1),
         completed: stored.completed && typeof stored.completed === "object" ? stored.completed : {},
         bests: stored.bests && typeof stored.bests === "object" ? stored.bests : {}
@@ -954,7 +954,8 @@
         result.bests[LEVELS[0].id] = oldBest; result.completed[LEVELS[0].id] = true; result.unlocked = Math.max(result.unlocked, 2);
       }
     } catch (_) {}
-    result.selected = Math.min(result.selected, result.unlocked - 1);
+    result.unlocked = LEVELS.length;
+    result.selected = clamp(result.selected, 0, LEVELS.length - 1);
     return result;
   }
 
@@ -977,10 +978,9 @@
     const best = progress.bests[level.id];
     ui.best.textContent = best && Number.isFinite(best.time) ? `${best.rank} RANK // ${formatTime(best.time)} // ${best.loops} LOOPS` : "No successful breach";
     ui.levelButtons.forEach((button, index) => {
-      const locked = index >= progress.unlocked;
-      button.disabled = locked; button.classList.toggle("locked", locked); button.classList.toggle("selected", index === selectedLevelIndex); button.classList.toggle("complete", Boolean(progress.completed[LEVELS[index].id]));
+      button.disabled = false; button.classList.remove("locked"); button.classList.toggle("selected", index === selectedLevelIndex); button.classList.toggle("complete", Boolean(progress.completed[LEVELS[index].id]));
       button.setAttribute("aria-pressed", String(index === selectedLevelIndex));
-      button.setAttribute("aria-label", locked ? `${LEVELS[index].name}, locked` : `${LEVELS[index].name}${progress.completed[LEVELS[index].id] ? ", completed" : ""}`);
+      button.setAttribute("aria-label", `${LEVELS[index].name}${progress.completed[LEVELS[index].id] ? ", completed" : ""}`);
     });
   }
 
@@ -992,7 +992,6 @@
   function selectLevel(index, force = false) {
     if (!progress) progress = readProgress();
     const nextIndex = clamp(Math.trunc(Number(index) || 0), 0, LEVELS.length - 1);
-    if (!force && nextIndex >= progress.unlocked) return false;
     applyLevel(nextIndex); progress.selected = selectedLevelIndex; writeProgress();
     game.player = makePlayer(); game.guards = makeGuards(); game.cameras = makeCameras(); game.shards = makeShards(); game.pulseStates = makePulseStates(); game.portalReady = true;
     game.echoes = []; game.echoStates = []; game.terminalActive = false; game.plateActive = false; game.doorOpen = false; game.doorAmount = 0; game.core = false; game.objectiveStage = -1;
@@ -1368,7 +1367,7 @@
   }
 
   progress = readProgress();
-  selectLevel(Math.min(progress.selected, progress.unlocked - 1), true);
+  selectLevel(progress.selected, true);
   loadBest();
   updateObjective();
   requestAnimationFrame(tick);
