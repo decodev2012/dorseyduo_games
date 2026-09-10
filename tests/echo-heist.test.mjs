@@ -28,7 +28,7 @@ function makeElement(id) {
   };
 }
 
-function createRuntime(initialStorage = []) {
+function createRuntime(initialStorage = [], search = "") {
   const elements = new Map();
   const document = {
     body: makeElement("body"),
@@ -38,7 +38,7 @@ function createRuntime(initialStorage = []) {
   const storage = new Map(initialStorage);
   const sandbox = {
     document,
-    location: { hostname: "localhost", protocol: "http:" },
+    location: { hostname: "localhost", protocol: "http:", search },
     innerWidth: 1280, innerHeight: 720, devicePixelRatio: 1,
     performance: { now: () => 0 },
     matchMedia: () => ({ matches: false }),
@@ -95,7 +95,7 @@ test("Echo Heist script parses and initializes without a browser crash", () => {
 });
 
 test("Echo Heist is clearly featured at the top of the games homepage", () => {
-  assert.match(homeHtml, /href="time-loop-heist\/\?v=campaign-6" class="card featured" id="echo-heist"/);
+  assert.match(homeHtml, /href="time-loop-heist\/\?v=campaign-7&amp;level=neon-foundry" class="card featured" id="echo-heist"/);
   assert.ok(homeHtml.indexOf("id=\"echo-heist\"") < homeHtml.indexOf("href=\"monkey-grapple/index.html\""));
   assert.match(homeHtml, /justify-content: flex-start/);
   assert.match(homeHtml, /4 LEVELS LIVE/);
@@ -106,9 +106,23 @@ test("menu, gameplay HUD, pause, help, result, and all promised controls exist",
     assert.match(html, new RegExp(`id=["']${id}["']`));
   }
   for (const control of ["WASD", "SPACE", "E", "R"]) assert.match(html, new RegExp(`>${control}<`));
-  assert.match(html, /<script src="game\.js\?v=campaign-6"><\/script>/);
+  assert.match(html, /<script src="game\.js\?v=campaign-7"><\/script>/);
   assert.match(html, /id="timerValue">40\.0</);
   assert.match(html, /Maximum echoes: 4/);
+  assert.match(html, /New harder puzzles — echo decoys in operations 02–04/i);
+  assert.match(html, /NEW • START HERE \/\/ 1 guard decoy/);
+});
+
+test("the homepage deep link opens directly on the first decoy operation", () => {
+  const { debug } = createRuntime([], "?v=campaign-7&level=neon-foundry");
+  assert.equal(debug.getLevel().id, "neon-foundry");
+  assert.equal(debug.getLevel().requiredDistractions, 1);
+});
+
+test("missing or invalid level links preserve the saved campaign selection", () => {
+  const saved = [["echoHeistCampaignV2", JSON.stringify({ selected: 2, completed: {}, bests: {} })]];
+  assert.equal(createRuntime(saved).debug.getLevel().id, "mirror-archive");
+  assert.equal(createRuntime(saved, "?v=campaign-7&level=not-a-level").debug.getLevel().id, "mirror-archive");
 });
 
 test("every DOM binding resolves to one unique element", () => {

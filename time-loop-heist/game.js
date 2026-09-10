@@ -353,7 +353,6 @@
       if (name === "shard") { this.tone(620, .16, "sine", .05, 980); this.tone(930, .22, "triangle", .04, 1320, .07); }
       if (name === "portal") { this.tone(190, .28, "sawtooth", .045, 740); this.tone(820, .2, "sine", .04, 260, .05); }
       if (name === "warning") { this.tone(260, .09, "square", .035, 210); this.tone(390, .08, "square", .028, 320, .12); }
-      if (name === "decoy") { this.tone(760, .08, "square", .045, 460); this.tone(1080, .16, "sine", .04, 620, .07); }
       if (name === "decoy") { this.tone(760, .12, "square", .045, 430); this.tone(1040, .18, "sine", .035, 620, .08); }
       if (name === "scan") { this.noise(.16, .025, 1200); this.tone(310, .18, "triangle", .03, 170); }
       if (name === "win") { [0, .12, .25, .4].forEach((delay, i) => this.tone([262, 392, 523, 784][i], .48, "triangle", .075, [310, 466, 622, 932][i], delay)); }
@@ -1081,6 +1080,14 @@
     try { localStorage.setItem("echoHeistCampaignV2", JSON.stringify(progress)); } catch (_) {}
   }
 
+  function requestedLevelIndex() {
+    const search = typeof location.search === "string" ? location.search : "";
+    const match = search.match(/[?&]level=([^&]+)/i);
+    if (!match) return -1;
+    const requested = match[1].toLowerCase();
+    return LEVELS.findIndex((level) => level.id === requested);
+  }
+
   function refreshMenu() {
     const level = activeLevel;
     const completed = LEVELS.filter((item) => progress.completed[item.id]).length;
@@ -1525,7 +1532,8 @@
   }
 
   progress = readProgress();
-  selectLevel(progress.selected, true);
+  const linkedLevelIndex = requestedLevelIndex();
+  selectLevel(linkedLevelIndex >= 0 ? linkedLevelIndex : progress.selected, true);
   loadBest();
   updateObjective();
   requestAnimationFrame(tick);
