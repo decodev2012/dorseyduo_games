@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://decodev2012.github.io/dorseyduo_games/sitemap.xml
