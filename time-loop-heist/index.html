@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#050811">
   <title>Chrono Vault: Echo Heist | Dorsey Duo Games</title>
-  <meta name="description" content="Play Chrono Vault: Echo Heist, a free time-loop stealth puzzle game by Dorsey Duo Games. Record echoes, distract guards, and clear four missions.">
+  <meta name="description" content="Play Chrono Vault: Echo Heist, a free time-loop stealth puzzle game by Dorsey Duo Games. Record echoes, outsmart security, and clear four missions.">
   <meta name="robots" content="index, follow">
   <link rel="canonical" href="https://decodev2012.github.io/dorseyduo_games/time-loop-heist/">
   <link rel="sitemap" type="application/xml" href="https://decodev2012.github.io/dorseyduo_games/sitemap.xml">
   <meta property="og:type" content="website">
   <meta property="og:title" content="Chrono Vault: Echo Heist">
-  <meta property="og:description" content="Record your past selves, distract guards, and clear four time-loop heists.">
+  <meta property="og:description" content="Record your past selves, outsmart security, and clear four time-loop heists.">
   <meta property="og:url" content="https://decodev2012.github.io/dorseyduo_games/time-loop-heist/">
   <meta property="og:site_name" content="Dorsey Duo Games">
   <meta name="twitter:card" content="summary">
@@ -22,7 +22,7 @@
     "name": "Chrono Vault: Echo Heist",
     "alternateName": ["Chrono Vault", "Echo Heist"],
     "url": "https://decodev2012.github.io/dorseyduo_games/time-loop-heist/",
-    "description": "A free time-loop stealth puzzle game where recorded echoes distract guards and solve four missions.",
+    "description": "A free time-loop stealth puzzle game where recorded echoes help solve four impossible missions.",
     "genre": ["Stealth", "Puzzle", "Action"],
     "gamePlatform": "Web browser",
     "playMode": "SinglePlayer",
@@ -174,6 +174,14 @@
     .help-row{display:grid;grid-template-columns:90px 1fr;align-items:center;gap:13px;padding:10px 12px;border:1px solid #ffffff0d;border-radius:9px;background:#050b13}
     .help-row .keys{display:flex;justify-content:flex-end;gap:4px}
     .help-row p{margin:0;color:#8da5b7;font-size:10px;line-height:1.4}.help-row strong{color:#e3f7ff}
+    .tutorial-kicker{margin-bottom:12px;color:var(--cyan);font-size:9px;font-weight:1000;letter-spacing:.3em;text-transform:uppercase}
+    .signal-demo{position:relative;width:190px;height:74px;margin:24px auto 4px}
+    .signal-demo:before{position:absolute;left:12px;top:13px;width:44px;height:44px;border:2px dashed var(--cyan);border-radius:50%;box-shadow:0 0 24px #66f7ff66,inset 0 0 18px #66f7ff26;content:"";animation:signalSpin 5s linear infinite}
+    .signal-demo:after{position:absolute;left:103px;top:22px;width:54px;height:30px;border-radius:50% 50% 42% 42%;background:#223445;border:2px solid #6e8799;box-shadow:0 8px 16px #0009;content:""}
+    .signal-echo{position:absolute;left:24px;top:25px;width:22px;height:22px;border:2px solid #d4ffff;border-radius:50%;background:#66f7ff44;box-shadow:0 0 19px var(--cyan)}
+    .signal-path{position:absolute;left:59px;top:35px;width:47px;border-top:2px dashed #66f7ffaa}
+    .signal-eye{position:absolute;z-index:1;left:139px;top:31px;width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 11px var(--cyan)}
+    @keyframes signalSpin{to{transform:rotate(360deg)}}
     .countdown{position:absolute;z-index:8;inset:0;display:grid;place-items:center;pointer-events:none;color:#e9feff;font-size:clamp(80px,18vw,180px);font-weight:1000;letter-spacing:-.08em;text-shadow:0 0 70px #57ecff,0 12px 40px #000;opacity:0;transform:scale(.7)}
     .countdown.show{animation:countPop .7s cubic-bezier(.18,.82,.25,1)}
     @keyframes countPop{0%{opacity:0;transform:scale(.55)}20%{opacity:1}70%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.18)}}
@@ -247,13 +255,13 @@
           <div class="chapter" id="menuChapter">Chrono Vault // Echo Heist // Operation 01</div>
           <h1>Echo <span>Heist</span></h1>
           <p class="tagline" id="menuTagline">The vault needs three thieves. You came alone. <strong>Good thing your past selves are excellent accomplices.</strong></p>
-          <div class="campaign-badge">New harder puzzles — echo decoys in operations 02–04</div>
-          <p class="game-summary">Chrono Vault: Echo Heist is a free time-loop stealth puzzle game. Record routes, rewind time, and use your echoes to fool guards.</p>
+          <div class="campaign-badge">Four operations live — escalating security</div>
+          <p class="game-summary">Chrono Vault: Echo Heist is a free time-loop stealth puzzle game. Record routes, rewind time, and coordinate your past selves to breach impossible vaults.</p>
           <div class="level-select" id="levelSelect" aria-label="Choose any operation">
             <button class="level-card selected" id="levelButton1" type="button" data-level="0" aria-pressed="true"><span class="level-op">01</span><span><b>Chrono Vault</b><small>Initiation // Original breach</small></span></button>
-            <button class="level-card" id="levelButton2" type="button" data-level="1" aria-pressed="false"><span class="level-op">02</span><span><b>Neon Foundry</b><small>NEW • START HERE // 1 guard decoy</small></span></button>
-            <button class="level-card" id="levelButton3" type="button" data-level="2" aria-pressed="false"><span class="level-op">03</span><span><b>Mirror Archive</b><small>2 guard decoys // Warp rifts</small></span></button>
-            <button class="level-card" id="levelButton4" type="button" data-level="3" aria-pressed="false"><span class="level-op">04</span><span><b>Zero Hour</b><small>2 guard decoys // Finale</small></span></button>
+            <button class="level-card" id="levelButton2" type="button" data-level="1" aria-pressed="false"><span class="level-op">02</span><span><b>Neon Foundry</b><small>Pulse floors // 2 fragments</small></span></button>
+            <button class="level-card" id="levelButton3" type="button" data-level="2" aria-pressed="false"><span class="level-op">03</span><span><b>Mirror Archive</b><small>Warp rifts // 3 fragments</small></span></button>
+            <button class="level-card" id="levelButton4" type="button" data-level="3" aria-pressed="false"><span class="level-op">04</span><span><b>Zero Hour</b><small>Black Diamond // Finale</small></span></button>
           </div>
           <div class="menu-actions">
             <button class="primary" id="playButton" type="button">Breach the loop</button>
@@ -283,12 +291,22 @@
           <div class="help-row"><div class="keys"><kbd>SPACE</kbd></div><p><strong>Dash</strong> past patrols. It recharges quickly.</p></div>
           <div class="help-row"><div class="keys"><kbd>E</kbd></div><p><strong>Interact</strong> with terminals and the Chrono Core.</p></div>
           <div class="help-row"><div class="keys"><kbd>R</kbd></div><p><strong>Hold to rewind</strong> and turn your current route into an echo.</p></div>
-          <div class="help-row"><div class="keys"><kbd>ECHO</kbd></div><p><strong>Distract guards.</strong> Dash through a marked DECOY zone and rewind. Next loop, the sentry chases that echo while you slip behind it.</p></div>
           <div class="help-row"><div class="keys"><kbd>RED</kbd></div><p><strong>Pulse floors</strong> are lethal while glowing. Cross during their dark beat.</p></div>
           <div class="help-row"><div class="keys"><kbd>RIFT</kbd></div><p><strong>Warp portals</strong> preserve your movement speed and work in both directions.</p></div>
           <div class="help-row"><div class="keys"><kbd>FRAG</kbd></div><p><strong>Time fragments reset</strong> on rewind, but a recorded echo can collect them again for you.</p></div>
         </div>
-        <div class="modal-actions"><button class="primary" id="helpPlayButton" type="button">Start operation</button><button class="secondary" id="helpBackButton" type="button">Back</button></div>
+        <div class="modal-actions"><button class="primary" id="helpPlayButton" type="button">Start operation</button><button class="secondary" id="signalTutorialReplayButton" type="button">Replay advanced tutorial</button><button class="secondary" id="helpBackButton" type="button">Back</button></div>
+      </div>
+    </section>
+
+    <section id="signalTutorial" class="overlay" role="dialog" aria-modal="true" aria-labelledby="signalTutorialTitle" hidden>
+      <div class="modal">
+        <div class="tutorial-kicker">One-time field briefing</div>
+        <div class="modal-icon">◎</div>
+        <h2 id="signalTutorialTitle">Temporal Misdirection</h2>
+        <div class="signal-demo" aria-hidden="true"><i class="signal-echo"></i><i class="signal-path"></i><i class="signal-eye"></i></div>
+        <p class="sub">Guards can see your echoes. Dash through a glowing signal ring, then rewind. On the next loop, the guard follows that echo—use the opening to slip past. Each linked sentry needs a different echo.</p>
+        <div class="modal-actions"><button class="primary" id="signalTutorialStart" type="button">Understood — Start</button><button class="secondary" id="signalTutorialBack" type="button">Back</button></div>
       </div>
     </section>
 
@@ -315,6 +333,6 @@
       </div>
     </section>
   </main>
-  <script src="game.js?v=campaign-9"></script>
+  <script src="game.js?v=campaign-10"></script>
 </body>
 </html>

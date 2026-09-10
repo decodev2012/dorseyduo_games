@@ -10,7 +10,7 @@
 
   const $ = (id) => document.getElementById(id);
   const ui = {
-    hud: $("hud"), menu: $("menu"), help: $("help"), pause: $("pause"), result: $("result"),
+    hud: $("hud"), menu: $("menu"), help: $("help"), signalTutorial: $("signalTutorial"), pause: $("pause"), result: $("result"),
     loop: $("loopValue"), echoes: $("echoValue"), timer: $("timerValue"), timerChip: $("timerChip"),
     objective: $("objectiveText"), objectiveFill: $("objectiveFill"), alert: $("alertFill"),
     alertState: $("alertState"), alertCard: $("alertCard"), toast: $("toast"),
@@ -37,6 +37,7 @@
   const MAX_LOOPS = 5;
   const PLAYER_RADIUS = 17;
   const RECORD_RATE = 30;
+  const SIGNAL_TUTORIAL_KEY = "echoHeistSignalTutorialV1";
   const COLORS = { cyan: "#66f7ff", pink: "#ff4fbf", amber: "#ffbd5c", red: "#ff526d", green: "#9dff8a" };
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
@@ -107,8 +108,8 @@
     },
     {
       id: "neon-foundry", operation: "02", name: "Neon Foundry", difficulty: "Volatile",
-      tagline: "The Core is split across a live weapons plant. <strong>Make a guard chase your echo, then slip through while security takes the bait.</strong>",
-      briefing: [["Kill the grid", "Record the west terminal while furnaces pulse around you."], ["Create a decoy", "Dash past the sentry, rewind, then let your echo lure it away."], ["Breach the freight vault", "Hold the sync pad, fool one guard, rebuild the Core, and escape."]],
+      tagline: "The Core is split across a live weapons plant. <strong>Read the security pattern, rebuild it, and escape before the next shift arrives.</strong>",
+      briefing: [["Kill the grid", "Record the west terminal while furnaces pulse around you."], ["Read the floor", "Pulse zones alternate between safe and lethal."], ["Breach the freight vault", "Restore both links, recover two fragments, and crack the final security lock."]],
       resultTitle: "Foundry Robbed", resultCopy: "The assembly line kept moving. So did every version of you.",
       loopDuration: 42, maxLoops: 5, parTime: 104, requiredDistractions: 1, spawn: { x: 165, y: 890, angle: -Math.PI / 2 },
       floor: { x: 58, y: 76, w: 1884, h: 978 },
@@ -146,8 +147,8 @@
     },
     {
       id: "mirror-archive", operation: "03", name: "Mirror Archive", difficulty: "Unstable",
-      tagline: "Space folds inside the Archive. <strong>Two sentries seal the route—split their attention across two different echoes.</strong>",
-      briefing: [["Record the west decoy", "After linking the terminal and pad, dash through the first marked decoy zone."], ["Ride the rift to decoy two", "Use the portal, run north, and record a different echo through the second zone."], ["Exploit the opening", "Both guards must chase different echoes in the same loop before the prism vault opens."]],
+      tagline: "Space folds inside the Archive. <strong>Use paired rifts, read the patrols, and assemble the fractured Core.</strong>",
+      briefing: [["Anchor the link", "The first security terminal hides beyond the mirrored stacks."], ["Ride the rifts", "Blue portals preserve your speed and direction."], ["Break the prism vault", "Recover all three fragments and solve the Archive's layered security."]],
       resultTitle: "Archive Rewritten", resultCopy: "You stole the one artifact that was stored in three places at once.",
       loopDuration: 46, maxLoops: 5, parTime: 118, requiredDistractions: 2, spawn: { x: 170, y: 180, angle: .35 },
       floor: { x: 58, y: 76, w: 1884, h: 978 },
@@ -187,8 +188,8 @@
     },
     {
       id: "zero-hour", operation: "04", name: "Zero Hour", difficulty: "Black Diamond",
-      tagline: "The timeline is collapsing around the final Core. <strong>Synchronize two guard decoys, two security links, and a perfect extraction.</strong>",
-      briefing: [["Record the first bait", "After the security-link routes, dash through the west marked decoy zone and rewind."], ["Record the second bait", "Use a different loop to dash through the kill-floor decoy zone."], ["Run the perfect loop", "Both sentries must chase different echoes before the final vault accepts the sync signal."]],
+      tagline: "The timeline is collapsing around the final Core. <strong>Every system is armed; build one flawless route through the chaos.</strong>",
+      briefing: [["Read the collapse", "Map the patrols, cameras, and pulse floors before committing."], ["Build the crew", "Synchronize the two security links across separate loops."], ["Run the perfect loop", "Break the final lock, recover every fragment, and extract."]],
       resultTitle: "Timeline Owned", resultCopy: "Four impossible robberies. One flawless crew. Every member was you.",
       loopDuration: 48, maxLoops: 5, parTime: 132, requiredDistractions: 2, spawn: { x: 160, y: 900, angle: -1.1 },
       floor: { x: 58, y: 76, w: 1884, h: 978 },
@@ -459,12 +460,37 @@
   }
 
   function showOnly(element) {
-    [ui.menu, ui.help, ui.pause, ui.result].forEach((node) => { node.hidden = node !== element; node.inert = node !== element; });
+    [ui.menu, ui.help, ui.signalTutorial, ui.pause, ui.result].forEach((node) => { node.hidden = node !== element; node.inert = node !== element; });
+  }
+
+  function signalTutorialSeen() {
+    try { return localStorage.getItem(SIGNAL_TUTORIAL_KEY) === "1"; }
+    catch (_) { return false; }
+  }
+
+  function launchMission() {
+    resetMission(); canvas.focus({ preventScroll: true });
+  }
+
+  function showSignalTutorial() {
+    showOnly(ui.signalTutorial);
+    $("signalTutorialStart").focus({ preventScroll: true });
+  }
+
+  function confirmSignalTutorial() {
+    try { localStorage.setItem(SIGNAL_TUTORIAL_KEY, "1"); }
+    catch (_) { /* Private browsing may block storage; the mission can still start. */ }
+    audio.sfx("ui");
+    launchMission();
   }
 
   function startMission() {
     audio.init(); audio.resume(); audio.sfx("ui");
-    resetMission(); canvas.focus({ preventScroll: true });
+    if (distractionGoal() > 0 && !signalTutorialSeen()) {
+      showSignalTutorial();
+      return;
+    }
+    launchMission();
   }
 
   function openMenu() {
@@ -741,7 +767,7 @@
       spawnRing(SYNC_PAD.x, SYNC_PAD.y, COLORS.amber, 135, .55);
       if (!game.flags.plate) {
         game.flags.plate = true;
-        if (!distractionsReady()) toast(game.echoes.length < 2 ? "SYNC ROUTE FOUND — RECORD IT, THEN BAIT THE SENTRIES" : `SYNC HELD — DISTRACT ${distractionGoal() - game.distractedGuards.size} MORE GUARD${distractionGoal() - game.distractedGuards.size === 1 ? "" : "S"}`);
+        if (!distractionsReady()) toast(game.echoes.length < 2 ? "SYNC ROUTE FOUND — RECORD IT, THEN SOLVE THE SECURITY LOCK" : "SYNC HELD — VAULT SECURITY STILL ACTIVE");
         else toast(game.echoes.length < 2 ? "VAULT LINKED — STAND HERE + HOLD R" : "VAULT GATE OPEN");
       }
     }
@@ -850,7 +876,7 @@
     if (echoAlreadyUsed) {
       if (!guard.warnedEchoes.has(echo.index)) {
         guard.warnedEchoes.add(echo.index);
-        toast("THAT ECHO ALREADY FOOLED A SENTRY — RECORD A DIFFERENT DECOY", 2.4);
+        toast("SIGNATURE ALREADY USED — UNIQUE ECHO REQUIRED", 2.4);
       }
       return false;
     }
@@ -859,7 +885,7 @@
     audio.sfx("decoy");
     spawnParticles(echo.x, echo.y, echo.color || COLORS.cyan, 16, 150);
     spawnRing(echo.x, echo.y, echo.color || COLORS.cyan, 130, .55);
-    toast(`${Math.min(game.distractedGuards.size, goal)} / ${goal} SENTRIES FOOLED — MOVE NOW`, 2.1);
+    toast(`SIGNAL LINK ${Math.min(game.distractedGuards.size, goal)} / ${goal} — SECURITY DIVERTED`, 2.1);
     return true;
   }
 
@@ -870,8 +896,8 @@
     if (!firstPursuit || earnedCredit) return;
     audio.sfx("decoy");
     spawnRing(echo.x, echo.y, echo.color || COLORS.cyan, 95, .4);
-    if (guard.required) toast("SENTRY TRACKING ECHO — DASH THROUGH ITS MARKED DECOY ZONE", 2.1);
-    else toast(`ECHO ${String(echo.index).padStart(2, "0")} TOOK THE BAIT — MOVE NOW`, 1.7);
+    if (guard.required) toast("SENTRY TRACKING TEMPORAL SIGNATURE", 2.1);
+    else toast(`SECURITY ROUTE DIVERTED BY ECHO ${String(echo.index).padStart(2, "0")}`, 1.7);
   }
 
   function updateGuards(dt) {
@@ -953,11 +979,10 @@
     } else if (!game.plateActive) {
       stage = 4; text = "Wait for Echo 02 to reach the sync pad"; target = SYNC_PAD;
     } else if (!distractionsReady()) {
-      const remaining = Math.max(0, distractionGoal() - game.distractedGuards.size);
       const sentry = game.guards.find((guard) => guard.required && !game.distractedGuards.has(guard.index));
-      stage = 4; text = `Dash an echo through ${remaining} more marked ${remaining === 1 ? "decoy zone" : "decoy zones"}`; target = sentry ? sentry.bait : VAULT_GATE;
+      stage = 4; text = `Synchronize marked signals: ${game.distractedGuards.size} / ${distractionGoal()}`; target = sentry ? sentry.bait : VAULT_GATE;
     } else if (game.doorAmount < .78) {
-      stage = 4; text = "Decoys worked — slip through the opening"; target = VAULT_GATE;
+      stage = 4; text = "Security diverted — move through the opening"; target = VAULT_GATE;
     } else if (missingShard) {
       const found = game.shards.filter((shard) => shard.collected).length;
       stage = 5; text = `Collect time fragments ${found} / ${game.shards.length}`; target = missingShard;
@@ -1140,10 +1165,10 @@
     ui.timer.textContent = remaining.toFixed(1);
     ui.timerChip.classList.toggle("danger", remaining < 8);
     ui.alert.style.width = `${game.detection * 100}%`;
-    const guardOnDecoy = game.guards.some((guard) => guard.mode === "echoChase" || guard.mode === "scan");
-    const alertText = game.detection > .72 ? "Compromised" : game.detection > .3 ? "Tracing" : game.spotted ? "Spotted" : guardOnDecoy ? `Echo bait ${game.distractedGuards.size}/${Math.max(1, distractionGoal())}` : "Hidden";
+    const guardOnSignal = game.guards.some((guard) => guard.mode === "echoChase" || guard.mode === "scan");
+    const alertText = game.detection > .72 ? "Compromised" : game.detection > .3 ? "Tracing" : game.spotted ? "Spotted" : guardOnSignal ? `Signal sync ${game.distractedGuards.size}/${Math.max(1, distractionGoal())}` : "Hidden";
     ui.alertState.textContent = alertText;
-    ui.alertState.style.color = game.detection > .3 ? COLORS.red : guardOnDecoy ? COLORS.cyan : COLORS.green;
+    ui.alertState.style.color = game.detection > .3 ? COLORS.red : guardOnSignal ? COLORS.cyan : COLORS.green;
     ui.alertCard.classList.toggle("hot", game.detection > .7);
     ui.echoSlots.forEach((slot, index) => slot.classList.toggle("active", index < game.echoes.length));
   }
@@ -1302,7 +1327,7 @@
       ctx.strokeStyle = color; ctx.lineWidth = complete ? 4 : 2.5; ctx.shadowColor = color; ctx.shadowBlur = complete ? 20 : 12;
       ctx.setLineDash(complete ? [] : [9, 10]); ctx.lineDashOffset = -worldTime * 24; ctx.beginPath(); ctx.arc(0, 0, guard.bait.r + pulse, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
       ctx.shadowBlur = 0; ctx.fillStyle = "#06121de6"; ctx.strokeStyle = `${color}99`; roundRectPath(ctx, -42, -12, 84, 24, 6); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = color; ctx.font = "1000 8px Avenir Next,system-ui"; ctx.textAlign = "center"; ctx.fillText(complete ? `DECOY ${number} ✓` : `DECOY ${number} · DASH`, 0, 3); ctx.restore();
+      ctx.fillStyle = color; ctx.font = "1000 8px Avenir Next,system-ui"; ctx.textAlign = "center"; ctx.fillText(`SIGNAL ${String(number).padStart(2, "0")}${complete ? " ✓" : ""}`, 0, 3); ctx.restore();
     }
   }
 
@@ -1401,7 +1426,7 @@
     ctx.fillStyle = "#727f8b"; ctx.fillRect(-7, -21, 15, 8); ctx.fillRect(-7, 13, 15, 8); ctx.restore();
     if (echoMode) {
       ctx.save(); ctx.translate(guard.x, guard.y - 34); ctx.fillStyle = "#06121ddd"; ctx.strokeStyle = `${COLORS.cyan}99`; roundRectPath(ctx, -28, -9, 56, 18, 5); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = "#c9fdff"; ctx.font = "1000 7px Avenir Next,system-ui"; ctx.textAlign = "center"; ctx.fillText(guard.mode === "scan" ? "SCANNING" : "DECOY!", 0, 3); ctx.restore();
+      ctx.fillStyle = "#c9fdff"; ctx.font = "1000 7px Avenir Next,system-ui"; ctx.textAlign = "center"; ctx.fillText(guard.mode === "scan" ? "SCANNING" : "TRACKING", 0, 3); ctx.restore();
     }
   }
 
@@ -1502,6 +1527,9 @@
   $("helpPlayButton").addEventListener("click", startMission);
   $("helpButton").addEventListener("click", () => { audio.sfx("ui"); showOnly(ui.help); $("helpPlayButton").focus({ preventScroll: true }); });
   $("helpBackButton").addEventListener("click", () => { audio.sfx("ui"); showOnly(ui.menu); $("helpButton").focus({ preventScroll: true }); });
+  $("signalTutorialReplayButton").addEventListener("click", () => { audio.sfx("ui"); showSignalTutorial(); });
+  $("signalTutorialStart").addEventListener("click", confirmSignalTutorial);
+  $("signalTutorialBack").addEventListener("click", () => { audio.sfx("ui"); showOnly(ui.menu); $("playButton").focus({ preventScroll: true }); });
   $("pauseButton").addEventListener("click", pauseGame);
   $("resumeButton").addEventListener("click", () => { audio.sfx("ui"); resumeGame(); });
   $("restartButton").addEventListener("click", startMission);
@@ -1521,7 +1549,7 @@
         getLevel: () => activeLevel,
         selectLevel: (index) => selectLevel(index, true),
         setState: (nextState) => { state = nextState; },
-        resetMission, resetLoop, updatePlayer, updateDevices, updateGuards, updateObjective, updatePlaying,
+        resetMission, resetLoop, startMission, confirmSignalTutorial, signalTutorialSeen, updatePlayer, updateDevices, updateGuards, updateObjective, updatePlaying,
         recordFrame, sampleEcho, beginRewind, completeRewind, collectCore, finishEscape, endMission, formatTime, render,
         guardCanSee, guardCanNoticeEcho, lineBlocked, colliders, moveCircle, distractionGoal, distractionsReady, creditSentryDistraction,
         setEchoes: (echoes) => { game.echoes = echoes; game.echoStates = game.echoes.map((echo) => sampleEcho(echo, game.loopTime)).filter(Boolean); },

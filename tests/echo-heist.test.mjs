@@ -103,16 +103,59 @@ test("Echo Heist is clearly featured at the top of the games homepage", () => {
   assert.match(homeHtml, /4 LEVELS LIVE/);
 });
 
-test("menu, gameplay HUD, pause, help, result, and all promised controls exist", () => {
-  for (const id of ["menu", "hud", "pause", "help", "result", "playButton", "soundButton", "objectiveText", "alertFill", "levelSelect", "levelButton1", "levelButton2", "levelButton3", "levelButton4", "nextButton"]) {
+test("menu, gameplay HUD, tutorials, pause, result, and all promised controls exist", () => {
+  for (const id of ["menu", "hud", "pause", "help", "signalTutorial", "signalTutorialStart", "signalTutorialBack", "signalTutorialReplayButton", "result", "playButton", "soundButton", "objectiveText", "alertFill", "levelSelect", "levelButton1", "levelButton2", "levelButton3", "levelButton4", "nextButton"]) {
     assert.match(html, new RegExp(`id=["']${id}["']`));
   }
   for (const control of ["WASD", "SPACE", "E", "R"]) assert.match(html, new RegExp(`>${control}<`));
-  assert.match(html, /<script src="game\.js\?v=campaign-9"><\/script>/);
+  assert.match(html, /<script src="game\.js\?v=campaign-10"><\/script>/);
   assert.match(html, /id="timerValue">40\.0</);
   assert.match(html, /Maximum echoes: 4/);
-  assert.match(html, /New harder puzzles — echo decoys in operations 02–04/i);
-  assert.match(html, /NEW • START HERE \/\/ 1 guard decoy/);
+  assert.match(html, /Four operations live — escalating security/i);
+  assert.match(html, /Pulse floors \/\/ 2 fragments/);
+});
+
+test("the guard solution is taught in its tutorial and not spoiled around the menu", () => {
+  const tutorial = html.match(/<section id="signalTutorial"[\s\S]*?<\/section>/)?.[0] || "";
+  assert.match(tutorial, /Temporal Misdirection/);
+  assert.match(tutorial, /Guards can see your echoes/);
+  assert.match(tutorial, /Dash through a glowing signal ring, then rewind/);
+  const normalPage = html.replace(tutorial, "");
+  assert.doesNotMatch(normalPage, /\b(decoy|bait|fooled?)\b/i);
+  for (const spoiler of [
+    /Make a guard chase your echo/i,
+    /Create a decoy/i,
+    /marked decoy zone/i,
+    /SENTRIES FOOLED/i,
+    /Dash an echo through/i,
+    /Echo bait/i
+  ]) assert.doesNotMatch(source, spoiler);
+});
+
+test("the advanced mechanic tutorial appears once before a hard operation", () => {
+  const { debug, elements, storage } = createRuntime();
+  debug.selectLevel(1);
+  debug.startMission();
+  assert.equal(debug.getState(), "menu", "countdown waits until the briefing is accepted");
+  assert.equal(elements.get("signalTutorial").hidden, false);
+  assert.equal(storage.has("echoHeistSignalTutorialV1"), false, "opening the briefing alone does not dismiss it forever");
+  debug.confirmSignalTutorial();
+  assert.equal(storage.get("echoHeistSignalTutorialV1"), "1");
+  assert.equal(debug.getState(), "countdown");
+  assert.equal(elements.get("signalTutorial").hidden, true);
+});
+
+test("Chrono Vault skips the advanced tutorial and returning players do not see it twice", () => {
+  const fresh = createRuntime();
+  fresh.debug.startMission();
+  assert.equal(fresh.debug.getState(), "countdown");
+  assert.equal(fresh.storage.has("echoHeistSignalTutorialV1"), false);
+
+  const returning = createRuntime([["echoHeistSignalTutorialV1", "1"]]);
+  returning.debug.selectLevel(2);
+  returning.debug.startMission();
+  assert.equal(returning.debug.getState(), "countdown");
+  assert.equal(returning.elements.get("signalTutorial").hidden, true);
 });
 
 test("the homepage deep link opens directly on the first decoy operation", () => {
