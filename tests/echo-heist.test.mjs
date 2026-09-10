@@ -95,7 +95,9 @@ test("Echo Heist script parses and initializes without a browser crash", () => {
 });
 
 test("Echo Heist is clearly featured at the top of the games homepage", () => {
-  assert.match(homeHtml, /href="time-loop-heist\/\?v=campaign-7&amp;level=neon-foundry" class="card featured" id="echo-heist"/);
+  assert.match(homeHtml, /href="time-loop-heist\/\?v=campaign-8&amp;level=chrono-vault" class="card featured" id="echo-heist"/);
+  assert.match(homeHtml, /<h2>Chrono Vault — Echo Heist<\/h2>/);
+  for (const operation of ["Chrono Vault", "Neon Foundry", "Mirror Archive", "Zero Hour"]) assert.match(homeHtml, new RegExp(operation));
   assert.ok(homeHtml.indexOf("id=\"echo-heist\"") < homeHtml.indexOf("href=\"monkey-grapple/index.html\""));
   assert.match(homeHtml, /justify-content: flex-start/);
   assert.match(homeHtml, /4 LEVELS LIVE/);
