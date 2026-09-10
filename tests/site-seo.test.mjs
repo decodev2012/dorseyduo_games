@@ -8,6 +8,7 @@ const game = await readFile(new URL("time-loop-heist/index.html", root), "utf8")
 const robots = await readFile(new URL("robots.txt", root), "utf8");
 const sitemap = await readFile(new URL("sitemap.xml", root), "utf8");
 const readme = await readFile(new URL("README.md", root), "utf8");
+const apiConfigText = await readFile(new URL("wrangler.api.jsonc", root), "utf8");
 
 test("Chrono Vault has indexable titles, descriptions, and canonical URLs", () => {
   assert.match(home, /<title>Dorsey Duo Games \| Chrono Vault, Echo Heist &amp; Browser Games<\/title>/);
@@ -38,4 +39,11 @@ test("project crawl files and the repository README expose the game", () => {
   assert.equal((sitemap.match(/<loc>/g) || []).length, 25);
   assert.match(readme, /Play Chrono Vault: Echo Heist/);
   assert.match(readme, /https:\/\/decodev2012\.github\.io\/dorseyduo_games\/time-loop-heist\//);
+});
+
+test("the leaderboard API config cannot override the custom-domain website build", async () => {
+  await assert.rejects(readFile(new URL("wrangler.jsonc", root), "utf8"), (error) => error?.code === "ENOENT");
+  const apiConfig = JSON.parse(apiConfigText.slice(apiConfigText.indexOf("{")));
+  assert.equal(apiConfig.name, "dorseyduo-games-api");
+  assert.equal(apiConfig.pages_build_output_dir, "./cloudflare-public");
 });

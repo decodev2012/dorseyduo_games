@@ -1,3 +1,5 @@
+// Leaderboard API only. Keep this separate from the website's automatic
+// Cloudflare deployment, which publishes the repository root.
 {
   "name": "dorseyduo-games-api",
   "pages_build_output_dir": "./cloudflare-public",
