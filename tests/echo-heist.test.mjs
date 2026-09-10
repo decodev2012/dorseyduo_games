@@ -28,7 +28,7 @@ function makeElement(id) {
   };
 }
 
-function createRuntime(initialStorage = [], search = "") {
+function createRuntime(initialStorage = [], search = "", hash = "") {
   const elements = new Map();
   const document = {
     body: makeElement("body"),
@@ -38,7 +38,7 @@ function createRuntime(initialStorage = [], search = "") {
   const storage = new Map(initialStorage);
   const sandbox = {
     document,
-    location: { hostname: "localhost", protocol: "http:", search },
+    location: { hostname: "localhost", protocol: "http:", search, hash },
     innerWidth: 1280, innerHeight: 720, devicePixelRatio: 1,
     performance: { now: () => 0 },
     matchMedia: () => ({ matches: false }),
@@ -95,7 +95,7 @@ test("Echo Heist script parses and initializes without a browser crash", () => {
 });
 
 test("Echo Heist is clearly featured at the top of the games homepage", () => {
-  assert.match(homeHtml, /href="time-loop-heist\/\?v=campaign-8&amp;level=chrono-vault" class="card featured" id="echo-heist"/);
+  assert.match(homeHtml, /href="time-loop-heist\/#chrono-vault" class="card featured" id="echo-heist"/);
   assert.match(homeHtml, /<h2>Chrono Vault — Echo Heist<\/h2>/);
   for (const operation of ["Chrono Vault", "Neon Foundry", "Mirror Archive", "Zero Hour"]) assert.match(homeHtml, new RegExp(operation));
   assert.ok(homeHtml.indexOf("id=\"echo-heist\"") < homeHtml.indexOf("href=\"monkey-grapple/index.html\""));
@@ -108,7 +108,7 @@ test("menu, gameplay HUD, pause, help, result, and all promised controls exist",
     assert.match(html, new RegExp(`id=["']${id}["']`));
   }
   for (const control of ["WASD", "SPACE", "E", "R"]) assert.match(html, new RegExp(`>${control}<`));
-  assert.match(html, /<script src="game\.js\?v=campaign-7"><\/script>/);
+  assert.match(html, /<script src="game\.js\?v=campaign-9"><\/script>/);
   assert.match(html, /id="timerValue">40\.0</);
   assert.match(html, /Maximum echoes: 4/);
   assert.match(html, /New harder puzzles — echo decoys in operations 02–04/i);
@@ -119,6 +119,11 @@ test("the homepage deep link opens directly on the first decoy operation", () =>
   const { debug } = createRuntime([], "?v=campaign-7&level=neon-foundry");
   assert.equal(debug.getLevel().id, "neon-foundry");
   assert.equal(debug.getLevel().requiredDistractions, 1);
+});
+
+test("the clean homepage hash opens directly on Chrono Vault", () => {
+  const { debug } = createRuntime([], "", "#chrono-vault");
+  assert.equal(debug.getLevel().id, "chrono-vault");
 });
 
 test("missing or invalid level links preserve the saved campaign selection", () => {

@@ -8,10 +8,12 @@
   <meta name="description" content="Play Chrono Vault: Echo Heist, a free time-loop stealth puzzle game by Dorsey Duo Games. Record echoes, distract guards, and clear four missions.">
   <meta name="robots" content="index, follow">
   <link rel="canonical" href="https://decodev2012.github.io/dorseyduo_games/time-loop-heist/">
+  <link rel="sitemap" type="application/xml" href="https://decodev2012.github.io/dorseyduo_games/sitemap.xml">
   <meta property="og:type" content="website">
   <meta property="og:title" content="Chrono Vault: Echo Heist">
   <meta property="og:description" content="Record your past selves, distract guards, and clear four time-loop heists.">
   <meta property="og:url" content="https://decodev2012.github.io/dorseyduo_games/time-loop-heist/">
+  <meta property="og:site_name" content="Dorsey Duo Games">
   <meta name="twitter:card" content="summary">
   <script type="application/ld+json">
   {
@@ -128,6 +130,7 @@
     .tagline strong{color:#e6fbff}
     .campaign-badge{display:inline-flex;align-items:center;gap:8px;margin-top:22px;padding:7px 11px;border:1px solid #69efff55;border-radius:999px;background:#071522cc;color:#bcfaff;font-size:8px;font-weight:1000;letter-spacing:.16em;text-transform:uppercase;box-shadow:0 0 22px #57eeff18}
     .campaign-badge:before{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);content:""}
+    .game-summary{max-width:650px;margin:12px 0 0;color:#7993a8;font-size:10px;font-weight:700;line-height:1.5;letter-spacing:.035em}
     .level-select{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;max-width:650px;margin-top:24px}
     .level-card{position:relative;display:grid;grid-template-columns:auto 1fr;align-items:center;gap:11px;min-height:67px;padding:10px 13px;border:1px solid #7aefff20;border-radius:10px;background:linear-gradient(145deg,#0a1625d9,#07101bd9);color:#cceaf1;text-align:left;cursor:pointer;transition:transform .16s,border-color .16s,background .16s,box-shadow .16s}
     .level-card:hover:not(:disabled){transform:translateY(-2px);border-color:#69edff66;background:#10243a;box-shadow:0 9px 22px #0007}
@@ -241,10 +244,11 @@
     <section id="menu" class="overlay">
       <div class="menu-grid">
         <div class="menu-copy">
-          <div class="chapter" id="menuChapter">Dorsey Duo Games // Operation 01</div>
+          <div class="chapter" id="menuChapter">Chrono Vault // Echo Heist // Operation 01</div>
           <h1>Echo <span>Heist</span></h1>
           <p class="tagline" id="menuTagline">The vault needs three thieves. You came alone. <strong>Good thing your past selves are excellent accomplices.</strong></p>
           <div class="campaign-badge">New harder puzzles — echo decoys in operations 02–04</div>
+          <p class="game-summary">Chrono Vault: Echo Heist is a free time-loop stealth puzzle game. Record routes, rewind time, and use your echoes to fool guards.</p>
           <div class="level-select" id="levelSelect" aria-label="Choose any operation">
             <button class="level-card selected" id="levelButton1" type="button" data-level="0" aria-pressed="true"><span class="level-op">01</span><span><b>Chrono Vault</b><small>Initiation // Original breach</small></span></button>
             <button class="level-card" id="levelButton2" type="button" data-level="1" aria-pressed="false"><span class="level-op">02</span><span><b>Neon Foundry</b><small>NEW • START HERE // 1 guard decoy</small></span></button>
@@ -311,6 +315,6 @@
       </div>
     </section>
   </main>
-  <script src="game.js?v=campaign-7"></script>
+  <script src="game.js?v=campaign-9"></script>
 </body>
 </html>

@@ -73,7 +73,7 @@
   const LEVELS = [
     {
       id: "chrono-vault", operation: "01", name: "Chrono Vault", difficulty: "Initiation",
-      tagline: "The vault needs three thieves. You came alone. <strong>Good thing your past selves are excellent accomplices.</strong>",
+      tagline: "Chrono Vault begins Echo Heist. <strong>Record routes, rewind time, and turn your past selves into the perfect crew.</strong>",
       briefing: [["Record your route", "Every move you make is remembered by the loop."], ["Rewind time", "Your echo repeats the route while you begin again."], ["Outsmart the vault", "Hold both security links, steal the Core, and extract."]],
       resultTitle: "Core Secured", resultCopy: "The vault saw you coming. It just did not expect all your previous selves.",
       loopDuration: 40, maxLoops: 5, parTime: 85, requiredDistractions: 0, spawn: { x: 170, y: 900, angle: -Math.PI / 2 },
@@ -1083,15 +1083,16 @@
   function requestedLevelIndex() {
     const search = typeof location.search === "string" ? location.search : "";
     const match = search.match(/[?&]level=([^&]+)/i);
-    if (!match) return -1;
-    const requested = match[1].toLowerCase();
+    const hash = typeof location.hash === "string" ? location.hash.replace(/^#/, "") : "";
+    const requested = (match ? match[1] : hash).toLowerCase();
+    if (!requested) return -1;
     return LEVELS.findIndex((level) => level.id === requested);
   }
 
   function refreshMenu() {
     const level = activeLevel;
     const completed = LEVELS.filter((item) => progress.completed[item.id]).length;
-    ui.chapter.textContent = `Dorsey Duo Games // Operation ${level.operation}`;
+    ui.chapter.textContent = `${level.name} // Echo Heist // Operation ${level.operation}`;
     ui.tagline.innerHTML = level.tagline;
     ui.briefingName.textContent = `${level.name} briefing`;
     ui.briefingClass.textContent = level.difficulty;
